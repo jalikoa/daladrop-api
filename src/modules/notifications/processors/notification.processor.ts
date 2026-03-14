@@ -1,5 +1,5 @@
 import { Processor, Process } from '@nestjs/bull';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { SendNotificationUseCase } from '../use-cases/send-notification.usecase';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 

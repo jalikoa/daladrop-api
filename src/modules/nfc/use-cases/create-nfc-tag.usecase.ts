@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { INfcRepository } from '../interfaces/nfc-repository.interface';
-import { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
+import type { INfcRepository } from '../interfaces/nfc-repository.interface';
+import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
 import { EncryptionService } from '../../../common/security/encryption.service';
 import { CreateNfcTagDto } from '../dto/create-nfc-tag.dto';
 import { NfcTag } from '../entities/nfc-tag.entity';

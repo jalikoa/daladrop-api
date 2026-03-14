@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IUserRepository } from '../interfaces/user-repository.interface';
+import type { IUserRepository } from '../interfaces/user-repository.interface';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { User } from '../entities/user.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';

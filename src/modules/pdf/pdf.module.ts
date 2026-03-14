@@ -13,12 +13,7 @@ import { MerchantsModule } from '../merchants/merchants.module';
   imports: [
     BullModule.registerQueue({
       name: PDF_CONSTANTS.EVENT_PREFIX + '-queue',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: 50,
-        removeOnFail: 100,
-      },
+      defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: 50, removeOnFail: 100 },
     }),
     EventEmitterModule.forRoot(),
     QrModule,

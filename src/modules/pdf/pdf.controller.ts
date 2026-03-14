@@ -10,8 +10,9 @@ import {
   ValidationPipe,
   Res,
   StreamableFile,
+  NotFoundException,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { PdfService } from './services/pdf.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -19,7 +20,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/enums/user-role.enum';
 import { MerchantOwnerGuard } from '../merchants/guards/merchant-owner.guard';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import type { Queue } from 'bull';
 import { PDF_CONSTANTS } from './constants/pdf.constants';
 
 @Controller('pdf')
@@ -27,8 +28,7 @@ import { PDF_CONSTANTS } from './constants/pdf.constants';
 export class PdfController {
   constructor(
     private readonly pdfService: PdfService,
-    @InjectQueue(PDF_CONSTANTS.EVENT_PREFIX + '-queue')
-    private readonly pdfQueue: Queue,
+    @InjectQueue(PDF_CONSTANTS.EVENT_PREFIX + '-queue') private readonly pdfQueue: Queue,
   ) {}
 
   @Get('merchant/:merchantId/card')
@@ -50,10 +50,7 @@ export class PdfController {
       generatedAt: new Date(),
     };
 
-    const buffer = await this.pdfService.generateMerchantCard(
-      merchantData as any,
-    );
-
+    const buffer = await this.pdfService.generateMerchantCard(merchantData as any);
     const fileInfo = this.pdfService.getFileInfo(buffer);
 
     res.set({
@@ -69,7 +66,7 @@ export class PdfController {
   @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
   async generateMerchantCard(
     @Param('merchantId', ParseIntPipe) merchantId: number,
-    @Query('async', Query) async: string = 'true',
+    @Query('async') async = 'true',
   ): Promise<{ success: boolean; message: string; jobId?: string }> {
     if (async === 'true') {
       const job = await this.pdfQueue.add('merchant.card.generate', {
@@ -81,16 +78,9 @@ export class PdfController {
         paymentUrl: `https://pay.example.com/pay?merchant=${merchantId}`,
       });
 
-      return {
-        success: true,
-        message: 'Merchant card generation queued',
-        jobId: job.id?.toString(),
-      };
+      return { success: true, message: 'Merchant card generation queued', jobId: job.id?.toString() };
     } else {
-      return {
-        success: true,
-        message: 'Merchant card generated synchronously',
-      };
+      return { success: true, message: 'Merchant card generated synchronously' };
     }
   }
 
@@ -103,9 +93,9 @@ export class PdfController {
   ): Promise<StreamableFile> {
     const filePath = `./uploads/pdf/${fileName}`;
     const fs = await import('fs');
+
     if (!fs.existsSync(filePath)) {
-      res.status(404).json({ error: 'File not found' });
-      return;
+      throw new NotFoundException('File not found');
     }
 
     const buffer = fs.readFileSync(filePath);

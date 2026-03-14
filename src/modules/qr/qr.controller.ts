@@ -1,8 +1,8 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
+  Get,
   Param,
   ParseIntPipe,
   Query,
@@ -12,7 +12,7 @@ import {
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { QrService } from './services/qr.service';
 import { GenerateQrDto } from './dto/generate-qr.dto';
 import { QrCodeResponseDto } from './dto/qr-response.dto';
@@ -34,34 +34,30 @@ export class QrController {
 
     return {
       success: true,
-      data: {
+      payload: {
         qr_code_data_url: dataUrl,
-        qr_code_url: '', // Would be CDN URL if uploaded
+        qr_code_url: '',
         original_data: dto.data,
         size: dto.size || 300,
         format: 'png',
         created_at: new Date(),
       },
       generated_at: new Date(),
-    } as any;
+    } as unknown as QrCodeResponseDto;
   }
 
   @Get('merchant/:merchantId')
   @UseGuards(JwtAuthGuard)
   async getMerchantQr(
     @Param('merchantId', ParseIntPipe) merchantId: number,
-    @Query('size', ParseIntPipe) size: number = 300,
+    @Query('size') size = 300,
   ): Promise<QrCodeResponseDto> {
     const paymentUrl = `https://pay.example.com/pay?merchant=${merchantId}`;
-    const dataUrl = await this.qrService.generate({
-      data: paymentUrl,
-      size,
-      errorCorrection: 'H',
-    });
+    const dataUrl = await this.qrService.generate({ data: paymentUrl, size, errorCorrection: 'H' });
 
     return {
       success: true,
-      data: {
+      payload: {
         qr_code_data_url: dataUrl,
         qr_code_url: '',
         original_data: paymentUrl,
@@ -70,7 +66,7 @@ export class QrController {
         created_at: new Date(),
       },
       generated_at: new Date(),
-    } as any;
+    } as unknown as QrCodeResponseDto;
   }
 
   @Get('download/:merchantId')
@@ -80,11 +76,7 @@ export class QrController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const paymentUrl = `https://pay.example.com/pay?merchant=${merchantId}`;
-    const buffer = await this.qrService.generateToBuffer({
-      data: paymentUrl,
-      size: 500,
-      errorCorrection: 'H',
-    });
+    const buffer = await this.qrService.generateToBuffer({ data: paymentUrl, size: 500, errorCorrection: 'H' });
 
     res.set({
       'Content-Type': 'image/png',

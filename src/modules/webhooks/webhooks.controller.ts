@@ -16,7 +16,7 @@ import {
 	HttpStatus,
 	SetMetadata,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 import { DarajaCallbackDto } from './dto/daraja-callback.dto';
 import { WebhookResponseDto, WebhookLogResponseDto } from './dto/webhook-response.dto';

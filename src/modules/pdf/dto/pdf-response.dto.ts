@@ -5,7 +5,7 @@ export class PdfResponseDto {
   success: boolean;
 
   @Expose()
-  data: {
+  payload: {
     pdf_url: string;
     file_name: string;
     file_size: number;

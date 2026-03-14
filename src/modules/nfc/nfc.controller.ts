@@ -11,7 +11,7 @@ import {
   ValidationPipe,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express'; // Type-only import for isolatedModules
 import { NfcService } from './nfc.service';
 import { CreateNfcTagDto } from './dto/create-nfc-tag.dto';
 import { DecodeTokenDto } from './dto/decode-token.dto';

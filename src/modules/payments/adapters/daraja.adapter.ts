@@ -9,7 +9,7 @@ export class DarajaAdapter implements IDarajaAdapter {
   private readonly logger = new Logger(DarajaAdapter.name);
   private readonly http: AxiosInstance;
   private readonly baseUrl: string;
-  private accessToken?: string;
+  private accessToken?: string; // Cache for access token
   private tokenExpiry?: number;
 
   constructor(private readonly configService: ConfigService) {
@@ -22,7 +22,7 @@ export class DarajaAdapter implements IDarajaAdapter {
 
   async getAccessToken(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
+      return this.accessToken; // TS narrows type here due to check
     }
 
     try {
@@ -37,7 +37,7 @@ export class DarajaAdapter implements IDarajaAdapter {
       this.accessToken = response.data.access_token;
       this.tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
       this.logger.log('Daraja access token refreshed');
-      return this.accessToken;
+      return this.accessToken!; // Assert defined since just assigned
     } catch (error) {
       this.logger.error('Failed to get Daraja access token', error);
       throw new BadRequestException('Failed to authenticate with Daraja');
@@ -55,6 +55,7 @@ export class DarajaAdapter implements IDarajaAdapter {
       const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 14);
       const password = Buffer.from(`${paybill}${passkey}${timestamp}`).toString('base64');
 
+      const publicUrl = this.configService.get<string>('PUBLIC_URL') || '';
       const response = await this.http.post(
         PAYMENT_CONSTANTS.DARAJA.STK_PUSH_ENDPOINT,
         {
@@ -66,7 +67,7 @@ export class DarajaAdapter implements IDarajaAdapter {
           PartyA: request.phone,
           PartyB: paybill,
           PhoneNumber: request.phone,
-          CallBackURL: `${this.configService.get('PUBLIC_URL')}${PAYMENT_CONSTANTS.DARAJA.CALLBACK_PATH}`,
+          CallBackURL: `${publicUrl}${PAYMENT_CONSTANTS.DARAJA.CALLBACK_PATH}`,
           AccountReference: request.accountReference,
           TransactionDesc: request.transactionDesc,
         },

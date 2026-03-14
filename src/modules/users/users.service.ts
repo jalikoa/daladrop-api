@@ -5,7 +5,7 @@ import { User } from './entities/user.entity';
 import { CreateUserUseCase } from './use-cases/create-user.usecase';
 import { FindUserUseCase } from './use-cases/find-user.usecase';
 import { UpdateUserUseCase } from './use-cases/update-user.usecase';
-import { IUserRepository } from './interfaces/user-repository.interface';
+import type { IUserRepository } from './interfaces/user-repository.interface';
 import { UserMapper } from './mappers/user.mapper';
 import { UserResponseDto } from './dto/user-response.dto';
 

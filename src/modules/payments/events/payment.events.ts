@@ -38,7 +38,7 @@ export class PaymentFailedEvent {
     public readonly sessionUuid: string,
     public readonly merchantId: number,
     public readonly reason: string,
-    public readonly code?: string,
     public readonly timestamp: Date,
+    public readonly code?: string,
   ) {}
 }

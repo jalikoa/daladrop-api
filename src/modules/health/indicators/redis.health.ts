@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import type { Queue } from 'bull';
 import { IHealthIndicator, HealthIndicatorResult } from '../interfaces/health-check.interface';
 
 @Injectable()

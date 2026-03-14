@@ -1,5 +1,5 @@
 import { Process, Processor } from '@nestjs/bull';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { LEDGER_CONSTANTS } from '../constants/ledger.constants';
 import { Injectable, Logger } from '@nestjs/common';
 

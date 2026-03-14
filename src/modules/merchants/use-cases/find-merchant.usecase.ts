@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { IMerchantRepository } from '../interfaces/merchant-repository.interface';
+import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
 import { MerchantProfile } from '../entities/merchant-profile.entity';
 
 @Injectable()

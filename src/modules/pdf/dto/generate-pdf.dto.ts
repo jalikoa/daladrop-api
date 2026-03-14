@@ -1,33 +1,6 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsNumber,
-  IsObject,
-  ValidateNested,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MerchantCardData } from '../value-objects/pdf-document.vo';
-
-export class GeneratePdfDto {
-  @IsString()
-  @IsNotEmpty()
-  title: string;
-
-  @IsNumber()
-  @IsOptional()
-  width?: number;
-
-  @IsNumber()
-  @IsOptional()
-  height?: number;
-
-  @IsOptional()
-  @IsObject()
-  @ValidateNested()
-  @Type(() => MerchantCardDataDto)
-  merchantData?: MerchantCardDataDto;
-}
 
 export class MerchantCardDataDto {
   @IsNumber()
@@ -64,4 +37,24 @@ export class MerchantCardDataDto {
   @IsString()
   @IsNotEmpty()
   paymentUrl: string;
+}
+
+export class GeneratePdfDto {
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsNumber()
+  @IsOptional()
+  width?: number;
+
+  @IsNumber()
+  @IsOptional()
+  height?: number;
+
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => MerchantCardDataDto)
+  merchantData?: MerchantCardDataDto;
 }

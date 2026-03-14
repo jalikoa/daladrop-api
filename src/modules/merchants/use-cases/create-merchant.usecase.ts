@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IMerchantRepository } from '../interfaces/merchant-repository.interface';
+import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
 import { CreateMerchantDto } from '../dto/create-merchant.dto';
 import { MerchantProfile } from '../entities/merchant-profile.entity';
 import { MERCHANT_CONSTANTS } from '../constants/merchant.constants';

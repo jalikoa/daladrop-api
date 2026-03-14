@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { IPaymentRepository } from '../interfaces/payment-repository.interface';
+import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaymentSession } from '../entities/payment-session.entity';
 

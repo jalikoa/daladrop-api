@@ -1,5 +1,5 @@
 import { Processor, Process } from '@nestjs/bull';
-import { Job } from 'bull';
+import type { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PdfService } from '../services/pdf.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -9,7 +9,7 @@ import * as path from 'path';
 
 export interface MerchantCardJobData {
   merchantId: number;
-  userId: number;
+  userId?: number;
   businessName: string;
   businessEmail?: string | null;
   businessPhone?: string | null;
@@ -24,10 +24,7 @@ export interface MerchantCardJobData {
 export class PdfProcessor {
   private readonly logger = new Logger(PdfProcessor.name);
 
-  constructor(
-    private readonly pdfService: PdfService,
-    private readonly eventEmitter: EventEmitter2,
-  ) {}
+  constructor(private readonly pdfService: PdfService, private readonly eventEmitter: EventEmitter2) {}
 
   @Process('merchant.card.generate')
   async handleMerchantCardGeneration(job: Job<MerchantCardJobData>) {
@@ -47,7 +44,6 @@ export class PdfProcessor {
     try {
       this.logger.log(`Processing merchant card generation for merchant ${merchantId}`);
 
-      // 1. Generate PDF
       const merchantCardData: MerchantCardData = {
         merchantId,
         businessName,
@@ -61,20 +57,11 @@ export class PdfProcessor {
         generatedAt: new Date(),
       };
 
-      const { buffer, filePath, info } = await this.pdfService.generateAndSaveMerchantCard(
-        merchantCardData,
-        `merchant_${merchantId}_card_${Date.now()}.pdf`,
-      );
+      const { buffer, filePath, info } = await this.pdfService.generateAndSaveMerchantCard(merchantCardData, `merchant_${merchantId}_card_${Date.now()}.pdf`);
 
-      // 2. Generate public URL (in production, upload to CDN/S3)
       const pdfUrl = `https://cdn.example.com/pdf/${path.basename(filePath)}`;
       const qrUrl = `https://cdn.example.com/qr/merchant_${merchantId}.png`;
 
-      // 3. Save to database (merchant_cards table)
-      // This would be done via a repository in production
-      // await this.merchantCardRepo.create({ merchantId, pdfUrl, qrUrl });
-
-      // 4. Emit event for notifications
       this.eventEmitter.emit(PDF_CONSTANTS.EVENTS.MERCHANT_CARD_GENERATED, {
         merchantId,
         userId,
@@ -85,16 +72,10 @@ export class PdfProcessor {
 
       this.logger.log(`Merchant card generated successfully: ${filePath} (${info.sizeFormatted})`);
 
-      return {
-        success: true,
-        merchantId,
-        filePath,
-        pdfUrl,
-        fileSize: info.size,
-      };
+      return { success: true, merchantId, filePath, pdfUrl, fileSize: info.size };
     } catch (error) {
       this.logger.error('Failed to generate merchant card', error);
-      throw error; // BullMQ will retry based on queue config
+      throw error;
     }
   }
 }

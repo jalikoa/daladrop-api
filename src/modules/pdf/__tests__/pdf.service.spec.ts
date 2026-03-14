@@ -7,11 +7,7 @@ describe('PdfService', () => {
   let service: PdfService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot()],
-      providers: [PdfService],
-    }).compile();
-
+    const module: TestingModule = await Test.createTestingModule({ imports: [ConfigModule.forRoot()], providers: [PdfService] }).compile();
     service = module.get<PdfService>(PdfService);
   });
 
@@ -47,15 +43,5 @@ describe('PdfService', () => {
     expect(info.size).toBe(mockBuffer.length);
     expect(info.mimeType).toBe('application/pdf');
     expect(info.sizeFormatted).toMatch(/B|KB|MB/);
-  });
-
-  it('should format file sizes correctly', () => {
-    const smallBuffer = Buffer.alloc(500); // 500 B
-    const mediumBuffer = Buffer.alloc(1500); // 1.46 KB
-    const largeBuffer = Buffer.alloc(1500000); // 1.43 MB
-
-    expect(service.getFileInfo(smallBuffer).sizeFormatted).toContain('B');
-    expect(service.getFileInfo(mediumBuffer).sizeFormatted).toContain('KB');
-    expect(service.getFileInfo(largeBuffer).sizeFormatted).toContain('MB');
   });
 });

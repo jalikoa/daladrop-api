@@ -12,10 +12,6 @@ export class QrService implements IQrService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  /**
-   * Generate QR code as Base64 Data URL
-   * Perfect for embedding in PDFs or displaying in frontend
-   */
   async generate(dto: GenerateQrDto): Promise<string> {
     try {
       const qrVO = new QRCodeValueObject(
@@ -36,9 +32,6 @@ export class QrService implements IQrService {
     }
   }
 
-  /**
-   * Generate QR code as Buffer (for file storage)
-   */
   async generateToBuffer(dto: GenerateQrDto): Promise<Buffer> {
     try {
       const qrVO = new QRCodeValueObject(
@@ -62,9 +55,6 @@ export class QrService implements IQrService {
     }
   }
 
-  /**
-   * Generate QR code and save to file
-   */
   async generateToFile(dto: GenerateQrDto, filePath: string): Promise<string> {
     try {
       const qrVO = new QRCodeValueObject(
@@ -88,9 +78,6 @@ export class QrService implements IQrService {
     }
   }
 
-  /**
-   * Validate QR code data before generation
-   */
   validateData(data: string): boolean {
     if (!data || data.length === 0) {
       return false;
@@ -100,7 +87,6 @@ export class QrService implements IQrService {
       return false;
     }
 
-    // Validate URL format if it's a URL
     if (data.startsWith('http')) {
       try {
         new URL(data);
@@ -113,11 +99,8 @@ export class QrService implements IQrService {
     return true;
   }
 
-  /**
-   * Get QR code metadata from data URL
-   */
   getQRCodeInfo(dataUrl: string): QRCodeInfo {
-    const matches = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+    const matches = dataUrl.match(/^data:image\/([^;]+);base64,(.+)$/);
     if (!matches) {
       throw new Error('Invalid data URL format');
     }
@@ -132,27 +115,10 @@ export class QrService implements IQrService {
     };
   }
 
-  /**
-   * Generate QR code for merchant payment link
-   * Specific helper for the NFC payment flow
-   */
-  async generateForMerchant(
-    paymentUrl: string,
-    merchantId: number,
-  ): Promise<{ dataUrl: string; buffer: Buffer }> {
+  async generateForMerchant(paymentUrl: string, merchantId: number): Promise<{ dataUrl: string; buffer: Buffer }> {
     const [dataUrl, buffer] = await Promise.all([
-      this.generate({
-        data: paymentUrl,
-        size: 300,
-        errorCorrection: 'H', // High error correction for printed cards
-        margin: 2,
-      }),
-      this.generateToBuffer({
-        data: paymentUrl,
-        size: 300,
-        errorCorrection: 'H',
-        margin: 2,
-      }),
+      this.generate({ data: paymentUrl, size: 300, errorCorrection: 'H', margin: 2 }),
+      this.generateToBuffer({ data: paymentUrl, size: 300, errorCorrection: 'H', margin: 2 }),
     ]);
 
     return { dataUrl, buffer };

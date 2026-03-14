@@ -5,6 +5,7 @@ import { PaymentSession } from '../entities/payment-session.entity';
 import { PaymentCallback } from '../entities/payment-callback.entity';
 import { IPaymentRepository, CreateSessionData, SaveCallbackData } from '../interfaces/payment-repository.interface';
 import { PaymentStatus } from '../enums/payment-status.enum';
+import { PaymentType } from '../enums/payment-type.enum';
 
 @Injectable()
 export class PaymentRepository implements IPaymentRepository {
@@ -57,18 +58,19 @@ export class PaymentRepository implements IPaymentRepository {
 
   async createSession(data: CreateSessionData): Promise<PaymentSession> {
     const session = this.sessionRepo.create({
-      merchant_id: data.merchantId,
+      merchant: { id: data.merchantId },
       customer_phone: data.customerPhone,
       amount: data.amount,
       currency: data.currency || 'KES',
-      payment_type: data.paymentType || 'NFC_TAP',
+      payment_type: data.paymentType ? (data.paymentType as PaymentType) : PaymentType.NFC_TAP,
       description: data.description,
       metadata: data.metadata,
       session_uuid: data.sessionUuid,
       status: PaymentStatus.PENDING,
     });
 
-    return this.sessionRepo.save(session);
+    const saved = await this.sessionRepo.save(session) as unknown as PaymentSession;
+    return saved;
   }
 
   async updateStatus(id: number, status: PaymentStatus, metadata?: Partial<PaymentSession>): Promise<PaymentSession> {
@@ -83,10 +85,10 @@ export class PaymentRepository implements IPaymentRepository {
 
     await this.sessionRepo.update(id, {
       status,
-      ...metadata,
+      ...(metadata as any),
       updated_at: new Date(),
       completed_at: status === PaymentStatus.COMPLETED ? new Date() : undefined,
-    });
+    } as any);
 
     return this.findById(id) as Promise<PaymentSession>;
   }

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IMerchantRepository } from '../interfaces/merchant-repository.interface';
+import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
 import { EncryptionService } from '../../../common/security/encryption.service';
 import { QrService } from '../../qr/services/qr.service';
 import { QR_CONSTANTS } from '../../qr/constants/qr.constants';
@@ -75,7 +75,7 @@ export class GeneratePaymentLinkUseCase {
       payment_url: publicUrl,
       encrypted_token: encryptedToken,
       qr_code_data_url: qrCodeDataUrl,
-      expires_at: payload.expiresAt,
+      expires_at: new Date(payload.expiresAt),
       created_at: new Date(),
     };
   }

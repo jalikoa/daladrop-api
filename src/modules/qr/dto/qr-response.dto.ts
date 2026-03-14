@@ -5,7 +5,7 @@ export class QrCodeResponseDto {
   success: boolean;
 
   @Expose()
-  data: {
+  payload: {
     qr_code_data_url: string; // Base64 encoded PNG
     qr_code_url: string; // CDN URL if uploaded
     original_data: string;

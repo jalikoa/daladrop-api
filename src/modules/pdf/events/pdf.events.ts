@@ -4,7 +4,7 @@ export class PdfGeneratedEvent {
     public readonly pdfUrl: string,
     public readonly filePath: string,
     public readonly fileSize: number,
-    public readonly timestamp: Date,
+    public readonly timestamp: Date = new Date(),
   ) {}
 }
 
@@ -14,6 +14,6 @@ export class MerchantCardGeneratedEvent {
     public readonly userId: number,
     public readonly pdfUrl: string,
     public readonly qrUrl: string,
-    public readonly timestamp: Date,
+    public readonly timestamp: Date = new Date(),
   ) {}
 }

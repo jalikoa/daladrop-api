@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import type { Queue } from 'bull';
 import { QR_CONSTANTS } from '../constants/qr.constants';
 import { QrGeneratedEvent } from '../events/qr.events';
 
@@ -18,7 +18,6 @@ export class QrListener {
   async handleQrGenerated(event: QrGeneratedEvent) {
     this.logger.log(`QR code generated for merchant ${event.merchantId}`);
 
-    // Queue PDF generation if this is for a merchant card
     if (event.paymentUrl) {
       await this.pdfQueue.add('merchant.card.generate', {
         merchantId: event.merchantId,
@@ -28,7 +27,6 @@ export class QrListener {
       });
     }
 
-    // Audit: Log QR generation
     await this.auditQueue.add('log.action', {
       action: 'QR_CODE_GENERATED',
       payload: {

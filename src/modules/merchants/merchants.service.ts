@@ -6,7 +6,7 @@ import { PaymentLinkResponseDto } from './dto/payment-link.dto';
 import { CreateMerchantUseCase } from './use-cases/create-merchant.usecase';
 import { FindMerchantUseCase } from './use-cases/find-merchant.usecase';
 import { GeneratePaymentLinkUseCase } from './use-cases/generate-payment-link.usecase';
-import { IMerchantRepository } from './interfaces/merchant-repository.interface';
+import type { IMerchantRepository } from './interfaces/merchant-repository.interface';
 import { MerchantMapper } from './mappers/merchant.mapper';
 
 @Injectable()

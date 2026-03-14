@@ -12,8 +12,8 @@ export class AuditRepository {
   ) {}
 
   async create(data: CreateAuditLogDto): Promise<AuditLog> {
-    const log = this.repo.create(data as any);
-    return this.repo.save(log);
+    const log = this.repo.create(data);
+    return this.repo.save(log) as Promise<AuditLog>; // Cast to single entity
   }
 
   async findAll(page: number, limit: number, filters?: { userId?: number; action?: string }): Promise<{ data: AuditLog[]; total: number }> {

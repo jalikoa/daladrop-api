@@ -60,7 +60,10 @@ export class NfcRepository implements INfcRepository {
       throw new NotFoundException(`NFC tag with ID ${id} not found`);
     }
 
-    await this.repo.update(id, data);
+    // Remove relation properties to avoid TypeORM type mismatch
+    const { merchant, ...updateData } = data as any;
+
+    await this.repo.update(id, updateData);
     return this.findById(id) as Promise<NfcTag>;
   }
 

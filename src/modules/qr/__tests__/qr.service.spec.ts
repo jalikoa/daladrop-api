@@ -24,7 +24,7 @@ describe('QrService', () => {
       data: 'https://pay.example.com/pay?token=test',
       size: 300,
       errorCorrection: 'M',
-    } as any;
+    };
 
     const dataUrl = await service.generate(dto);
 
@@ -36,7 +36,7 @@ describe('QrService', () => {
     const dto: GenerateQrDto = {
       data: 'https://pay.example.com/pay?token=test',
       size: 300,
-    } as any;
+    };
 
     const buffer = await service.generateToBuffer(dto);
 

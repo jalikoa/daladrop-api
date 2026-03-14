@@ -11,7 +11,7 @@ import { MerchantsService } from './merchants.service';
 import { MerchantsController } from './merchants.controller';
 import { MerchantListener } from './listeners/merchant.listener';
 import { EncryptionService } from '../../common/security/encryption.service';
-import { QrService } from '../qr/qr.service';
+import { QrService } from '../qr/services/qr.service';
 
 @Module({
   imports: [

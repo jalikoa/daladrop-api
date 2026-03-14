@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { IPaymentRepository } from '../interfaces/payment-repository.interface';
+import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
 import { PaymentSession } from '../entities/payment-session.entity';
 
 @Injectable()

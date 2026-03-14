@@ -7,10 +7,7 @@ import { QrListener } from './listeners/qr.listener';
 
 @Module({
   imports: [
-    BullModule.registerQueue(
-      { name: 'pdf-queue' },
-      { name: 'audit-queue' },
-    ),
+    BullModule.registerQueue({ name: 'pdf-queue' }, { name: 'audit-queue' }),
     EventEmitterModule.forRoot(),
   ],
   providers: [QrService, QrListener],

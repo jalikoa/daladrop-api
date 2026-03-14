@@ -20,6 +20,10 @@ export class CreateAuditLogDto {
   @IsOptional()
   endpoint?: string;
 
+  @IsString() // Added to support user agent logging
+  @IsOptional()
+  user_agent?: string;
+
   @IsObject()
   @IsOptional()
   payload?: Record<string, unknown>;

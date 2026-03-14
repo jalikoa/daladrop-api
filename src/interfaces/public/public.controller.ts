@@ -9,9 +9,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express'; // Type-only import required for isolatedModules
 import { DecodeTokenUseCase } from '../../modules/nfc/use-cases/decode-token.usecase';
-import { DecodeTokenDto } from '../../modules/nfc/dto/decode-token.dto';
 
 @Controller()
 @UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
@@ -37,9 +36,12 @@ export class PublicController {
         data: result.data,
       });
     } catch (error) {
+      // Safely extract error message to avoid unknown type error
+      const message = error instanceof Error ? error.message : 'Invalid payment token';
+
       res.status(HttpStatus.BAD_REQUEST).json({
         success: false,
-        error: error.message || 'Invalid payment token',
+        error: message,
       });
     }
   }

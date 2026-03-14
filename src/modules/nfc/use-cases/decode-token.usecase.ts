@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
+import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
 import { EncryptionService } from '../../../common/security/encryption.service';
 import { DecodedTokenResponseDto } from '../dto/nfc-tag-response.dto';
 import { NFC_CONSTANTS } from '../constants/nfc.constants';

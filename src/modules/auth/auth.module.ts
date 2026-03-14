@@ -15,12 +15,15 @@ import { UsersModule } from '../users/users.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET'),
-        signOptions: {
-          expiresIn: config.get<string>('JWT_EXPIRATION'),
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const exp = config.get<string>('JWT_EXPIRATION');
+        return {
+          secret: config.get<string>('JWT_SECRET'),
+          signOptions: {
+            expiresIn: exp ? Number(exp) : undefined,
+          },
+        };
+      },
     }),
   ],
   providers: [AuthService, JwtStrategy, LocalStrategy],

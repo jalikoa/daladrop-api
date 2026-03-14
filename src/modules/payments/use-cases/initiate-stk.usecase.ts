@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { IPaymentRepository } from '../interfaces/payment-repository.interface';
-import { IDarajaAdapter } from '../interfaces/daraja-adapter.interface';
+import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
+import type { IDarajaAdapter } from '../interfaces/daraja-adapter.interface';
 import { InitiateStkDto } from '../dto/initiate-stk.dto';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PAYMENT_CONSTANTS } from '../constants/payment.constants';

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import type { Queue } from 'bull';
 import { MERCHANT_CONSTANTS } from '../constants/merchant.constants';
 import { MerchantCreatedEvent, MerchantPaymentLinkGeneratedEvent } from '../events/merchant.events';
 

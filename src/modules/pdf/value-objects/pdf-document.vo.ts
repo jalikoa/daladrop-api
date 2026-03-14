@@ -25,14 +25,10 @@ export class PdfDocumentValueObject {
   }
 
   getDimensions(): { width: number; height: number } {
-    return {
-      width: this.width,
-      height: this.height,
-    };
+    return { width: this.width, height: this.height };
   }
 
   getSizeInMM(): { width: number; height: number } {
-    // Convert points to millimeters (1 point = 0.352778 mm)
     return {
       width: Math.round(this.width * 0.352778 * 100) / 100,
       height: Math.round(this.height * 0.352778 * 100) / 100,

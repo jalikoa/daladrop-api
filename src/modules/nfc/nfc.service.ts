@@ -4,7 +4,7 @@ import { DecodeTokenDto } from './dto/decode-token.dto';
 import { NfcTagResponseDto, DecodedTokenResponseDto } from './dto/nfc-tag-response.dto';
 import { CreateNfcTagUseCase } from './use-cases/create-nfc-tag.usecase';
 import { DecodeTokenUseCase } from './use-cases/decode-token.usecase';
-import { INfcRepository } from './interfaces/nfc-repository.interface';
+import type { INfcRepository } from './interfaces/nfc-repository.interface';
 
 @Injectable()
 export class NfcService {

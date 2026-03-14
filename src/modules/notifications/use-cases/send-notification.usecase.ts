@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationChannel } from '../enums/notification-channel.enum';
-import { SmsProvider } from '../interfaces/sms-provider.interface';
-import { EmailProvider } from '../interfaces/email-provider.interface';
-import { PushProvider } from '../interfaces/push-provider.interface';
+import type { SmsProvider } from '../interfaces/sms-provider.interface';
+import type { EmailProvider } from '../interfaces/email-provider.interface';
+import type { PushProvider } from '../interfaces/push-provider.interface';
 
 export interface SendNotificationDto {
   userId?: number;

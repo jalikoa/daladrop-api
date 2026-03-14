@@ -12,8 +12,8 @@ export class NfcPaymentSessionStartedEvent {
     public readonly sessionUuid: string,
     public readonly merchantId: number,
     public readonly userId: number,
+    public readonly timestamp: Date,
     public readonly ipAddress?: string,
     public readonly userAgent?: string,
-    public readonly timestamp: Date,
   ) {}
 }
