@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TapPay NFC Tag</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #e8e8e8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Card ────────────────────────────────────────────── */
+    .card {
+      width: 340px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow:
+        0 4px 6px rgba(0,0,0,.08),
+        0 20px 60px rgba(0,0,0,.22),
+        0 0 0 1px rgba(255,255,255,.15);
+      background: #f0ede6;
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    .header {
+      background: #1a1a1a;
+      padding: 18px 22px 16px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+    }
+
+    .logo-wrap {}
+    .logo {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      color: #fff;
+    }
+    .logo span { color: #4cca5a; }
+    .tagline {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      color: #888;
+      margin-top: 3px;
+    }
+
+    .powered {
+      text-align: right;
+      padding-top: 2px;
+    }
+    .powered-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .powered-brand {
+      font-size: 13px;
+      font-weight: 900;
+      color: #4cca5a;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Body ────────────────────────────────────────────── */
+    .body {
+      padding: 20px 18px 18px;
+      background: #f0ede6;
+    }
+
+    /* NFC tap zone */
+    .tap-zone {
+      background: #1e1e1e;
+      border-radius: 14px;
+      padding: 22px 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* subtle diagonal texture */
+    .tap-zone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 6px,
+        rgba(255,255,255,.018) 6px,
+        rgba(255,255,255,.018) 12px
+      );
+    }
+
+    .phone-icon {
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .phone-icon svg {
+      width: 52px;
+      height: auto;
+    }
+
+    .tap-text {
+      position: relative;
+      z-index: 1;
+    }
+    .tap-text h2 {
+      font-size: 21px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+    }
+    .tap-text h2 span { color: #4cca5a; }
+    .tap-text p {
+      font-size: 11px;
+      color: #999;
+      margin-top: 5px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+
+    /* Steps */
+    .steps { display: flex; flex-direction: column; gap: 0; }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .step:last-child { border-bottom: none; }
+
+    .step-num {
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+      background: #1e1e1e;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 900;
+      color: #4cca5a;
+    }
+
+    .step-text {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1a1a1a;
+      line-height: 1.3;
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    .footer {
+      background: #1a1a1a;
+      padding: 16px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .merchant-info {}
+    .merchant-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .merchant-id {
+      font-size: 17px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: 0.5px;
+      margin-top: 2px;
+    }
+
+    .qr-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+    #qrcode canvas,
+    #qrcode img {
+      border-radius: 4px;
+      display: block;
+    }
+    .no-nfc-label {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #666;
+      text-transform: uppercase;
+      text-align: center;
+    }
+
+    /* green accent line between header and body */
+    .accent-bar {
+      height: 3px;
+      background: linear-gradient(90deg, #4cca5a 0%, #2ea83a 100%);
+    }
+    .accent-bar-bottom {
+      height: 3px;
+      background: linear-gradient(90deg, #2ea83a 0%, #4cca5a 100%);
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-wrap">
+      <div class="logo">tap<span>pay</span></div>
+      <div class="tagline">TAP &nbsp;·&nbsp; PAY &nbsp;·&nbsp; GO</div>
+    </div>
+    <div class="powered">
+      <div class="powered-label">Powered by</div>
+      <div class="powered-brand">M-PESA</div>
+    </div>
+  </div>
+
+  <div class="accent-bar"></div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <!-- NFC tap zone -->
+    <div class="tap-zone">
+      <!-- Phone + NFC waves icon -->
+      <div class="phone-icon">
+        <svg viewBox="0 0 70 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Phone body -->
+          <rect x="8" y="2" width="38" height="56" rx="6" fill="#fff" opacity="0.15"/>
+          <rect x="10" y="4" width="34" height="52" rx="5" fill="#1a1a1a"/>
+          <!-- Screen (green) -->
+          <rect x="12" y="8" width="30" height="40" rx="3" fill="#4cca5a"/>
+          <!-- Home button area -->
+          <rect x="20" y="51" width="14" height="3" rx="1.5" fill="#fff" opacity="0.25"/>
+          <!-- NFC waves -->
+          <path d="M52 22 Q58 30 52 38" stroke="#fff" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.8"/>
+          <path d="M56 18 Q65 30 56 42" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.5"/>
+        </svg>
+      </div>
+
+      <div class="tap-text">
+        <h2>Tap your<br><span>phone here</span></h2>
+        <p>Hold phone flat<br>against this spot</p>
+      </div>
+    </div>
+
+    <!-- Steps -->
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">Wake screen &amp; tap phone here</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">Enter amount on payment page</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">Enter M-Pesa PIN to confirm</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="accent-bar-bottom"></div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="merchant-info">
+      <div class="merchant-label">Merchant ID</div>
+      <div class="merchant-id">TP-KSK-001</div>
+    </div>
+    <div class="qr-wrap">
+      <div id="qrcode"></div>
+      <div class="no-nfc-label">NO NFC? SCAN</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Payment URL encoded in the QR — change to your actual payment endpoint
+  const MERCHANT_ID = "TP-KSK-001";
+  const PAYMENT_URL = `https://pay.tappay.co.ke/?merchant=${encodeURIComponent(MERCHANT_ID)}`;
+
+  new QRCode(document.getElementById("qrcode"), {
+    text: PAYMENT_URL,
+    width: 60,
+    height: 60,
+    colorDark: "#ffffff",
+    colorLight: "#1a1a1a",
+    correctLevel: QRCode.CorrectLevel.M
+  });
+</script>
+
+</body>
+</html>
