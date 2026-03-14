@@ -12,6 +12,7 @@ export class EncryptionService {
 
     if (!key || key.length !== 32) { // Ensure key is defined and 32 chars
       this.logger.error('NFC_SECRET_KEY must be exactly 32 characters for AES-256');
+      this.logger.error('NFC key received:', JSON.stringify(this.secretKey));
       throw new Error('Invalid NFC encryption key configuration');
     }
 

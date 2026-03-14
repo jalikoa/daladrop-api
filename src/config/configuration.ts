@@ -40,6 +40,6 @@ export default (): IConfig => ({
     privateKey: process.env.FIREBASE_PRIVATE_KEY || '',
   },
   nfc: {
-    secretKey: process.env.NFC_SECRET_KEY || '9f6b8832e48d583ebbea82e38ac0fb1f1',
+    secretKey: process.env.NFC_SECRET_KEY || '',
   },
 });

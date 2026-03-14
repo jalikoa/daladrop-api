@@ -5,11 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
-  ManyToOne,
-  JoinColumn,
 } from 'typeorm';
 import { NotificationChannel, NotificationStatus, NotificationPriority } from '../enums/notification-channel.enum';
-import { User } from '../../users/entities/user.entity';
 
 @Entity('notifications', { schema: 'notifications' })
 @Index(['user_id'])
@@ -24,10 +21,6 @@ export class Notification {
   @Column({ type: 'bigint', nullable: true })
   @Index()
   user_id: number | null;
-
-  @ManyToOne(() => User, { eager: false, nullable: true })
-  @JoinColumn({ name: 'user_id' })
-  user: User | null;
 
   @Column({ type: 'enum', enum: NotificationChannel })
   channel: NotificationChannel;
@@ -84,7 +77,7 @@ export class Notification {
   failed_at: Date | null;
 
   toJSON(): Record<string, unknown> {
-    const { user, ...values } = { ...this };
+    const { ...values } = { ...this };
     return values;
   }
 
