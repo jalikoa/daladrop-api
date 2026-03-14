@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { PaymentSession } from '../entities/payment-session.entity';
 import { PaymentCallback } from '../entities/payment-callback.entity';
@@ -10,11 +10,11 @@ import { PaymentType } from '../enums/payment-type.enum';
 @Injectable()
 export class PaymentRepository implements IPaymentRepository {
   constructor(
-    @InjectRepository(PaymentSession)
+    @InjectRepository(PaymentSession, 'payments')
     private readonly sessionRepo: Repository<PaymentSession>,
-    @InjectRepository(PaymentCallback)
+    @InjectRepository(PaymentCallback, 'payments')
     private readonly callbackRepo: Repository<PaymentCallback>,
-    private readonly dataSource: DataSource,
+    @InjectDataSource('payments') private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<PaymentSession | null> {

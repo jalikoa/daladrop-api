@@ -8,7 +8,7 @@ import { CreateNfcTagDto } from '../dto/create-nfc-tag.dto';
 @Injectable()
 export class NfcRepository implements INfcRepository {
   constructor(
-    @InjectRepository(NfcTag)
+    @InjectRepository(NfcTag, 'merchant')
     private readonly repo: Repository<NfcTag>,
   ) {}
 

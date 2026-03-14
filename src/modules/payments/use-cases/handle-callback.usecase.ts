@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
 import { PAYMENT_CONSTANTS } from '../constants/payment.constants';
@@ -9,7 +9,7 @@ export class HandleCallbackUseCase {
   private readonly logger = new Logger(HandleCallbackUseCase.name);
 
   constructor(
-    private readonly paymentRepo: IPaymentRepository,
+    @Inject('IPaymentRepository') private readonly paymentRepo: IPaymentRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 

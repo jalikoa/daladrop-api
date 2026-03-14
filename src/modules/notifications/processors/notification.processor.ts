@@ -2,8 +2,9 @@ import { Processor, Process } from '@nestjs/bull';
 import type { Job } from 'bull';
 import { SendNotificationUseCase } from '../use-cases/send-notification.usecase';
 import { NotificationChannel } from '../enums/notification-channel.enum';
+import { NOTIFICATION_CONSTANTS } from '../constants/notification.constants';
 
-@Processor('notification-events')
+@Processor(NOTIFICATION_CONSTANTS.QUEUE.NAME)
 export class NotificationProcessor {
   constructor(private readonly sendNotificationUseCase: SendNotificationUseCase) {}
 

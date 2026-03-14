@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
@@ -17,7 +17,7 @@ export interface GeneratePaymentLinkInput {
 @Injectable()
 export class GeneratePaymentLinkUseCase {
   constructor(
-    private readonly merchantRepo: IMerchantRepository,
+    @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
     private readonly encryptionService: EncryptionService,
     private readonly qrService: QrService,
     private readonly configService: ConfigService,

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
 import type { IDarajaAdapter } from '../interfaces/daraja-adapter.interface';
@@ -13,8 +13,8 @@ export class InitiateStkUseCase {
   private readonly logger = new Logger(InitiateStkUseCase.name);
 
   constructor(
-    private readonly paymentRepo: IPaymentRepository,
-    private readonly darajaAdapter: IDarajaAdapter,
+    @Inject('IPaymentRepository') private readonly paymentRepo: IPaymentRepository,
+    @Inject('IDarajaAdapter') private readonly darajaAdapter: IDarajaAdapter,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 

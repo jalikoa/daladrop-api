@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { AuditLog } from '../entities/audit-log.entity';
 import { CreateAuditLogDto } from '../dto/create-audit-log.dto';
 
 @Injectable()
 export class AuditRepository {
   constructor(
-    @InjectRepository(AuditLog)
+    @InjectRepository(AuditLog, 'audit')
     private readonly repo: Repository<AuditLog>,
+    @InjectDataSource('audit') private readonly dataSource: DataSource,
   ) {}
 
   async create(data: CreateAuditLogDto): Promise<AuditLog> {

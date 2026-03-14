@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import type { SmsProvider } from '../interfaces/sms-provider.interface';
 import type { EmailProvider } from '../interfaces/email-provider.interface';
@@ -16,9 +16,9 @@ export interface SendNotificationDto {
 @Injectable()
 export class SendNotificationUseCase {
   constructor(
-    private readonly smsProvider: SmsProvider,
-    private readonly emailProvider: EmailProvider,
-    private readonly pushProvider: PushProvider,
+    @Inject('ISmsProvider') private readonly smsProvider: SmsProvider,
+    @Inject('IEmailProvider') private readonly emailProvider: EmailProvider,
+    @Inject('IPushProvider') private readonly pushProvider: PushProvider,
   ) {}
 
   async execute(dto: SendNotificationDto): Promise<boolean> {

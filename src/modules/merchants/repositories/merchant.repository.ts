@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource, Not } from 'typeorm';
 import { MerchantProfile } from '../entities/merchant-profile.entity';
 import { IMerchantRepository } from '../interfaces/merchant-repository.interface';
@@ -10,9 +10,9 @@ import { MerchantStatus } from '../enums/merchant-status.enum';
 @Injectable()
 export class MerchantRepository implements IMerchantRepository {
   constructor(
-    @InjectRepository(MerchantProfile)
+    @InjectRepository(MerchantProfile, 'merchant')
     private readonly repo: Repository<MerchantProfile>,
-    private readonly dataSource: DataSource,
+    @InjectDataSource('merchant') private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<MerchantProfile | null> {

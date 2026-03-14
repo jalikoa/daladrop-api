@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { PDF_CONSTANTS } from '../constants/pdf.constants';
+import { NOTIFICATION_CONSTANTS } from '../../notifications/constants/notification.constants';
 import { MerchantCardGeneratedEvent } from '../events/pdf.events';
 
 @Injectable()
@@ -10,7 +11,7 @@ export class PdfListener {
   private readonly logger = new Logger(PdfListener.name);
 
   constructor(
-    @InjectQueue('notification-events') private readonly notificationQueue: Queue,
+    @InjectQueue(NOTIFICATION_CONSTANTS.QUEUE.NAME) private readonly notificationQueue: Queue,
     @InjectQueue('audit-queue') private readonly auditQueue: Queue,
   ) {}
 

@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
+import { NOTIFICATION_CONSTANTS } from '../constants/notification.constants';
 
 @Injectable()
 export class NotificationListener {
-  constructor(@InjectQueue('notification-events') private readonly notificationQueue: Queue) {}
+  constructor(@InjectQueue(NOTIFICATION_CONSTANTS.QUEUE.NAME) private readonly notificationQueue: Queue) {}
 
   @OnEvent('user.created')
   async handleUserCreated(payload: { userId: number; email: string | null }) {

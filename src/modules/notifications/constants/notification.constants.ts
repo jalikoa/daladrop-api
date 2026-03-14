@@ -7,7 +7,7 @@ export const NOTIFICATION_CONSTANTS = {
     RETRIED: 'notification.retried',
   },
   QUEUE: {
-    NAME: 'notifications-queue',
+    NAME: 'notification-events',
     PROCESSORS: {
       SEND_SMS: 'notification.send.sms',
       SEND_EMAIL: 'notification.send.email',

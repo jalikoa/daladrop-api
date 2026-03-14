@@ -2,13 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { NotificationChannel } from './enums/notification-channel.enum';
+import { NOTIFICATION_CONSTANTS } from './constants/notification.constants';
 
 @Injectable()
 export class NotificationsService {
-  constructor(
-    @InjectQueue('notification-events') private readonly notificationQueue: Queue,
-    @InjectQueue('notification-events') private readonly smsQueue: Queue,
-  ) {}
+  constructor(@InjectQueue(NOTIFICATION_CONSTANTS.QUEUE.NAME) private readonly notificationQueue: Queue) {}
 
   async sendSms(phone: string, message: string): Promise<void> {
     await this.notificationQueue.add('send.sms', { phone, message });

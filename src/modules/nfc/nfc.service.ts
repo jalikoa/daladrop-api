@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CreateNfcTagDto } from './dto/create-nfc-tag.dto';
 import { DecodeTokenDto } from './dto/decode-token.dto';
 import { NfcTagResponseDto, DecodedTokenResponseDto } from './dto/nfc-tag-response.dto';
@@ -11,7 +11,7 @@ export class NfcService {
   constructor(
     private readonly createNfcTagUseCase: CreateNfcTagUseCase,
     private readonly decodeTokenUseCase: DecodeTokenUseCase,
-    private readonly nfcRepo: INfcRepository,
+    @Inject('INfcRepository') private readonly nfcRepo: INfcRepository,
   ) {}
 
   async createTag(merchantId: number, dto: CreateNfcTagDto): Promise<NfcTagResponseDto> {

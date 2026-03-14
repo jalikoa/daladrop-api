@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, MoreThan, DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WebhookLog } from './entities/webhook-log.entity';
 import { WebhookSource, WebhookStatus } from './enums/webhook-source.enum';
@@ -15,7 +15,7 @@ export class WebhooksService {
   private readonly handlers: Map<WebhookSource, IWebhookHandler>;
 
   constructor(
-    @InjectRepository(WebhookLog)
+    @InjectRepository(WebhookLog, 'audit')
     private readonly webhookRepo: Repository<WebhookLog>,
     private readonly eventEmitter: EventEmitter2,
     private readonly darajaHandler: DarajaWebhookHandler,

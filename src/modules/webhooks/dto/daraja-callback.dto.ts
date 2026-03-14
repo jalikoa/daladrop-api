@@ -8,17 +8,23 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class DarajaCallbackDto {
-  @IsObject()
-  @ValidateNested()
-  @Type(() => StkCallbackBody)
-  Body: StkCallbackBody;
-}
+// Define leaf classes first to avoid temporal dead zone issues
 
-export class StkCallbackBody {
+export class MetadataItem {
   @IsString()
   @IsNotEmpty()
-  stkCallback: StkCallbackData;
+  Name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  Value: string;
+}
+
+export class CallbackMetadata {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MetadataItem)
+  Item: MetadataItem[];
 }
 
 export class StkCallbackData {
@@ -45,19 +51,15 @@ export class StkCallbackData {
   CallbackMetadata?: CallbackMetadata;
 }
 
-export class CallbackMetadata {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => MetadataItem)
-  Item: MetadataItem[];
+export class StkCallbackBody {
+  @IsString()
+  @IsNotEmpty()
+  stkCallback: StkCallbackData;
 }
 
-export class MetadataItem {
-  @IsString()
-  @IsNotEmpty()
-  Name: string;
-
-  @IsString()
-  @IsNotEmpty()
-  Value: string;
+export class DarajaCallbackDto {
+  @IsObject()
+  @ValidateNested()
+  @Type(() => StkCallbackBody)
+  Body: StkCallbackBody;
 }

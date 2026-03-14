@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { InjectQueue } from '@nestjs/bull';
 import type { Queue } from 'bull';
 import { MERCHANT_CONSTANTS } from '../constants/merchant.constants';
+import { NOTIFICATION_CONSTANTS } from '../../notifications/constants/notification.constants';
 import { MerchantCreatedEvent, MerchantPaymentLinkGeneratedEvent } from '../events/merchant.events';
 
 @Injectable()
@@ -10,7 +11,7 @@ export class MerchantListener {
   private readonly logger = new Logger(MerchantListener.name);
 
   constructor(
-    @InjectQueue('notification-events') private readonly notificationQueue: Queue,
+    @InjectQueue(NOTIFICATION_CONSTANTS.QUEUE.NAME) private readonly notificationQueue: Queue,
     @InjectQueue('audit-queue') private readonly auditQueue: Queue,
   ) {}
 

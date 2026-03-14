@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { INfcRepository } from '../interfaces/nfc-repository.interface';
 import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
@@ -10,8 +10,8 @@ import { NFC_CONSTANTS } from '../constants/nfc.constants';
 @Injectable()
 export class CreateNfcTagUseCase {
   constructor(
-    private readonly nfcRepo: INfcRepository,
-    private readonly merchantRepo: IMerchantRepository,
+    @Inject('INfcRepository') private readonly nfcRepo: INfcRepository,
+    @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
     private readonly encryptionService: EncryptionService,
     private readonly eventEmitter: EventEmitter2,
   ) {}

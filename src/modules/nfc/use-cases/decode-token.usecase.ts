@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
@@ -16,7 +16,7 @@ export interface DecodeTokenInput {
 @Injectable()
 export class DecodeTokenUseCase {
   constructor(
-    private readonly merchantRepo: IMerchantRepository,
+    @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
     private readonly encryptionService: EncryptionService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,

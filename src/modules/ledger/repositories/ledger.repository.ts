@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Account } from '../entities/account.entity';
 import { LedgerEntry } from '../entities/ledger-entry.entity';
 
@@ -9,8 +9,9 @@ export class LedgerRepository {
   private readonly logger = new Logger(LedgerRepository.name);
 
   constructor(
-    @InjectRepository(Account) private accountsRepo: Repository<Account>,
-    @InjectRepository(LedgerEntry) private entriesRepo: Repository<LedgerEntry>,
+    @InjectRepository(Account, 'ledger') private accountsRepo: Repository<Account>,
+    @InjectRepository(LedgerEntry, 'ledger') private entriesRepo: Repository<LedgerEntry>,
+    @InjectDataSource('ledger') private readonly dataSource: DataSource,
   ) {}
 
   async getAccountById(accountId: string) {

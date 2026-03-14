@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { CreateMerchantDto } from './dto/create-merchant.dto';
 import { UpdateMerchantDto } from './dto/update-merchant.dto';
 import { MerchantResponseDto } from './dto/merchant-response.dto';
@@ -15,7 +15,7 @@ export class MerchantsService {
     private readonly createMerchantUseCase: CreateMerchantUseCase,
     private readonly findMerchantUseCase: FindMerchantUseCase,
     private readonly generatePaymentLinkUseCase: GeneratePaymentLinkUseCase,
-    private readonly merchantRepo: IMerchantRepository,
+    @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
   ) {}
 
   async create(userId: number, dto: CreateMerchantDto): Promise<MerchantResponseDto> {

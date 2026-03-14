@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import type { IUserRepository } from '../interfaces/user-repository.interface';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { User } from '../entities/user.entity';
@@ -7,7 +7,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 @Injectable()
 export class CreateUserUseCase {
   constructor(
-    private readonly userRepo: IUserRepository,
+    @Inject('IUserRepository') private readonly userRepo: IUserRepository,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 

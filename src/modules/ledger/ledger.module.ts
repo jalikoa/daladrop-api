@@ -14,7 +14,7 @@ import { LEDGER_CONSTANTS } from './constants/ledger.constants';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Account, LedgerEntry]),
+    TypeOrmModule.forFeature([Account, LedgerEntry], 'ledger'),
     BullModule.registerQueue({ name: LEDGER_CONSTANTS.QUEUE.NAME }),
     EventEmitterModule.forRoot(),
   ],

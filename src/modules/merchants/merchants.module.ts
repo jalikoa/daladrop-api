@@ -10,6 +10,7 @@ import { GeneratePaymentLinkUseCase } from './use-cases/generate-payment-link.us
 import { MerchantsService } from './merchants.service';
 import { MerchantsController } from './merchants.controller';
 import { MerchantListener } from './listeners/merchant.listener';
+import { NOTIFICATION_CONSTANTS } from '../notifications/constants/notification.constants';
 import { EncryptionService } from '../../common/security/encryption.service';
 import { QrService } from '../qr/services/qr.service';
 
@@ -17,7 +18,7 @@ import { QrService } from '../qr/services/qr.service';
   imports: [
     TypeOrmModule.forFeature([MerchantProfile], 'merchant'),
     BullModule.registerQueue(
-      { name: 'notification-events' },
+      { name: NOTIFICATION_CONSTANTS.QUEUE.NAME },
       { name: 'audit-queue' },
     ),
     EventEmitterModule.forRoot(),

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { IUserRepository } from '../interfaces/user-repository.interface';
@@ -11,9 +11,9 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class UserRepository implements IUserRepository {
   constructor(
-    @InjectRepository(User)
+    @InjectRepository(User, 'identity')
     private readonly repo: Repository<User>,
-    private readonly dataSource: DataSource,
+    @InjectDataSource('identity') private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<User | null> {

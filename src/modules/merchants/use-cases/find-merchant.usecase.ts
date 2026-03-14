@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
 import { MerchantProfile } from '../entities/merchant-profile.entity';
 
 @Injectable()
 export class FindMerchantUseCase {
-  constructor(private readonly merchantRepo: IMerchantRepository) {}
+  constructor(@Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository) {}
 
   async byId(id: number): Promise<MerchantProfile> {
     const merchant = await this.merchantRepo.findById(id);
