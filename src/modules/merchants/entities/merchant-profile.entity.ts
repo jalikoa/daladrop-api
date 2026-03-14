@@ -5,10 +5,13 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  OneToOne,
+  JoinColumn,
   BeforeInsert,
   BeforeUpdate,
 } from 'typeorm';
 import { MerchantStatus, MerchantVerificationStatus } from '../enums/merchant-status.enum';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('merchant_profiles', { schema: 'merchant' })
 @Index(['user_id'], { unique: true })
@@ -20,6 +23,10 @@ export class MerchantProfile {
   @Column({ type: 'bigint', unique: true })
   @Index()
   user_id: number;
+
+  @OneToOne(() => User, { eager: false })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
 
   @Column({ type: 'varchar', length: 255 })
   business_name: string;
@@ -78,7 +85,7 @@ export class MerchantProfile {
   }
 
   toJSON(): Record<string, unknown> {
-    const { ...values } = { ...this };
+    const { user, ...values } = { ...this };
     return values;
   }
 

@@ -4,7 +4,10 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { User } from '../../users/entities/user.entity';
 
 @Entity('audit_logs', { schema: 'audit' })
 @Index(['user_id'])
@@ -18,6 +21,10 @@ export class AuditLog {
   @Column({ type: 'bigint', nullable: true })
   @Index()
   user_id: number | null;
+
+  @ManyToOne(() => User, { eager: false, nullable: true })
+  @JoinColumn({ name: 'user_id' })
+  user: User | null;
 
   @Column({ type: 'varchar', length: 255 })
   @Index()
