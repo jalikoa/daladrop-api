@@ -11,9 +11,8 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class UserRepository implements IUserRepository {
   constructor(
-    @InjectRepository(User, 'identity')
-    private readonly repo: Repository<User>,
-    @InjectDataSource('identity') private readonly dataSource: DataSource,
+    @InjectRepository(User) private readonly repo: Repository<User>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<User | null> {
@@ -30,6 +29,32 @@ export class UserRepository implements IUserRepository {
 
   async findByPhone(phone: string): Promise<User | null> {
     return this.repo.findOne({ where: { phone_number: phone } });
+  }
+
+  // NEW: Include password_hash for auth
+  async findByIdWithPassword(id: number): Promise<User | null> {
+    return this.repo.findOne({
+      where: { id, status: UserStatus.ACTIVE },
+    });
+  }
+
+  async findByEmailOrPhone(identifier: string): Promise<User | null> {
+    return this.repo
+      .createQueryBuilder('user')
+      .where('(user.email = :identifier OR user.phone_number = :identifier) AND user.status = :status', {
+        identifier,
+        status: 'ACTIVE',
+      })
+      .select([
+        'user.id',
+        'user.uuid',
+        'user.email',
+        'user.phone_number',
+        'user.role',
+        'user.status',
+        'user.password_hash',
+      ])
+      .getOne();
   }
 
   async findAll(

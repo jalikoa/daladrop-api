@@ -19,7 +19,7 @@ import { MerchantsModule } from '../merchants/merchants.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PaymentSession, PaymentCallback], 'payments'),
+    TypeOrmModule.forFeature([PaymentSession, PaymentCallback]),
     BullModule.registerQueue({ name: PAYMENT_CONSTANTS.QUEUE.NAME, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, removeOnComplete: 100, removeOnFail: 500 } }),
     BullModule.registerQueue({ name: 'audit-queue' }),
     EventEmitterModule.forRoot(),

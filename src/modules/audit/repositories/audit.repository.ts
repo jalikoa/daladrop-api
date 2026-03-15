@@ -7,9 +7,8 @@ import { CreateAuditLogDto } from '../dto/create-audit-log.dto';
 @Injectable()
 export class AuditRepository {
   constructor(
-    @InjectRepository(AuditLog, 'audit')
-    private readonly repo: Repository<AuditLog>,
-    @InjectDataSource('audit') private readonly dataSource: DataSource,
+    @InjectRepository(AuditLog) private readonly repo: Repository<AuditLog>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async create(data: CreateAuditLogDto): Promise<AuditLog> {

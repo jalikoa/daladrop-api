@@ -15,8 +15,7 @@ export class WebhooksService {
   private readonly handlers: Map<WebhookSource, IWebhookHandler>;
 
   constructor(
-    @InjectRepository(WebhookLog, 'audit')
-    private readonly webhookRepo: Repository<WebhookLog>,
+    @InjectRepository(WebhookLog) private readonly webhookRepo: Repository<WebhookLog>,
     private readonly eventEmitter: EventEmitter2,
     private readonly darajaHandler: DarajaWebhookHandler,
     private readonly africastalkingHandler: AfricaTalkingWebhookHandler,

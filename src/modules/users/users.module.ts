@@ -11,7 +11,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User], 'identity'),
+    TypeOrmModule.forFeature([User]),
     EventEmitterModule.forRoot(),
   ],
   providers: [

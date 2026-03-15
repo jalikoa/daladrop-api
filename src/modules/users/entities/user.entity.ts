@@ -11,7 +11,7 @@ import {
 import { UserRole, UserStatus } from '../enums/user-role.enum';
 import { v4 as uuidv4 } from 'uuid';
 
-@Entity('users', { schema: 'identity' })
+@Entity('identity_users')
 @Index(['email'])
 @Index(['phone_number'])
 export class User {
@@ -27,21 +27,13 @@ export class User {
   @Column({ type: 'varchar', length: 20, unique: true, nullable: true })
   phone_number: string | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
   password_hash: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.CUSTOMER,
-  })
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.CUSTOMER })
   role: UserRole;
 
-  @Column({
-    type: 'enum',
-    enum: UserStatus,
-    default: UserStatus.ACTIVE,
-  })
+  @Column({ type: 'enum', enum: UserStatus, default: UserStatus.ACTIVE })
   status: UserStatus;
 
   @Column({ type: 'boolean', default: true })

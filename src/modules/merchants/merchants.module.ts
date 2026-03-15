@@ -16,7 +16,7 @@ import { QrService } from '../qr/services/qr.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MerchantProfile], 'merchant'),
+    TypeOrmModule.forFeature([MerchantProfile]),
     BullModule.registerQueue(
       { name: NOTIFICATION_CONSTANTS.QUEUE.NAME },
       { name: 'audit-queue' },

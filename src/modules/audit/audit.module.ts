@@ -8,7 +8,7 @@ import { AuditLoggingInterceptor } from './interceptors/audit-logging.intercepto
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([AuditLog], 'audit')],
+  imports: [TypeOrmModule.forFeature([AuditLog])],
   providers: [AuditRepository, AuditService, AuditLoggingInterceptor],
   controllers: [AuditController],
   exports: [AuditService, AuditLoggingInterceptor],

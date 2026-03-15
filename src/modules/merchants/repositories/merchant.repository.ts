@@ -10,9 +10,8 @@ import { MerchantStatus } from '../enums/merchant-status.enum';
 @Injectable()
 export class MerchantRepository implements IMerchantRepository {
   constructor(
-    @InjectRepository(MerchantProfile, 'merchant')
-    private readonly repo: Repository<MerchantProfile>,
-    @InjectDataSource('merchant') private readonly dataSource: DataSource,
+    @InjectRepository(MerchantProfile) private readonly repo: Repository<MerchantProfile>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<MerchantProfile | null> {

@@ -14,7 +14,7 @@ import { MerchantsModule } from '../merchants/merchants.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([NfcTag], 'merchant'),
+    TypeOrmModule.forFeature([NfcTag]),
     BullModule.registerQueue(
       { name: 'payments-queue' },
       { name: 'audit-queue' },

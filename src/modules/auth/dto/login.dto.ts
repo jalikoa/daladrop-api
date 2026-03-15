@@ -1,10 +1,13 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsString, MinLength, Matches } from 'class-validator';
 
 export class LoginDto {
-  @IsEmail({}, { message: 'Invalid email format' })
+  @IsString()
+  @Matches(/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$|^\+?[1-9]\d{1,14}$/, {
+    message: 'Valid email or phone number required',
+  })
   email: string;
 
   @IsString()
-  @MinLength(6, { message: 'Password must be at least 6 characters' })
+  @MinLength(6)
   password: string;
 }

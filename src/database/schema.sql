@@ -1,21 +1,15 @@
 -- ------------------------------------------------------------------
--- NFC Payment System - Full Database Schema
+-- NFC Payment System - Consolidated Database Schema
 -- Architecture: DDD + Event-Driven + Double-Entry Ledger
--- Database: MySQL 8.0+
+-- Database: MySQL 8.0+ (Single Database)
 -- ------------------------------------------------------------------
 
--- 1. Create Schemas (Bounded Contexts)
-CREATE SCHEMA IF NOT EXISTS identity;
-CREATE SCHEMA IF NOT EXISTS merchant;
-CREATE SCHEMA IF NOT EXISTS payments;
-CREATE SCHEMA IF NOT EXISTS ledger;
-CREATE SCHEMA IF NOT EXISTS notifications;
-CREATE SCHEMA IF NOT EXISTS audit;
 
-USE identity;
+-- ------------------------------------------------------------------
+-- 1. Identity Domain
+-- ------------------------------------------------------------------
 
--- 2. Identity Domain: Users
-CREATE TABLE IF NOT EXISTS identity.users (
+CREATE TABLE IF NOT EXISTS identity_users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     uuid CHAR(36) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE,
@@ -25,14 +19,15 @@ CREATE TABLE IF NOT EXISTS identity.users (
     status ENUM('ACTIVE', 'SUSPENDED', 'DELETED') DEFAULT 'ACTIVE',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_users_email (email),
-    INDEX idx_users_phone (phone_number)
+    INDEX idx_identity_users_email (email),
+    INDEX idx_identity_users_phone (phone_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-USE merchant;
+-- ------------------------------------------------------------------
+-- 2. Merchant Domain
+-- ------------------------------------------------------------------
 
--- 3. Merchant Domain: Profiles
-CREATE TABLE IF NOT EXISTS merchant.merchant_profiles (
+CREATE TABLE IF NOT EXISTS merchant_profiles (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
     business_name VARCHAR(255) NOT NULL,
@@ -42,36 +37,36 @@ CREATE TABLE IF NOT EXISTS merchant.merchant_profiles (
     paybill_number VARCHAR(20),
     account_number VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES identity.users(id) ON DELETE CASCADE,
-    INDEX idx_merchant_user (user_id)
+    FOREIGN KEY (user_id) REFERENCES identity_users(id) ON DELETE CASCADE,
+    INDEX idx_merchant_profiles_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 4. Merchant Domain: NFC Tags
-CREATE TABLE IF NOT EXISTS merchant.nfc_tags (
+CREATE TABLE IF NOT EXISTS merchant_nfc_tags (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     merchant_id BIGINT NOT NULL,
     tag_uid VARCHAR(100),
     encrypted_payload TEXT NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (merchant_id) REFERENCES merchant.merchant_profiles(id) ON DELETE CASCADE,
-    INDEX idx_nfc_merchant (merchant_id)
+    FOREIGN KEY (merchant_id) REFERENCES merchant_profiles(id) ON DELETE CASCADE,
+    INDEX idx_merchant_nfc_tags_merchant (merchant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 5. Merchant Domain: Merchant Cards (PDF/QR)
-CREATE TABLE IF NOT EXISTS merchant.merchant_cards (
+CREATE TABLE IF NOT EXISTS merchant_cards (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     merchant_id BIGINT NOT NULL,
     qr_code_url VARCHAR(500),
     pdf_url VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (merchant_id) REFERENCES merchant.merchant_profiles(id) ON DELETE CASCADE
+    FOREIGN KEY (merchant_id) REFERENCES merchant_profiles(id) ON DELETE CASCADE,
+    INDEX idx_merchant_cards_merchant (merchant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-USE payments;
+-- ------------------------------------------------------------------
+-- 3. Payments Domain
+-- ------------------------------------------------------------------
 
--- 6. Payments Domain: Sessions
-CREATE TABLE IF NOT EXISTS payments.payment_sessions (
+CREATE TABLE IF NOT EXISTS payment_sessions (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     session_uuid CHAR(36) UNIQUE NOT NULL,
     merchant_id BIGINT NOT NULL,
@@ -82,13 +77,12 @@ CREATE TABLE IF NOT EXISTS payments.payment_sessions (
     mpesa_receipt VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP NULL,
-    FOREIGN KEY (merchant_id) REFERENCES merchant.merchant_profiles(id),
-    INDEX idx_payment_checkout (checkout_request_id),
-    INDEX idx_payment_merchant (merchant_id)
+    FOREIGN KEY (merchant_id) REFERENCES merchant_profiles(id),
+    INDEX idx_payment_sessions_checkout (checkout_request_id),
+    INDEX idx_payment_sessions_merchant (merchant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 7. Payments Domain: Callback Logs (Idempotency)
-CREATE TABLE IF NOT EXISTS payments.payment_callbacks (
+CREATE TABLE IF NOT EXISTS payment_callbacks (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     checkout_request_id VARCHAR(100) NOT NULL,
     mpesa_receipt_number VARCHAR(50),
@@ -96,13 +90,14 @@ CREATE TABLE IF NOT EXISTS payments.payment_callbacks (
     result_desc TEXT,
     payload JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_callback_checkout (checkout_request_id)
+    INDEX idx_payment_callbacks_checkout (checkout_request_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-USE ledger;
+-- ------------------------------------------------------------------
+-- 4. Ledger Domain (Double-Entry)
+-- ------------------------------------------------------------------
 
--- 8. Ledger Domain: Accounts (Chart of Accounts)
-CREATE TABLE IF NOT EXISTS ledger.ledger_accounts (
+CREATE TABLE IF NOT EXISTS ledger_accounts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     code VARCHAR(20) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -110,11 +105,10 @@ CREATE TABLE IF NOT EXISTS ledger.ledger_accounts (
     currency VARCHAR(3) DEFAULT 'KES',
     balance DECIMAL(18, 2) DEFAULT 0.00,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_ledger_code (code)
+    INDEX idx_ledger_accounts_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 9. Ledger Domain: Entries (Double-Entry)
-CREATE TABLE IF NOT EXISTS ledger.ledger_entries (
+CREATE TABLE IF NOT EXISTS ledger_entries (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     transaction_ref VARCHAR(100) NOT NULL,
     account_id BIGINT NOT NULL,
@@ -123,15 +117,16 @@ CREATE TABLE IF NOT EXISTS ledger.ledger_entries (
     description TEXT,
     metadata JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (account_id) REFERENCES ledger.ledger_accounts(id),
-    INDEX idx_ledger_account (account_id),
-    INDEX idx_ledger_ref (transaction_ref)
+    FOREIGN KEY (account_id) REFERENCES ledger_accounts(id),
+    INDEX idx_ledger_entries_account (account_id),
+    INDEX idx_ledger_entries_ref (transaction_ref)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-USE notifications;
+-- ------------------------------------------------------------------
+-- 5. Notifications Domain
+-- ------------------------------------------------------------------
 
--- 10. Notifications Domain
-CREATE TABLE IF NOT EXISTS notifications.notifications (
+CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT,
     channel ENUM('SMS', 'EMAIL', 'PUSH') NOT NULL,
@@ -139,14 +134,15 @@ CREATE TABLE IF NOT EXISTS notifications.notifications (
     status ENUM('QUEUED', 'SENT', 'FAILED') DEFAULT 'QUEUED',
     provider VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES identity.users(id),
-    INDEX idx_notify_user (user_id)
+    FOREIGN KEY (user_id) REFERENCES identity_users(id),
+    INDEX idx_notifications_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-USE audit;
+-- ------------------------------------------------------------------
+-- 6. Audit Domain
+-- ------------------------------------------------------------------
 
--- 11. Audit Domain
-CREATE TABLE IF NOT EXISTS audit.audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT,
     action VARCHAR(255),
@@ -155,15 +151,45 @@ CREATE TABLE IF NOT EXISTS audit.audit_logs (
     endpoint VARCHAR(255),
     payload JSON,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES identity.users(id),
-    INDEX idx_audit_user (user_id)
+    FOREIGN KEY (user_id) REFERENCES identity_users(id),
+    INDEX idx_audit_logs_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------------
--- SEED DATA: Initial Ledger Accounts (Critical for System to Work)
+-- 7. Webhook Domain
 -- ------------------------------------------------------------------
-USE ledger;
-INSERT INTO ledger.ledger_accounts (code, name, account_type, balance) VALUES
+
+
+CREATE TABLE IF NOT EXISTS webhook_logs (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    source ENUM('MPESA', 'STRIPE', 'PAYPAL', 'INTERNAL', 'THIRD_PARTY') NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    event_id VARCHAR(100) DEFAULT NULL,
+    status ENUM('RECEIVED', 'PROCESSING', 'COMPLETED', 'FAILED', 'DUPLICATE', 'IGNORED') DEFAULT 'RECEIVED',
+    ip_address VARCHAR(45) NOT NULL,
+    user_agent VARCHAR(255) DEFAULT NULL,
+    payload JSON NOT NULL,
+    response_sent JSON DEFAULT NULL,
+    error_message TEXT DEFAULT NULL,
+    retry_count INT DEFAULT 0,
+    is_duplicate BOOLEAN DEFAULT FALSE,
+    idempotency_key VARCHAR(100) DEFAULT NULL UNIQUE,
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP DEFAULT NULL,
+    
+    -- Indexes for performance
+    INDEX idx_webhook_logs_source_event (source, event_id),
+    INDEX idx_webhook_logs_status (status),
+    INDEX idx_webhook_logs_received_at (received_at),
+    INDEX idx_webhook_logs_idempotency (idempotency_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------------
+-- 8. SEED DATA: Initial Ledger Accounts
+-- ------------------------------------------------------------------
+
+INSERT INTO ledger_accounts (code, name, account_type, balance) VALUES
 ('1001', 'M-Pesa Clearing', 'ASSET', 0.00),
 ('2001', 'Merchant Wallets', 'LIABILITY', 0.00),
 ('4001', 'Platform Fees', 'REVENUE', 0.00),

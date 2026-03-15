@@ -16,7 +16,7 @@ import { NOTIFICATION_CONSTANTS } from './constants/notification.constants';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Notification], 'notifications'),
+    TypeOrmModule.forFeature([Notification]),
     BullModule.registerQueue({
       name: NOTIFICATION_CONSTANTS.QUEUE.NAME,
       defaultJobOptions: {

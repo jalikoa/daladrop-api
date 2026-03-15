@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -20,6 +20,19 @@ export class UsersService {
 
   async create(dto: CreateUserDto): Promise<UserResponseDto> {
     const user = await this.createUserUseCase.execute(dto);
+    return UserMapper.toDTO(user);
+  }
+
+  // NEW: Return entity with password_hash for auth validation
+  async findUserWithPassword(identifier: string): Promise<User | null> {
+    return this.userRepo.findByEmailOrPhone(identifier);
+  }
+
+  async findByEmailOrPhone(identifier: string): Promise<UserResponseDto> {
+    const user = await this.userRepo.findByEmailOrPhone(identifier);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     return UserMapper.toDTO(user);
   }
 

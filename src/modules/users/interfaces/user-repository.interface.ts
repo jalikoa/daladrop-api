@@ -7,6 +7,8 @@ export interface IUserRepository {
   findById(id: number): Promise<User | null>;
   findByUuid(uuid: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
+  findByEmailOrPhone(identifier: string): Promise<User | null>;
+  findByIdWithPassword(id: number): Promise<User | null>;
   findByPhone(phone: string): Promise<User | null>;
   findAll(page: number, limit: number, role?: UserRole): Promise<{ data: User[]; total: number }>;
   create(data: CreateUserDto): Promise<User>;

@@ -23,114 +23,39 @@ import { PublicController } from './interfaces/public/public.controller';
 
     /*
     ------------------------------------------------
-    DATABASE CONNECTIONS (Bounded Contexts)
+    SINGLE DATABASE CONNECTION
     ------------------------------------------------
     */
 
-    // Identity Domain
     TypeOrmModule.forRootAsync({
-      name: 'identity',
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
         type: 'mysql',
-        host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
-        port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
-        username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
-        password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'identity',
-        autoLoadEntities: true,
-        synchronize: false,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
 
-    // Merchant Domain
-    TypeOrmModule.forRootAsync({
-      name: 'merchant',
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
         host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
         port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
-        username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
-        password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'merchant',
-        autoLoadEntities: true,
-        synchronize: false,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
 
-    // Payments Domain
-    TypeOrmModule.forRootAsync({
-      name: 'payments',
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
-        port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
         username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
         password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'payments',
-        autoLoadEntities: true,
-        synchronize: false,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
 
-    // Ledger Domain
-    TypeOrmModule.forRootAsync({
-      name: 'ledger',
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
-        port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
-        username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
-        password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'ledger',
-        autoLoadEntities: true,
-        synchronize: false,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
+        database: config.get<string>('database.name') || config.get<string>('DB_NAME'),
 
-    // Notifications Domain
-    TypeOrmModule.forRootAsync({
-      name: 'notifications',
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
-        port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
-        username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
-        password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'notifications',
         autoLoadEntities: true,
         synchronize: false,
-        logging: false,
-      }),
-      inject: [ConfigService],
-    }),
 
-    // Audit Domain
-    TypeOrmModule.forRootAsync({
-      name: 'audit',
-      imports: [ConfigModule],
-      useFactory: (config: ConfigService) => ({
-        type: 'mysql',
-        host: config.get<string>('database.host') || config.get<string>('DB_HOST'),
-        port: config.get<number>('database.port') || config.get<number>('DB_PORT'),
-        username: config.get<string>('database.username') || config.get<string>('DB_USERNAME'),
-        password: config.get<string>('database.password') || config.get<string>('DB_PASSWORD'),
-        database: 'audit',
-        autoLoadEntities: true,
-        synchronize: false,
         logging: false,
+
+        /*
+        --------------------------------------------
+        CONNECTION POOLING
+        --------------------------------------------
+        */
+
+        extra: {
+          connectionLimit: 20,   // max simultaneous connections
+          waitForConnections: true,
+          queueLimit: 0,
+        },
       }),
       inject: [ConfigService],
     }),
@@ -156,6 +81,7 @@ import { PublicController } from './interfaces/public/public.controller';
           host:
             config.get<string>('redis.host') ||
             config.get<string>('REDIS_HOST'),
+
           port:
             config.get<number>('redis.port') ||
             config.get<number>('REDIS_PORT'),

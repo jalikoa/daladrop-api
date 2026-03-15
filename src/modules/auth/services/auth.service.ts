@@ -32,8 +32,23 @@ export class AuthService {
     return user;
   }
 
+  async validateUserData(identifier: string, password: string): Promise<any> {
+    const user = await this.usersService.findUserWithPassword(identifier);
+    if (!user || !user.password_hash) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const isValid = await bcrypt.compare(password, user.password_hash);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    const { password_hash, ...result } = user;
+    return result;
+  }
+
+
+
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const user = await (this.usersService as any).findByEmailOrPhone(loginDto.email);
+    const user = await this.validateUserData(loginDto.email, loginDto.password);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }

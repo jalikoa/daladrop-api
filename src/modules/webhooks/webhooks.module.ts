@@ -13,7 +13,7 @@ import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
 	imports: [
-		TypeOrmModule.forFeature([WebhookLog], 'audit'),
+		TypeOrmModule.forFeature([WebhookLog]),
 		EventEmitterModule.forRoot(),
 		PaymentsModule, // For payment event handling
 	],

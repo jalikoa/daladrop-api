@@ -10,11 +10,9 @@ import { PaymentType } from '../enums/payment-type.enum';
 @Injectable()
 export class PaymentRepository implements IPaymentRepository {
   constructor(
-    @InjectRepository(PaymentSession, 'payments')
-    private readonly sessionRepo: Repository<PaymentSession>,
-    @InjectRepository(PaymentCallback, 'payments')
-    private readonly callbackRepo: Repository<PaymentCallback>,
-    @InjectDataSource('payments') private readonly dataSource: DataSource,
+    @InjectRepository(PaymentSession) private readonly sessionRepo: Repository<PaymentSession>,
+    @InjectRepository(PaymentCallback) private readonly callbackRepo: Repository<PaymentCallback>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async findById(id: number): Promise<PaymentSession | null> {

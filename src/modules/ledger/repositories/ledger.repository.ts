@@ -9,9 +9,9 @@ export class LedgerRepository {
   private readonly logger = new Logger(LedgerRepository.name);
 
   constructor(
-    @InjectRepository(Account, 'ledger') private accountsRepo: Repository<Account>,
-    @InjectRepository(LedgerEntry, 'ledger') private entriesRepo: Repository<LedgerEntry>,
-    @InjectDataSource('ledger') private readonly dataSource: DataSource,
+    @InjectRepository(Account) private accountsRepo: Repository<Account>,
+    @InjectRepository(LedgerEntry) private entriesRepo: Repository<LedgerEntry>,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   async getAccountById(accountId: string) {
