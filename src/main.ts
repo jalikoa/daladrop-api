@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ValidationError } from 'class-validator';
 import { AppModule } from './app.module';
 import { HttpMetricsInterceptor } from './common/interceptors/Http-metrics.interceptor';
 import { AppLogger } from './modules/logger/logger.service';
