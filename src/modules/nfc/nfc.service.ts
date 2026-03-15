@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import { CreateNfcTagDto } from './dto/create-nfc-tag.dto';
 import { DecodeTokenDto } from './dto/decode-token.dto';
 import { NfcTagResponseDto, DecodedTokenResponseDto } from './dto/nfc-tag-response.dto';
@@ -30,7 +30,7 @@ export class NfcService {
   async findOne(id: number): Promise<NfcTagResponseDto> {
     const tag = await (this.nfcRepo as any).findById(id);
     if (!tag) {
-      throw new Error('NFC tag not found');
+      throw new NotFoundException(`NFC tag with ID ${id} not found`);
     }
     return this.mapToResponse(tag);
   }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { IDarajaAdapter, StkPushRequest, StkPushResponse, StkStatusResponse } from '../interfaces/daraja-adapter.interface';
@@ -29,7 +29,11 @@ export class DarajaAdapter implements IDarajaAdapter {
       const consumerKey = this.configService.get<string>('DARAJA_CONSUMER_KEY');
       const consumerSecret = this.configService.get<string>('DARAJA_CONSUMER_SECRET');
 
-      if (!consumerKey || !consumerSecret) throw new Error('Daraja credentials not configured');
+      if (!consumerKey || !consumerSecret) {
+        throw new InternalServerErrorException(
+          'Daraja credentials are not configured — set DARAJA_CONSUMER_KEY and DARAJA_CONSUMER_SECRET',
+        );
+      }
 
       const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
       const response = await this.http.get(PAYMENT_CONSTANTS.DARAJA.TOKEN_ENDPOINT, { headers: { Authorization: `Basic ${auth}` } });
@@ -50,7 +54,11 @@ export class DarajaAdapter implements IDarajaAdapter {
       const paybill = this.configService.get<string>('DARAJA_PAYBILL');
       const passkey = this.configService.get<string>('DARAJA_PASSKEY');
 
-      if (!paybill || !passkey) throw new Error('Daraja Paybill or Passkey not configured');
+      if (!paybill || !passkey) {
+        throw new InternalServerErrorException(
+          'Daraja is not configured — set DARAJA_PAYBILL and DARAJA_PASSKEY environment variables',
+        );
+      }
 
       const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 14);
       const password = Buffer.from(`${paybill}${passkey}${timestamp}`).toString('base64');

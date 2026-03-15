@@ -1,0 +1,353 @@
+################################################################################
+# .github/workflows/ci.yml
+#
+# Triggers on every push and pull request to main / develop.
+# Jobs:
+#   lint       — ESLint + Prettier check
+#   unit       — Jest unit tests with coverage report + badge
+#   e2e        — End-to-end tests against a real MariaDB + Redis
+#   security   — npm audit + Snyk (optional)
+#   build      — TypeScript compile + Docker image build check
+#   notify     — Slack/email summary on failure (optional, configure secrets)
+################################################################################
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "fix/**", "hotfix/**"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:            # allow manual trigger from GitHub UI
+
+concurrency:
+  # Cancel in-progress runs on the same branch (saves minutes)
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  # Shared test env vars (no real secrets needed for unit tests)
+  NODE_ENV: test
+  PORT: 3000
+  DB_HOST: localhost
+  DB_PORT: 3306
+  DB_USERNAME: nfc_user
+  DB_PASSWORD: nfc_test_pass
+  DB_NAME: nfc_test_db
+  REDIS_HOST: localhost
+  REDIS_PORT: 6379
+  JWT_SECRET: test-jwt-secret-32-chars-minimum!
+  JWT_EXPIRATION: 1d
+  NFC_SECRET_KEY: "testkey1234567890123456789012AB"   # exactly 32 chars
+  DARAJA_CONSUMER_KEY: test_key
+  DARAJA_CONSUMER_SECRET: test_secret
+  DARAJA_PAYBILL: "123456"
+  DARAJA_PASSKEY: test_passkey
+  DARAJA_ENV: sandbox
+  AFRICASTALKING_USERNAME: sandbox
+  AFRICASTALKING_API_KEY: test_key
+  FIREBASE_PROJECT_ID: test-project
+  FIREBASE_CLIENT_EMAIL: test@test.iam.gserviceaccount.com
+  FIREBASE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n"
+  PUBLIC_URL: "http://localhost:3000"
+
+jobs:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1: Lint — fail fast before running any tests
+  # ────────────────────────────────────────────────────────────────────────────
+  lint:
+    name: "Lint & Format"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint -- --max-warnings=0
+
+      - name: Prettier
+        run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Unit tests — no real DB/Redis needed
+  # ────────────────────────────────────────────────────────────────────────────
+  unit:
+    name: "Unit Tests + Coverage"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:cov -- --forceExit --detectOpenHandles
+        env:
+          # Extra Jest options via env so we don't have to edit package.json
+          JEST_JUNIT_OUTPUT_DIR: ./reports/junit
+          JEST_JUNIT_OUTPUT_NAME: unit-results.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unit
+          name: nfc-api-unit
+          fail_ci_if_error: false
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
+      - name: Coverage summary comment on PR
+        uses: ArtiomTr/jest-coverage-report-action@v2
+        if: github.event_name == 'pull_request'
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          test-script: npm run test:cov
+          annotations: all
+        continue-on-error: true
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 3: E2E tests — spins up real MariaDB + Redis via service containers
+  # ────────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: "E2E Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: unit
+
+    services:
+      mysql:
+        image: mariadb:11.8
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: nfc_test_db
+          MYSQL_USER: nfc_user
+          MYSQL_PASSWORD: nfc_test_pass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for MariaDB to accept connections
+        run: |
+          for i in $(seq 1 30); do
+            if mysql -h 127.0.0.1 -u nfc_user -pnfc_test_pass nfc_test_db -e "SELECT 1" &>/dev/null; then
+              echo "MariaDB ready"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
+      - name: Run database migrations
+        run: npm run migration:run
+        env:
+          DB_HOST: localhost
+          DB_SYNC: "false"
+
+      - name: Build (required for e2e)
+        run: npm run build
+
+      - name: Run E2E tests
+        run: npm run test:e2e -- --forceExit --detectOpenHandles
+        env:
+          DB_HOST: localhost
+          DB_SYNC: "false"
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-results
+          path: reports/
+          retention-days: 14
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 4: TypeScript build check
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: "TypeScript Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify dist output exists
+        run: |
+          test -f dist/main.js && echo "✓ dist/main.js exists" || (echo "✗ dist/main.js missing" && exit 1)
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 5: Security audit
+  # ────────────────────────────────────────────────────────────────────────────
+  security:
+    name: "Security Audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Run in parallel with unit tests, doesn't block them
+    needs: lint
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (fail on high/critical)
+        run: npm audit --audit-level=high
+        # Don't fail the workflow for moderate vulnerabilities in dev deps
+        continue-on-error: false
+
+      - name: Snyk vulnerability scan
+        uses: snyk/actions/node@master
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true   # advisory only — remove to enforce
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 6: Docker build check (ensures the Dockerfile compiles clean)
+  # ────────────────────────────────────────────────────────────────────────────
+  docker:
+    name: "Docker Build"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [unit, build]
+    # Only run on pushes to main/develop to save minutes on feature branches
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: nfc-api:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          target: production
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 7: Notify on failure — Slack webhook (optional)
+  # ────────────────────────────────────────────────────────────────────────────
+  notify:
+    name: "Notify on Failure"
+    runs-on: ubuntu-latest
+    needs: [lint, unit, e2e, build, security]
+    if: failure() && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Slack failure notification
+        uses: slackapi/slack-github-action@v1.26.0
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        with:
+          payload: |
+            {
+              "text": "CI failed on *${{ github.repository }}*",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                  { "title": "Commit", "value": "${{ github.sha }}", "short": true },
+                  { "title": "Author", "value": "${{ github.actor }}", "short": true },
+                  { "title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false }
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

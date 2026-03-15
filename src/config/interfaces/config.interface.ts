@@ -1,59 +1,58 @@
-export interface DatabaseConfig {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  name: string;
-  synchronize: boolean;
-}
-
-export interface RedisConfig {
-  host: string;
-  port: number;
-  password?: string;
-}
-
-export interface JwtConfig {
-  secret: string;
-  expiration: string;
-}
-
-export interface DarajaConfig {
-  consumerKey: string;
-  consumerSecret: string;
-  paybill: string;
-  passkey: string;
-  environment: 'sandbox' | 'production';
-}
-
-export interface AfricaTalkingConfig {
-  username: string;
-  apiKey: string;
-}
-
-export interface FirebaseConfig {
-  projectId: string;
-  clientEmail: string;
-  privateKey: string;
-}
-
-export interface NfcConfig {
-  secretKey: string;
-}
-
-export interface AppConfig {
-  port: number;
-  environment: string;
-  apiUrl: string;
-}
-
 export interface IConfig {
-  app: AppConfig;
-  database: DatabaseConfig;
-  redis: RedisConfig;
-  jwt: JwtConfig;
-  daraja: DarajaConfig;
-  africastalking: AfricaTalkingConfig;
-  firebase: FirebaseConfig;
-  nfc: NfcConfig;
+  app: {
+    port: number;
+    environment: string;
+    apiUrl: string;
+    name: string;
+    corsOrigins: string[];
+  };
+  database: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    name: string;
+    synchronize: boolean;
+  };
+  redis: {
+    host: string;
+    port: number;
+    password?: string;
+  };
+  jwt: {
+    secret: string;
+    expiration: string;
+  };
+  daraja: {
+    consumerKey: string;
+    consumerSecret: string;
+    paybill: string;
+    passkey: string;
+    environment: 'sandbox' | 'production';
+  };
+  africastalking: {
+    username: string;
+    apiKey: string;
+  };
+  firebase: {
+    projectId: string;
+    clientEmail: string;
+    privateKey: string;
+  };
+  nfc: {
+    secretKey: string;
+  };
+  observability: {
+    logLevel: string;
+    elasticsearch: {
+      url: string;
+      username: string;
+      password: string;
+    };
+    logstash: {
+      host: string;
+      port: number;
+    };
+    metricsToken: string;
+  };
 }

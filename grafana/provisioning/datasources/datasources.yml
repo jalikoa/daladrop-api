@@ -1,0 +1,34 @@
+################################################################################
+# grafana/provisioning/datasources/datasources.yml
+# Auto-provisions Prometheus and Elasticsearch datasources on first boot.
+################################################################################
+
+apiVersion: 1
+
+datasources:
+
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus-nfc
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: GET
+
+  - name: Elasticsearch (NFC Logs)
+    type: elasticsearch
+    uid: elasticsearch-nfc
+    access: proxy
+    url: http://elasticsearch:9200
+    isDefault: false
+    editable: false
+    database: "nfc-api-logs-*"
+    jsonData:
+      esVersion: "8.0.0"
+      timeField: "@timestamp"
+      maxConcurrentShardRequests: 5
+      logMessageField: "message"
+      logLevelField: "level"

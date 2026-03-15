@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Account } from '../entities/account.entity';
@@ -28,7 +28,9 @@ export class LedgerRepository {
     const totalDebit = entries.filter(e => e.type === 'debit').reduce((s, e) => s + parseFloat(e.amount), 0);
     const totalCredit = entries.filter(e => e.type === 'credit').reduce((s, e) => s + parseFloat(e.amount), 0);
     if (Math.abs(totalDebit - totalCredit) > 1e-6) {
-      throw new Error('Debits and credits must balance');
+      throw new UnprocessableEntityException(
+        `Ledger entries are unbalanced: total debits ${totalDebit.toFixed(2)} ≠ total credits ${totalCredit.toFixed(2)}`,
+      );
     }
 
     return this.entriesRepo.manager.transaction(async manager => {

@@ -1,4 +1,6 @@
 import { PDF_CONSTANTS } from '../constants/pdf.constants';
+import { BadRequestException } from '@nestjs/common';
+
 
 export class PdfDocumentValueObject {
   constructor(
@@ -11,16 +13,20 @@ export class PdfDocumentValueObject {
   }
 
   private validate(): void {
-    if (!this.title || this.title.length === 0) {
-      throw new Error('PDF title cannot be empty');
+    if (!this.title || this.title.trim().length === 0) {
+      throw new BadRequestException('PDF title cannot be empty');
     }
-
+ 
     if (this.width < 50 || this.width > 1000) {
-      throw new Error('PDF width must be between 50 and 1000 points');
+      throw new BadRequestException(
+        `PDF width ${this.width}pt is out of range — must be between 50 and 1000 points`,
+      );
     }
-
+ 
     if (this.height < 50 || this.height > 1000) {
-      throw new Error('PDF height must be between 50 and 1000 points');
+      throw new BadRequestException(
+        `PDF height ${this.height}pt is out of range — must be between 50 and 1000 points`,
+      );
     }
   }
 

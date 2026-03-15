@@ -1,0 +1,42 @@
+################################################################################
+# prometheus.yml
+# Place at: ./prometheus/prometheus.yml
+################################################################################
+
+global:
+  scrape_interval:     15s   # How often to scrape targets
+  evaluation_interval: 15s   # How often to evaluate alerting rules
+  scrape_timeout:      10s
+
+  external_labels:
+    environment: "${PROMETHEUS_ENV:-development}"
+    app: "nfc-payment-api"
+
+# ─── Alerting rules ──────────────────────────────────────────────────────────
+rule_files:
+  - "alerts.yml"
+
+# ─── Scrape configs ──────────────────────────────────────────────────────────
+scrape_configs:
+
+  # The NFC API itself — exposes GET /metrics (prom-client format)
+  - job_name: "nfc-api"
+    static_configs:
+      - targets:
+          - "nfc_api:3000"    # docker service name; change to localhost:3000 if running locally
+    metrics_path: /metrics
+    scrape_interval: 10s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Grafana self-monitoring (optional but useful)
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+    metrics_path: /metrics

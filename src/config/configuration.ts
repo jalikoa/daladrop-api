@@ -5,13 +5,15 @@ export default (): IConfig => ({
     port: parseInt(process.env.PORT || '3000', 10),
     environment: process.env.NODE_ENV || 'development',
     apiUrl: process.env.PUBLIC_URL || 'http://localhost:3000',
+    name: process.env.APP_NAME || 'nfc-payment-api',
+    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['*'],
   },
   database: {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT || '3306', 10),
     username: process.env.DB_USERNAME || '',
     password: process.env.DB_PASSWORD || '',
-    name: process.env.DB_NAME || 'nfc_payment_db',
+    name: process.env.DB_NAME || 'nfc_db',
     synchronize: process.env.DB_SYNC === 'true',
   },
   redis: {
@@ -41,5 +43,20 @@ export default (): IConfig => ({
   },
   nfc: {
     secretKey: process.env.NFC_SECRET_KEY || '',
+  },
+
+  // ── Observability ──────────────────────────────────────────────────────────
+  observability: {
+    logLevel: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+    elasticsearch: {
+      url: process.env.ELASTICSEARCH_URL || '',
+      username: process.env.ELASTICSEARCH_USERNAME || 'elastic',
+      password: process.env.ELASTICSEARCH_PASSWORD || '',
+    },
+    logstash: {
+      host: process.env.LOGSTASH_HOST || '',
+      port: parseInt(process.env.LOGSTASH_PORT || '5000', 10),
+    },
+    metricsToken: process.env.METRICS_TOKEN || '',
   },
 });

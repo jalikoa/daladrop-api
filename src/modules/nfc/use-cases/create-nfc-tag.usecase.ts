@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject,NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { INfcRepository } from '../interfaces/nfc-repository.interface';
 import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
@@ -18,13 +18,20 @@ export class CreateNfcTagUseCase {
 
   async execute(merchantId: number, dto: CreateNfcTagDto): Promise<NfcTag> {
     const merchant = await this.merchantRepo.findById(merchantId);
-    if (!merchant || !merchant.isActive()) {
-      throw new Error('Cannot create NFC tag for inactive merchant');
+    if (!merchant) {
+      throw new NotFoundException(`Merchant with ID ${merchantId} not found`);
+    }
+    if (!merchant.isActive()) {
+      throw new UnprocessableEntityException(
+        `Cannot create NFC tag: merchant "${merchant.business_name}" is not active or verified`,
+      );
     }
 
     const tagCount = await this.nfcRepo.countByMerchant(merchantId);
     if (tagCount >= NFC_CONSTANTS.MAX_TAGS_PER_MERCHANT) {
-      throw new Error(`Maximum ${NFC_CONSTANTS.MAX_TAGS_PER_MERCHANT} tags per merchant`);
+      throw new UnprocessableEntityException(
+        `Merchant has reached the maximum of ${NFC_CONSTANTS.MAX_TAGS_PER_MERCHANT} NFC tags`,
+      );
     }
 
     const payload = {

@@ -47,12 +47,6 @@ export class NfcController {
     return this.nfcService.findByMerchant(merchantId, page, limit);
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<NfcTagResponseDto> {
-    return this.nfcService.findOne(id);
-  }
-
   @Get('decode')
   async decodeToken(
     @Query() dto: DecodeTokenDto,
@@ -60,4 +54,11 @@ export class NfcController {
   ): Promise<DecodedTokenResponseDto> {
     return this.nfcService.decodeToken(dto, req.ip, req.get('user-agent'));
   }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<NfcTagResponseDto> {
+    return this.nfcService.findOne(id);
+  }
+
 }

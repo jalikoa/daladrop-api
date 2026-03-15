@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 export class PhoneNumber {
   private readonly value: string;
 
@@ -23,7 +24,10 @@ export class PhoneNumber {
   private validate(): void {
     const kenyanPattern = /^254[17]\d{8}$/;
     if (!kenyanPattern.test(this.value)) {
-      throw new Error(`Invalid Kenyan phone number: ${this.value}`);
+      throw new BadRequestException(
+        `Invalid Kenyan phone number "${this.value}". ` +
+        `Expected format: 2547XXXXXXXX or 2541XXXXXXXX (12 digits starting with 254)`,
+      );
     }
   }
 

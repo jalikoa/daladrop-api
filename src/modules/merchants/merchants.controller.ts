@@ -51,16 +51,16 @@ export class MerchantsController {
     return this.merchantsService.findAll(page, limit);
   }
 
-  @Get(':id')
-  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<MerchantResponseDto> {
-    return this.merchantsService.findOne(id);
-  }
-
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async findMyMerchant(@Request() req): Promise<MerchantResponseDto> {
     return this.merchantsService.findByUserId(req.user.id);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<MerchantResponseDto> {
+    return this.merchantsService.findOne(id);
   }
 
   @Get(':id/payment-link')

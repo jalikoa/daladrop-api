@@ -102,7 +102,9 @@ export class QrService implements IQrService {
   getQRCodeInfo(dataUrl: string): QRCodeInfo {
     const matches = dataUrl.match(/^data:image\/([^;]+);base64,(.+)$/);
     if (!matches) {
-      throw new Error('Invalid data URL format');
+      throw new BadRequestException(
+        'Invalid QR code data URL format — expected data:image/<type>;base64,<data>',
+      );
     }
 
     const [, format, base64Data] = matches;

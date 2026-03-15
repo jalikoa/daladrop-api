@@ -1,0 +1,178 @@
+################################################################################
+# NFC API — Observability Stack
+# Prometheus + Grafana  (metrics)
+# Elasticsearch + Logstash + Kibana  (logs)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+#
+# Ports exposed on localhost:
+#   :9090  Prometheus
+#   :3100  Grafana      (admin / admin — change on first login)
+#   :9200  Elasticsearch
+#   :5601  Kibana
+#   :5044  Logstash Beats input
+#   :12201 Logstash GELF input  (optional)
+################################################################################
+
+version: "3.9"
+
+networks:
+  observability:
+    driver: bridge
+  # Attach to the same network your app + DB already use
+  app_default:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  elasticsearch_data:
+  logstash_data:
+  kibana_data:
+
+services:
+
+  # ─────────────────────────────────────────────────────────────
+  # PROMETHEUS  — scrapes /metrics from the NFC API
+  # ─────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: nfc_prometheus
+    restart: unless-stopped
+    networks: [observability, app_default]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle          # allows POST /-/reload
+      - --web.enable-admin-api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────
+  # GRAFANA  — dashboards for metrics and log datasources
+  # ─────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: nfc_grafana
+    restart: unless-stopped
+    networks: [observability]
+    ports:
+      - "3100:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3100}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-clock-panel
+      # Prometheus datasource — auto-provisioned
+      GF_FEATURE_TOGGLES_ENABLE: publicDashboards
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────────────────────
+  # ELASTICSEARCH  — log storage and search backend
+  # ─────────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: nfc_elasticsearch
+    restart: unless-stopped
+    networks: [observability]
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false        # disable TLS for dev; enable in prod
+      - xpack.security.enrollment.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.name=nfc-logs
+      - node.name=nfc-es-01
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD", "curl", "-fsSL", "http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────
+  # LOGSTASH  — receives JSON logs from the NestJS app, parses
+  #             and ships them to Elasticsearch
+  # ─────────────────────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.4
+    container_name: nfc_logstash
+    restart: unless-stopped
+    networks: [observability, app_default]
+    ports:
+      - "5044:5044"     # Beats / TCP input (NestJS ships here)
+      - "9600:9600"     # Logstash monitoring API
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - logstash_data:/usr/share/logstash/data
+    environment:
+      LS_JAVA_OPTS: -Xms256m -Xmx512m
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsSL", "http://localhost:9600/_node/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # ─────────────────────────────────────────────────────────────
+  # KIBANA  — log explorer, dashboards, APM UI
+  # ─────────────────────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.4
+    container_name: nfc_kibana
+    restart: unless-stopped
+    networks: [observability]
+    ports:
+      - "5601:5601"
+    volumes:
+      - kibana_data:/usr/share/kibana/data
+    environment:
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      KIBANA_SYSTEM_PASSWORD: ${KIBANA_PASSWORD:-changeme}
+      SERVER_NAME: nfc-kibana
+      SERVER_PUBLICBASEURL: ${KIBANA_PUBLIC_URL:-http://localhost:5601}
+      XPACK_SECURITY_ENABLED: "false"
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY:-32-char-random-key-here-change-me}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsSL", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s

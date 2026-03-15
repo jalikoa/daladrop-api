@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, BadRequestException } from '@nestjs/common';
 import { NotificationChannel } from '../enums/notification-channel.enum';
 import type { SmsProvider } from '../interfaces/sms-provider.interface';
 import type { EmailProvider } from '../interfaces/email-provider.interface';
@@ -33,7 +33,10 @@ export class SendNotificationUseCase {
         return (await this.pushProvider.sendToDevice(dto.recipient, 'Notification', dto.message))
           .success;
       default:
-        throw new Error('Invalid notification channel');
+        throw new BadRequestException(
+          `Unsupported notification channel: "${dto.channel}". ` +
+          `Supported channels: SMS, EMAIL, PUSH`,
+        );
     }
   }
 }

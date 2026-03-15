@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IMerchantRepository } from '../interfaces/merchant-repository.interface';
@@ -30,8 +30,11 @@ export class GeneratePaymentLinkUseCase {
       throw new NotFoundException(`Merchant with ID ${input.merchantId} not found`);
     }
 
-    if (!merchant.isActive()) {
-      throw new Error('Merchant is not active or verified');
+     if (!merchant.isActive()) {
+      throw new UnprocessableEntityException(
+        `Merchant "${merchant.business_name}" is not active or verified. ` +
+        `Status: ${merchant.status}, Verification: ${merchant.verification_status}`,
+      );
     }
 
     const payload = {

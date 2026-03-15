@@ -11,13 +11,14 @@ import { GetAccountBalanceUseCase } from './use-cases/get-account-balance.usecas
 import { LedgerListener } from './listeners/ledger.listener';
 import { LedgerProcessor } from './processors/ledger.processor';
 import { LEDGER_CONSTANTS } from './constants/ledger.constants';
-
+import { LedgerController } from './ledger.controller';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Account, LedgerEntry]),
     BullModule.registerQueue({ name: LEDGER_CONSTANTS.QUEUE.NAME }),
     EventEmitterModule.forRoot(),
   ],
+  controllers: [LedgerController],
   providers: [
     LedgerRepository,
     LedgerService,

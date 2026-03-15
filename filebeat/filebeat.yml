@@ -1,0 +1,83 @@
+################################################################################
+# filebeat/filebeat.yml
+#
+# Reads:
+#   1. JSON log files written by Winston in /app/logs/
+#   2. Container stdout/stderr from Docker via the Docker socket
+#
+# Ships to Logstash (preferred) so Logstash can parse and enrich.
+################################################################################
+
+filebeat.inputs:
+
+  # ── Winston JSON log files ──────────────────────────────────────────────────
+  - type: log
+    id: nfc-api-file-logs
+    enabled: true
+    paths:
+      - /app/logs/combined.log
+      - /app/logs/error.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    multiline.type: pattern
+    multiline.pattern: '^\{'
+    multiline.negate: true
+    multiline.match: after
+    fields:
+      log_source: file
+      app: nfc-payment-api
+    fields_under_root: true
+    close_inactive: 5m
+    scan_frequency: 5s
+
+  # ── Docker container stdout/stderr ─────────────────────────────────────────
+  # Captures logs from ALL containers labelled with logging=true
+  - type: container
+    id: docker-container-logs
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    stream: all
+    # Only collect from containers with the label logging=true
+    processors:
+      - add_docker_metadata:
+          host: unix:///var/run/docker.sock
+      - drop_event:
+          when:
+            not:
+              equals:
+                docker.container.labels.logging: "true"
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+          add_error_key: false
+    fields:
+      log_source: docker
+    fields_under_root: true
+
+# ── Output: Logstash ──────────────────────────────────────────────────────────
+output.logstash:
+  hosts: ["${LOGSTASH_URL:-logstash:5044}"]
+  bulk_max_size: 2048
+  worker: 2
+
+# ── Disable Elasticsearch output (all goes through Logstash) ─────────────────
+# output.elasticsearch is intentionally not set.
+
+# ── Processors applied to every event ────────────────────────────────────────
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging.level: warning
+logging.to_files: false
+
+# ── Internal metrics ──────────────────────────────────────────────────────────
+monitoring.enabled: false
+
+# ── Index template ────────────────────────────────────────────────────────────
+setup.ilm.enabled: false           # Logstash handles ILM
+setup.template.enabled: false      # Logstash handles the template
