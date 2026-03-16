@@ -9,7 +9,7 @@ export class DarajaAdapter implements IDarajaAdapter {
   private readonly logger = new Logger(DarajaAdapter.name);
   private readonly http: AxiosInstance;
   private readonly baseUrl: string;
-  private accessToken?: string; // Cache for access token
+  private accessToken?: string;
   private tokenExpiry?: number;
 
   constructor(private readonly configService: ConfigService) {
@@ -22,7 +22,7 @@ export class DarajaAdapter implements IDarajaAdapter {
 
   async getAccessToken(): Promise<string> {
     if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
-      return this.accessToken; // TS narrows type here due to check
+      return this.accessToken;
     }
 
     try {
@@ -30,20 +30,24 @@ export class DarajaAdapter implements IDarajaAdapter {
       const consumerSecret = this.configService.get<string>('DARAJA_CONSUMER_SECRET');
 
       if (!consumerKey || !consumerSecret) {
-        throw new InternalServerErrorException(
-          'Daraja credentials are not configured — set DARAJA_CONSUMER_KEY and DARAJA_CONSUMER_SECRET',
-        );
+        throw new InternalServerErrorException('Daraja credentials not configured');
       }
 
       const auth = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64');
-      const response = await this.http.get(PAYMENT_CONSTANTS.DARAJA.TOKEN_ENDPOINT, { headers: { Authorization: `Basic ${auth}` } });
+      const response = await this.http.get(PAYMENT_CONSTANTS.DARAJA.TOKEN_ENDPOINT, {
+        headers: { Authorization: `Basic ${auth}` },
+      });
 
-      this.accessToken = response.data.access_token;
+      const token: string = response.data.access_token;
+      this.accessToken = token;
       this.tokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
-      this.logger.log('Daraja access token refreshed');
-      return this.accessToken!; // Assert defined since just assigned
-    } catch (error) {
-      this.logger.error('Failed to get Daraja access token', error);
+      return token;
+    } catch (error: any) {
+      this.logger.error('Failed to get Daraja access token', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
       throw new BadRequestException('Failed to authenticate with Daraja');
     }
   }
@@ -55,34 +59,57 @@ export class DarajaAdapter implements IDarajaAdapter {
       const passkey = this.configService.get<string>('DARAJA_PASSKEY');
 
       if (!paybill || !passkey) {
-        throw new InternalServerErrorException(
-          'Daraja is not configured — set DARAJA_PAYBILL and DARAJA_PASSKEY environment variables',
-        );
+        throw new InternalServerErrorException('Daraja paybill or passkey not configured');
       }
 
       const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 14);
       const password = Buffer.from(`${paybill}${passkey}${timestamp}`).toString('base64');
-
       const publicUrl = this.configService.get<string>('PUBLIC_URL') || '';
+      const callbackUrl = `${publicUrl}${PAYMENT_CONSTANTS.DARAJA.CALLBACK_PATH}`;
+
+      const requestBody = {
+        BusinessShortCode: paybill,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: request.amount,
+        PartyA: request.phone,
+        PartyB: paybill,
+        PhoneNumber: request.phone,
+        CallBackURL: callbackUrl,
+        AccountReference: request.accountReference,
+        TransactionDesc: request.transactionDesc,
+      };
+
+      this.logger.debug('Daraja STK Push request', {
+        phone: request.phone,
+        amount: request.amount,
+        callback: callbackUrl,
+        timestamp,
+      });
+
       const response = await this.http.post(
         PAYMENT_CONSTANTS.DARAJA.STK_PUSH_ENDPOINT,
-        {
-          BusinessShortCode: paybill,
-          Password: password,
-          Timestamp: timestamp,
-          TransactionType: 'CustomerPayBillOnline',
-          Amount: request.amount,
-          PartyA: request.phone,
-          PartyB: paybill,
-          PhoneNumber: request.phone,
-          CallBackURL: `${publicUrl}${PAYMENT_CONSTANTS.DARAJA.CALLBACK_PATH}`,
-          AccountReference: request.accountReference,
-          TransactionDesc: request.transactionDesc,
-        },
+        requestBody,
         { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      this.logger.log(`STK Push initiated: ${response.data.CheckoutRequestID}`);
+      this.logger.debug('Daraja STK Push response', {
+        status: response.status,
+        data: response.data,
+      });
+
+      if (response.data.ResponseCode !== '0') {
+        this.logger.error('Daraja rejected STK push', {
+          responseCode: response.data.ResponseCode,
+          responseDescription: response.data.ResponseDescription,
+          customerMessage: response.data.CustomerMessage,
+          requestBody: { phone: request.phone, amount: request.amount },
+        });
+        throw new BadRequestException(
+          `Daraja error: ${response.data.ResponseDescription || response.data.CustomerMessage || 'Unknown'}`,
+        );
+      }
 
       return {
         merchantRequestID: response.data.MerchantRequestID,
@@ -91,9 +118,17 @@ export class DarajaAdapter implements IDarajaAdapter {
         responseDescription: response.data.ResponseDescription,
         customerMessage: response.data.CustomerMessage || 'STK push sent successfully',
       };
-    } catch (error) {
-      this.logger.error('STK Push failed', error);
-      throw new BadRequestException('Failed to initiate STK push');
+    } catch (error: any) {
+      const darajaError = error.response?.data || error.message;
+      this.logger.error('STK Push failed', {
+        message: error.message,
+        status: error.response?.status,
+        darajaResponse: darajaError,
+        phone: request.phone,
+        amount: request.amount,
+      });
+      const errorMsg = darajaError?.ResponseDescription || darajaError?.CustomerMessage || error.message;
+      throw new BadRequestException(`Failed to initiate STK push: ${errorMsg}`);
     }
   }
 
@@ -101,16 +136,20 @@ export class DarajaAdapter implements IDarajaAdapter {
     try {
       const token = await this.getAccessToken();
       const paybill = this.configService.get<string>('DARAJA_PAYBILL');
-      const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 14);
       const passkey = this.configService.get<string>('DARAJA_PASSKEY');
+      const timestamp = new Date().toISOString().replace(/[-:]/g, '').substring(0, 14);
       const password = Buffer.from(`${paybill}${passkey}${timestamp}`).toString('base64');
 
-      const response = await this.http.post('/mpesa/stkpushquery/v1/query', {
-        BusinessShortCode: paybill,
-        Password: password,
-        Timestamp: timestamp,
-        CheckoutRequestID: checkoutRequestId,
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await this.http.post(
+        '/mpesa/stkpushquery/v1/query',
+        {
+          BusinessShortCode: paybill,
+          Password: password,
+          Timestamp: timestamp,
+          CheckoutRequestID: checkoutRequestId,
+        },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
 
       return {
         resultCode: response.data.ResultCode,
@@ -120,14 +159,18 @@ export class DarajaAdapter implements IDarajaAdapter {
         transactionDate: response.data.TransactionDate,
         phoneNumber: response.data.PhoneNumber,
       };
-    } catch (error) {
-      this.logger.error('STK Status query failed', error);
+    } catch (error: any) {
+      this.logger.error('STK Status query failed', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        checkoutRequestId,
+      });
       throw new BadRequestException('Failed to query STK status');
     }
   }
 
   validateCallbackSignature(payload: unknown, signature: string): boolean {
-    this.logger.debug('Validating Daraja callback signature');
     return true;
   }
 }

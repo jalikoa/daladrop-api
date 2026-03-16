@@ -5,26 +5,25 @@ import {
   ValidateNested,
   IsOptional,
   IsArray,
+  IsNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-// Define leaf classes first to avoid temporal dead zone issues
+import { Type, Transform } from 'class-transformer';
 
 export class MetadataItem {
   @IsString()
   @IsNotEmpty()
   Name: string;
 
-  @IsString()
-  @IsNotEmpty()
-  Value: string;
+  @IsOptional()
+  Value?: string | number;
 }
 
 export class CallbackMetadata {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => MetadataItem)
-  Item: MetadataItem[];
+  @IsOptional()
+  Item?: MetadataItem[];
 }
 
 export class StkCallbackData {
@@ -36,24 +35,27 @@ export class StkCallbackData {
   @IsNotEmpty()
   CheckoutRequestID: string;
 
+  // Accept number or string, transform to string
+  @IsOptional()
+  @Transform(({ value }) => value?.toString())
   @IsString()
-  @IsNotEmpty()
-  ResultCode: string;
+  ResultCode?: string;
 
   @IsString()
   @IsNotEmpty()
   ResultDesc: string;
 
-  @IsObject()
   @IsOptional()
+  @IsObject()
   @ValidateNested()
   @Type(() => CallbackMetadata)
   CallbackMetadata?: CallbackMetadata;
 }
 
 export class StkCallbackBody {
-  @IsString()
-  @IsNotEmpty()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => StkCallbackData)
   stkCallback: StkCallbackData;
 }
 

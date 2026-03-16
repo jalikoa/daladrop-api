@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { LedgerService } from './ledger.service';
 import { LedgerRepository } from './repositories/ledger.repository';
+import { LedgerEntryType } from './entities/ledger-entry.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -38,8 +39,8 @@ export class LedgerController {
    */
   @Get('accounts/:id/balance')
   async getBalance(
-    @Param('id') accountId: string,
-  ): Promise<{ account_id: string; balance: string }> {
+    @Param('id', ParseIntPipe) accountId: number,
+  ): Promise<{ account_id: number; balance: string }> {
     const balance = await this.ledgerService.getBalance(accountId);
     return { account_id: accountId, balance };
   }
@@ -57,8 +58,8 @@ export class LedgerController {
     body: {
       transaction_id: string;
       entries: Array<{
-        accountId: string;
-        type: 'debit' | 'credit';
+        accountId: number;
+        type: LedgerEntryType;    // 'DEBIT' | 'CREDIT'
         amount: string;
         metadata?: Record<string, unknown>;
       }>;
@@ -78,13 +79,10 @@ export class LedgerController {
    */
   @Get('entries')
   async getEntries(
-    @Query('account_id') accountId: string,
+    @Query('account_id', ParseIntPipe) accountId: number,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
-    if (!accountId) {
-      throw new BadRequestException('account_id query param is required');
-    }
     const entries = await this.ledgerRepo.findEntriesByAccount(accountId, limit, offset);
     return { account_id: accountId, count: entries.length, data: entries };
   }

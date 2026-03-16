@@ -23,6 +23,10 @@ import { DarajaCallbackDto } from './dto/daraja-callback.dto';
 import { WebhookResponseDto, WebhookLogResponseDto } from './dto/webhook-response.dto';
 import { WebhookSource, WebhookStatus } from './enums/webhook-source.enum';
 import { WebhookAuthGuard } from './guards/webhook-auth.guard';
+import { UserRole } from '../users/enums/user-role.enum';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 
 export const WebhookSourceDecorator = (source: WebhookSource) =>
   SetMetadata('webhook_source', source);
@@ -42,6 +46,7 @@ export class WebhooksController {
     @Req() req: Request,
   ): Promise<WebhookResponseDto> {
     const clientIp = this.getClientIp(req);
+    
     const result = await this.webhooksService.receiveWebhook(
       WebhookSource.DARAJA,
       dto,
@@ -49,7 +54,9 @@ export class WebhooksController {
       clientIp,
       req.get('user-agent'),
     );
+    
     const log = await this.webhooksService.getWebhookLog(result.webhookId);
+    const callbackData = (log?.payload as any)?.Body?.stkCallback;
 
     return {
       success: result.success,
@@ -59,6 +66,8 @@ export class WebhooksController {
         source: WebhookSource.DARAJA,
         status: log?.status || WebhookStatus.RECEIVED,
         processed_at: log?.processed_at || null,
+        // resultCode: callbackData?.ResultCode,
+        // resultDesc: callbackData?.ResultDesc,
       },
       received_at: log?.received_at || new Date(),
     };
@@ -74,6 +83,7 @@ export class WebhooksController {
     @Req() req: Request,
   ): Promise<WebhookResponseDto> {
     const clientIp = this.getClientIp(req);
+    
     const result = await this.webhooksService.receiveWebhook(
       WebhookSource.AFRICASTALKING,
       dto,
@@ -81,6 +91,7 @@ export class WebhooksController {
       clientIp,
       req.get('user-agent'),
     );
+    
     const log = await this.webhooksService.getWebhookLog(result.webhookId);
 
     return {
@@ -97,6 +108,8 @@ export class WebhooksController {
   }
 
   @Get('logs')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async getWebhookLogs(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -116,6 +129,8 @@ export class WebhooksController {
   }
 
   @Get('logs/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async getWebhookLog(
     @Param('id', ParseIntPipe) id: number,
   ): Promise<WebhookLogResponseDto> {

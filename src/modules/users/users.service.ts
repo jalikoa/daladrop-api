@@ -27,6 +27,11 @@ export class UsersService {
   async findUserWithPassword(identifier: string): Promise<User | null> {
     return this.userRepo.findByEmailOrPhone(identifier);
   }
+  async userExists(identifierEmail: string, identifierPhone: string): Promise<boolean> {
+    const user = await this.userRepo.findByEmailOrPhone(identifierEmail);
+    const userByPhone = await this.userRepo.findByEmailOrPhone(identifierPhone);
+    return user || userByPhone ? true : false;
+  }
 
   async findByEmailOrPhone(identifier: string): Promise<UserResponseDto> {
     const user = await this.userRepo.findByEmailOrPhone(identifier);

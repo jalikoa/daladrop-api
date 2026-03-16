@@ -11,6 +11,7 @@ export class IpWhitelistValidator {
   constructor(private readonly configService: ConfigService) {
     this.whitelists = {
       DARAJA: this.configService.get<string[]>('DARAJA_IP_WHITELIST') || WEBHOOK_CONSTANTS.SECURITY.IP_WHITELIST.DARAJA,
+      AFRICASTALKING: this.configService.get<string[]>('AFRICASTALKING_IP_WHITELIST') || WEBHOOK_CONSTANTS.SECURITY.IP_WHITELIST.AFRICASTALKING || [],
     } as Record<string, string[]>;
   }
 

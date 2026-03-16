@@ -4,20 +4,26 @@ import {
   IsObject,
   ValidateNested,
   IsOptional,
+  IsArray,
+  IsNumber,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
-export class DarajaCallbackDto {
-  @IsObject()
-  @ValidateNested()
-  @Type(() => StkCallbackBody)
-  Body: StkCallbackBody;
-}
-
-export class StkCallbackBody {
+export class MetadataItem {
   @IsString()
   @IsNotEmpty()
-  stkCallback: StkCallbackData;
+  Name: string;
+
+  @IsOptional()
+  Value?: string | number;
+}
+
+export class CallbackMetadata {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MetadataItem)
+  @IsOptional()
+  Item?: MetadataItem[];
 }
 
 export class StkCallbackData {
@@ -29,17 +35,33 @@ export class StkCallbackData {
   @IsNotEmpty()
   CheckoutRequestID: string;
 
+  // Accept number or string, transform to string
+  @IsOptional()
+  @Transform(({ value }) => value?.toString())
   @IsString()
-  @IsNotEmpty()
-  ResultCode: string;
+  ResultCode?: string;
 
   @IsString()
   @IsNotEmpty()
   ResultDesc: string;
 
-  @IsObject()
   @IsOptional()
-  CallbackMetadata?: {
-    Item: Array<{ Name: string; Value: unknown }>;
-  };
+  @IsObject()
+  @ValidateNested()
+  @Type(() => CallbackMetadata)
+  CallbackMetadata?: CallbackMetadata;
+}
+
+export class StkCallbackBody {
+  @IsObject()
+  @ValidateNested()
+  @Type(() => StkCallbackData)
+  stkCallback: StkCallbackData;
+}
+
+export class DarajaCallbackDto {
+  @IsObject()
+  @ValidateNested()
+  @Type(() => StkCallbackBody)
+  Body: StkCallbackBody;
 }

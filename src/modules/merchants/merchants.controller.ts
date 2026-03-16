@@ -73,7 +73,8 @@ export class MerchantsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateMerchantDto,

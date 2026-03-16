@@ -1,27 +1,35 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
-export type LedgerEntryType = 'debit' | 'credit';
+// DB stores DEBIT/CREDIT uppercase — entity enum must match
+export type LedgerEntryType = 'DEBIT' | 'CREDIT';
 
 @Entity('ledger_entries')
 export class LedgerEntry {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn({ type: 'bigint' })   // ← bigint AUTO_INCREMENT, not uuid
+  id: number;
 
-  @Column()
+  @Column({ name: 'transaction_ref', length: 100 })
   transactionId: string;
 
-  @Column()
-  accountId: string;
+  @Column({ name: 'account_id', type: 'bigint' })
+  accountId: number;                              // ← number, not string (FK to bigint PK)
 
-  @Column({ type: 'enum', enum: ['debit', 'credit'] })
+  @Column({
+    name: 'entry_type',
+    type: 'enum',
+    enum: ['DEBIT', 'CREDIT'],                   // ← uppercase to match DB enum
+  })
   type: LedgerEntryType;
 
-  @Column({ type: 'decimal', precision: 18, scale: 2 })
+  @Column({ name: 'amount', type: 'decimal', precision: 18, scale: 2 })
   amount: string;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ name: 'description', type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ name: 'metadata', type: 'json', nullable: true })
   metadata: any;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

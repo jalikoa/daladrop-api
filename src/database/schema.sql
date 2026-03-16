@@ -185,6 +185,27 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
     INDEX idx_webhook_logs_idempotency (idempotency_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE TABLE `nfc_tags` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `merchant_id` bigint(20) NOT NULL,
+  `tag_uid` varchar(100) DEFAULT NULL,
+  `encrypted_payload` text NOT NULL,
+  `is_active` tinyint(1) DEFAULT 1,
+  `description` varchar(255) DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_nfc_tags_tag_uid` (`tag_uid`),
+  KEY `idx_nfc_tags_merchant_id` (`merchant_id`),
+  KEY `idx_nfc_tags_tag_uid_lookup` (`tag_uid`),
+  CONSTRAINT `fk_nfc_tags_merchant` 
+    FOREIGN KEY (`merchant_id`) 
+    REFERENCES `merchant_profiles` (`id`) 
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- ------------------------------------------------------------------
 -- 8. SEED DATA: Initial Ledger Accounts
 -- ------------------------------------------------------------------

@@ -5,7 +5,7 @@ import { LedgerRepository } from '../repositories/ledger.repository';
 export class GetAccountBalanceUseCase {
   constructor(private readonly ledgerRepo: LedgerRepository) {}
 
-  async execute(accountId: string) {
+  async execute(accountId: number): Promise<string> {
     return this.ledgerRepo.getAccountBalance(accountId);
   }
 }

@@ -3,22 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import * as winston from 'winston';
 import { ElasticsearchTransport } from 'winston-elasticsearch';
 
-/**
- * Structured logger that wraps Winston.
- *
- * Transports:
- *   - Console   → always on (pretty in dev, JSON in prod)
- *   - File      → always on (JSON lines, rotated daily via logrotate or Docker log driver)
- *   - Elasticsearch → on when ELASTICSEARCH_URL is set
- *
- * Every log line carries:
- *   timestamp, level, context (NestJS class name), message,
- *   trace (error stack), and any extra fields passed as metadata.
- *
- * Drop-in replacement for NestJS's built-in Logger:
- *   constructor(private readonly logger: AppLogger) {}
- *   this.logger.log('thing happened', { extra: 'data' });
- */
 @Injectable()
 export class AppLogger implements LoggerService {
   private readonly logger: winston.Logger;
@@ -30,7 +14,6 @@ export class AppLogger implements LoggerService {
     const appName = configService.get<string>('APP_NAME') || 'nfc-api';
     const nodeEnv = configService.get<string>('NODE_ENV') || 'development';
 
-    // ── Formats ──────────────────────────────────────────────────────────────
     const baseFields = winston.format((info) => {
       info.service = appName;
       info.environment = nodeEnv;
@@ -39,18 +22,19 @@ export class AppLogger implements LoggerService {
 
     const timestampFormat = winston.format.timestamp({ format: 'YYYY-MM-DDTHH:mm:ss.SSSZ' });
 
+    // Console format: clean output, no stack traces, no http_request logs (filtered at transport level)
     const consoleFormat = isDev
       ? winston.format.combine(
           winston.format.colorize(),
-          winston.format.printf(({ timestamp, level, context, message, trace, ...meta }) => {
+          winston.format.printf(({ timestamp, level, context, message, ...meta }) => {
             const ctx = context ? `[${context}] ` : '';
             const extra = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
-            const stack = trace ? `\n${trace}` : '';
-            return `${timestamp} ${level} ${ctx}${message}${extra}${stack}`;
+            return `${timestamp} ${level} ${ctx}${message}${extra}`;
           }),
         )
       : winston.format.json();
 
+    // File format: full structured JSON with stack traces preserved
     const fileFormat = winston.format.combine(
       baseFields(),
       timestampFormat,
@@ -58,23 +42,34 @@ export class AppLogger implements LoggerService {
       winston.format.json(),
     );
 
-    // ── Transports ───────────────────────────────────────────────────────────
+    // Filter function: exclude HTTP request logs from console, keep everything else
+    const consoleFilter = winston.format((info) => {
+      if (info.type === 'http_request') {
+        return false;
+      }
+      return info;
+    });
+
     const transports: winston.transport[] = [
       new winston.transports.Console({
-        format: winston.format.combine(timestampFormat, consoleFormat),
+        format: winston.format.combine(
+          timestampFormat,
+          consoleFilter(),
+          consoleFormat
+        ),
         handleExceptions: true,
       }),
       new winston.transports.File({
         filename: 'logs/error.log',
         level: 'error',
         format: fileFormat,
-        maxsize: 10 * 1024 * 1024, // 10 MB
+        maxsize: 10 * 1024 * 1024,
         maxFiles: 14,
       }),
       new winston.transports.File({
         filename: 'logs/combined.log',
         format: fileFormat,
-        maxsize: 20 * 1024 * 1024, // 20 MB
+        maxsize: 20 * 1024 * 1024,
         maxFiles: 7,
       }),
     ];
@@ -104,7 +99,6 @@ export class AppLogger implements LoggerService {
       });
 
       esTransport.on('error', (err) => {
-        // Prevent ES transport errors from crashing the app
         process.stderr.write(`[AppLogger] Elasticsearch transport error: ${err.message}\n`);
       });
 
@@ -122,8 +116,6 @@ export class AppLogger implements LoggerService {
     this.context = context;
     return this;
   }
-
-  // ── NestJS LoggerService interface ─────────────────────────────────────────
 
   log(message: string, meta?: Record<string, unknown> | string): void {
     const context = typeof meta === 'string' ? meta : this.context;
@@ -155,9 +147,6 @@ export class AppLogger implements LoggerService {
     this.logger.verbose({ message, context, ...extra });
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
-
-  /** Log an HTTP request in a structured way — used by the HTTP interceptor */
   logRequest(data: {
     method: string;
     url: string;
@@ -176,7 +165,6 @@ export class AppLogger implements LoggerService {
     });
   }
 
-  /** Log a payment event */
   logPayment(data: {
     event: string;
     sessionUuid: string;

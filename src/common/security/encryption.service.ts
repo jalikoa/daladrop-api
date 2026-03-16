@@ -8,22 +8,32 @@ export class EncryptionService {
   private readonly secretKey: string;
 
   constructor(private readonly configService: ConfigService) {
-    const key =
-      this.configService.get<string>('nfc.secretKey') ||
-      this.configService.get<string>('NFC_SECRET_KEY');
+    const keyFromNested = this.configService.get<string>('nfc.secretKey');
+    const keyFromUpper = this.configService.get<string>('NFC_SECRET_KEY');
+    const keyFromEnv = process.env.NFC_SECRET_KEY;
 
-    if (!key || key.length !== 32) {
-      this.logger.error('NFC_SECRET_KEY must be exactly 32 characters for AES-256');
-      // log masked key length for debugging without exposing secret
-      this.logger.debug(`NFC key length: ${key ? key.length : 'undefined'}`);
-      throw new BadRequestException('Invalid NFC encryption key configuration');
+    const rawKey = keyFromNested || keyFromUpper || keyFromEnv;
+
+    if (!rawKey) {
+      this.logger.error('NFC_SECRET_KEY not found in config');
+      throw new BadRequestException('NFC encryption key not configured');
+    }
+
+    const key = rawKey.trim();
+
+    if (key.length !== 32) {
+      this.logger.error(`Invalid key length: ${key.length}, expected 32`);
+      throw new BadRequestException(`Invalid NFC key length: ${key.length} != 32`);
     }
 
     this.secretKey = key;
+    this.logger.log('NFC encryption key loaded');
   }
 
   encryptPayload(data: string): string {
-    return CryptoJS.AES.encrypt(data, this.secretKey).toString();
+    const encrypted = CryptoJS.AES.encrypt(data, this.secretKey);
+    const base64 = encrypted.toString();
+    return this.base64ToHex(base64);
   }
 
   decryptPayload(token: string): string {
@@ -33,8 +43,9 @@ export class EncryptionService {
     }
 
     try {
-      const bytes = CryptoJS.AES.decrypt(token, this.secretKey);
-      // bytes may be falsy or not contain expected fields for malformed tokens
+      const normalizedToken = this.isHex(token) ? this.hexToBase64(token) : token;
+      const bytes = CryptoJS.AES.decrypt(normalizedToken, this.secretKey);
+
       if (!bytes) {
         this.logger.warn('AES.decrypt returned falsy value');
         throw new BadRequestException('Failed to decrypt payment token');
@@ -43,14 +54,20 @@ export class EncryptionService {
       const decrypted = bytes.toString(CryptoJS.enc.Utf8);
 
       if (!decrypted) {
-        this.logger.warn('Decryption produced empty result');
+        this.logger.warn('Decryption produced empty result', {
+          keyLength: this.secretKey.length,
+          tokenStart: token.slice(0, 30),
+        });
         throw new BadRequestException('Failed to decrypt payment token');
       }
 
       return decrypted;
     } catch (err: any) {
-      // CryptoJS can throw deep internal errors (e.g., reading salt); log details for debugging
-      this.logger.error('Decryption failed', err?.stack || err?.message || err);
+      this.logger.error('Decryption failed', {
+        error: err?.message,
+        keyPreview: this.secretKey?.slice(0, 4),
+        tokenPreview: token?.slice(0, 30),
+      });
       throw new BadRequestException('Invalid or corrupted payment token');
     }
   }
@@ -59,8 +76,25 @@ export class EncryptionService {
     try {
       return JSON.parse(decrypted);
     } catch (err) {
-      this.logger.error('Parsing decrypted payload failed', err?.message || err);
+      this.logger.error('Parsing decrypted payload failed', {
+        err: err?.message,
+        payloadPreview: decrypted?.slice(0, 100),
+      });
       throw new BadRequestException('Invalid payload format after decryption');
     }
+  }
+
+  private isHex(str: string): boolean {
+    return /^[0-9a-fA-F]+$/.test(str) && str.length % 2 === 0;
+  }
+
+  private base64ToHex(base64: string): string {
+    const wordArray = CryptoJS.enc.Base64.parse(base64);
+    return wordArray.toString(CryptoJS.enc.Hex);
+  }
+
+  private hexToBase64(hex: string): string {
+    const wordArray = CryptoJS.enc.Hex.parse(hex);
+    return wordArray.toString(CryptoJS.enc.Base64);
   }
 }

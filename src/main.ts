@@ -5,11 +5,13 @@ import { AppModule } from './app.module';
 import { HttpMetricsInterceptor } from './common/interceptors/Http-metrics.interceptor';
 import { AppLogger } from './modules/logger/logger.service';
 import { MetricsService } from './modules/metrics/metrics.service';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { v4 as uuidv4 } from 'uuid';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     // Hand off NestJS internal logs to our Winston logger
+    logger: false,
     bufferLogs: true,
   });
 
@@ -27,6 +29,8 @@ async function bootstrap() {
     }
     next();
   });
+
+  app.useGlobalFilters(new HttpExceptionFilter(logger));
 
   // ── Global validation ──────────────────────────────────────────────────────
   app.useGlobalPipes(

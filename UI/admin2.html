@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>NFC Payment API — Metrics & Health Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.2/dist/apexcharts.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg-primary:#0f172a;--bg-secondary:#1e293b;--bg-card:#334155;--bg-sidebar:#1e293b;--text-primary:#f1f5f9;--text-secondary:#94a3b8;--accent-blue:#3b82f6;--accent-green:#22c55e;--accent-red:#ef4444;--accent-yellow:#f59e0b;--border-color:#475569;--success-bg:rgba(34,197,94,0.1);--warning-bg:rgba(245,158,11,0.1);--error-bg:rgba(239,68,68,0.1);--sidebar-width:240px}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6}
+    .sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-width);background:var(--bg-sidebar);border-right:1px solid var(--border-color);z-index:1030;display:flex;flex-direction:column;overflow-y:auto}
+    .sb-header{padding:20px 16px;border-bottom:1px solid var(--border-color)}
+    .sb-brand{display:flex;align-items:center;gap:10px}
+    .sb-logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent-blue),#8b5cf6);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .sb-brand span{font-size:16px;font-weight:700;color:var(--text-primary)}
+    .sb-role{font-size:11px;background:var(--success-bg);color:var(--accent-green);padding:2px 8px;border-radius:99px;font-weight:600;margin-top:4px;display:inline-block}
+    .sb-user{font-size:12px;color:var(--text-secondary);margin-top:6px}
+    .nav-sec{padding:14px 16px 4px;font-size:10px;font-weight:700;letter-spacing:0.1em;color:var(--text-secondary);text-transform:uppercase}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-secondary);transition:0.12s;margin:1px 8px;text-decoration:none}
+    .nav-item:hover,.nav-item.active{background:var(--bg-card);color:var(--text-primary)}
+    .nav-item.active{font-weight:600;border-left:3px solid var(--accent-blue);padding-left:9px}
+    .nav-item i{flex-shrink:0;width:18px;height:18px;font-size:16px}
+    .sb-footer{margin-top:auto;padding:12px 8px;border-top:1px solid var(--border-color)}
+    .main{margin-left:var(--sidebar-width);min-height:100vh;display:flex;flex-direction:column}
+    .topbar{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:1020}
+    .tb-left{display:flex;align-items:center;gap:16px}
+    .tb-title{font-size:16px;font-weight:600;color:var(--text-primary)}
+    .breadcrumb{background:transparent;padding:0;margin:0;font-size:12px}
+    .breadcrumb-item a{color:var(--text-secondary);text-decoration:none}
+    .breadcrumb-item a:hover{color:var(--accent-blue)}
+    .breadcrumb-item.active{color:var(--text-primary)}
+    .breadcrumb-item+.breadcrumb-item::before{color:var(--text-secondary)}
+    .tb-right{display:flex;align-items:center;gap:12px}
+    .tb-btn{position:relative;background:transparent;border:1px solid var(--border-color);color:var(--text-secondary);padding:6px 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;transition:0.15s}
+    .tb-btn:hover{background:var(--bg-card);color:var(--text-primary);border-color:var(--accent-blue)}
+    .badge-count{position:absolute;top:-4px;right:-4px;background:var(--accent-red);color:white;font-size:10px;font-weight:700;padding:2px 5px;border-radius:99px;min-width:18px;text-align:center}
+    .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent-blue);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;cursor:pointer}
+    .content{padding:24px;flex:1}
+    .page{display:none}.page.active{display:block}
+    .card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;margin-bottom:16px}
+    .card-header{padding:14px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+    .card-title{font-size:14px;font-weight:600;color:var(--text-primary)}
+    .card-subtitle{font-size:12px;color:var(--text-secondary)}
+    .card-body{padding:20px}
+    .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+    .stat-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:16px 20px}
+    .stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;background:var(--bg-card)}
+    .stat-icon i{font-size:18px;color:var(--accent-blue)}
+    .stat-label{font-size:12px;color:var(--text-secondary);font-weight:500;margin-bottom:4px}
+    .stat-val{font-size:24px;font-weight:700;color:var(--text-primary);line-height:1.2}
+    .stat-sub{font-size:12px;color:var(--accent-green);margin-top:3px;font-weight:500}
+    .stat-sub.negative{color:var(--accent-red)}
+    .chart-container{height:300px;position:relative}
+    .table{color:var(--text-primary);margin:0;font-size:13px}
+    .table thead th{background:var(--bg-card);border-color:var(--border-color);color:var(--text-secondary);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;padding:10px 16px}
+    .table tbody td{border-color:var(--border-color);padding:12px 16px;vertical-align:middle}
+    .table tbody tr:hover{background:var(--bg-card)}
+    .badge{font-weight:600;padding:4px 10px;border-radius:99px;font-size:11px}
+    .badge-success{background:var(--success-bg);color:var(--accent-green)}
+    .badge-warning{background:var(--warning-bg);color:var(--accent-yellow)}
+    .badge-danger{background:var(--error-bg);color:var(--accent-red)}
+    .badge-info{background:rgba(59,130,246,0.1);color:var(--accent-blue)}
+    .badge-secondary{background:var(--bg-card);color:var(--text-secondary)}
+    .dropdown-menu{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:10px;padding:8px;min-width:280px;box-shadow:0 10px 40px rgba(0,0,0,0.3)}
+    .dropdown-item{color:var(--text-primary);padding:10px 14px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:10px}
+    .dropdown-item:hover{background:var(--bg-card)}
+    .dropdown-item i{width:16px;font-size:14px;color:var(--text-secondary)}
+    .dropdown-divider{border-color:var(--border-color);margin:6px 0}
+    .dropdown-header{color:var(--text-secondary);font-size:11px;font-weight:600;text-transform:uppercase;padding:8px 14px}
+    .notification-item{padding:12px 14px;border-bottom:1px solid var(--border-color);cursor:pointer}
+    .notification-item:last-child{border-bottom:none}
+    .notification-item:hover{background:var(--bg-card)}
+    .notification-item.unread{background:rgba(59,130,246,0.05);border-left:3px solid var(--accent-blue)}
+    .notification-time{font-size:11px;color:var(--text-secondary);margin-top:4px}
+    .notification-title{font-size:13px;font-weight:500;margin-bottom:2px}
+    .notification-desc{font-size:12px;color:var(--text-secondary)}
+    .profile-dropdown{min-width:220px}
+    .profile-header{padding:12px 14px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:12px}
+    .profile-avatar{width:40px;height:40px;border-radius:50%;background:var(--accent-blue);display:flex;align-items:center;justify-content:center;font-weight:700;color:white}
+    .profile-info div:first-child{font-weight:600;font-size:13px}
+    .profile-info div:last-child{font-size:11px;color:var(--text-secondary)}
+    .filter-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+    .search-box{display:flex;align-items:center;gap:8px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:8px;padding:0 12px;height:38px;min-width:220px}
+    .search-box input{border:none;outline:none;font-size:13px;color:var(--text-primary);background:transparent;width:100%;font-family:inherit}
+    .search-box input::placeholder{color:var(--text-secondary)}
+    .sel-sm{border:1px solid var(--border-color);border-radius:6px;padding:5px 10px;font-size:12px;color:var(--text-primary);background:var(--bg-card);outline:none;cursor:pointer;font-family:inherit;height:34px}
+    .sel-sm option{background:var(--bg-secondary)}
+    .btn-custom{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-primary);transition:0.12s;display:inline-flex;align-items:center;gap:5px;font-family:inherit}
+    .btn-custom:hover{background:var(--bg-primary);border-color:var(--accent-blue)}
+    .btn-custom.primary{background:var(--accent-blue);color:white;border-color:var(--accent-blue)}
+    .btn-custom.primary:hover{background:#2563eb}
+    .btn-custom.danger{background:var(--error-bg);color:var(--accent-red);border-color:var(--accent-red)}
+    .btn-custom.danger:hover{background:rgba(239,68,68,0.2)}
+    .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+    .page-title{font-size:18px;font-weight:700;color:var(--text-primary)}
+    .recon-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border-color);align-items:center;font-size:13px}
+    .recon-row:last-child{border-bottom:none}
+    .recon-row:hover{background:var(--bg-card)}
+    .recon-amount{font-weight:700;color:var(--text-primary)}
+    .recon-status{text-align:center}
+    .recon-actions{display:flex;gap:6px;justify-content:flex-end}
+    #toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:none;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;font-family:inherit;animation:slideUp 0.2s ease}
+    @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;color:var(--text-primary)}
+    .modal-header{border-bottom-color:var(--border-color);padding:16px 20px}
+    .modal-title{font-size:15px;font-weight:600}
+    .modal-body{padding:20px;font-size:14px}
+    .modal-footer{border-top-color:var(--border-color);padding:16px 20px}
+    .btn-close{filter:invert(1) grayscale(100%) brightness(200%)}
+    .health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+    .health-card{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:12px;padding:16px}
+    .health-card.healthy{border-left:4px solid var(--accent-green)}
+    .health-card.warning{border-left:4px solid var(--accent-yellow)}
+    .health-card.critical{border-left:4px solid var(--accent-red)}
+    .health-title{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+    .health-title i{font-size:16px}
+    .health-value{font-size:20px;font-weight:700;margin-bottom:4px}
+    .health-desc{font-size:12px;color:var(--text-secondary)}
+    .health-metric{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color);font-size:12px}
+    .health-metric:last-child{border-bottom:none}
+    .health-metric .label{color:var(--text-secondary)}
+    .health-metric .value{font-weight:600}
+    .progress-sm{height:6px;border-radius:3px;background:var(--bg-card);overflow:hidden;margin-top:8px}
+    .progress-sm .bar{height:100%;border-radius:3px;transition:width 0.3s}
+    .progress-sm .bar.green{background:var(--accent-green)}
+    .progress-sm .bar.yellow{background:var(--accent-yellow)}
+    .progress-sm .bar.red{background:var(--accent-red)}
+    .endpoint-health{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-color);font-size:13px}
+    .endpoint-health:last-child{border-bottom:none}
+    .endpoint-name{display:flex;align-items:center;gap:8px;font-family:monospace}
+    .endpoint-status{display:flex;align-items:center;gap:6px}
+    .status-dot{width:8px;height:8px;border-radius:50%}
+    .status-dot.healthy{background:var(--accent-green)}
+    .status-dot.warning{background:var(--accent-yellow)}
+    .status-dot.critical{background:var(--accent-red)}
+    @media(max-width:992px){.sidebar{transform:translateX(-100%);transition:transform 0.2s ease}.sidebar.show{transform:translateX(0)}.main{margin-left:0}.menu-toggle{display:flex!important}}
+    @media(min-width:993px){.menu-toggle{display:none}}
+    .apexcharts-tooltip{background:var(--bg-card)!important;border:1px solid var(--border-color)!important;border-radius:8px!important;color:var(--text-primary)!important}
+    .apexcharts-tooltip-title{background:var(--bg-secondary)!important;border-bottom:1px solid var(--border-color)!important;color:var(--text-primary)!important}
+    .apexcharts-legend-text{color:var(--text-secondary)!important}
+    .apexcharts-yaxis-label,.apexcharts-xaxis-label{fill:var(--text-secondary)!important}
+  </style>
+</head>
+<body>
+<div class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div class="sb-brand">
+      <div class="sb-logo"><i class="bi bi-wallet2 text-white"></i></div>
+      <span>NFC API</span>
+    </div>
+    <span class="sb-role">Admin</span>
+    <div class="sb-user">admin@nfcapi.com</div>
+  </div>
+  <div class="nav-sec">Overview</div>
+  <a class="nav-item active" href="#dashboard" onclick="nav('dashboard',this,event)"><i class="bi bi-grid-3x3-gap"></i> Dashboard</a>
+  <a class="nav-item" href="#analytics" onclick="nav('analytics',this,event)"><i class="bi bi-bar-chart-line"></i> Analytics</a>
+  <div class="nav-sec">System</div>
+  <a class="nav-item" href="#health" onclick="nav('health',this,event)"><i class="bi bi-heart-pulse"></i> API Health</a>
+  <a class="nav-item" href="#reconciliation" onclick="nav('reconciliation',this,event)"><i class="bi bi-arrow-left-right"></i> Reconciliation</a>
+  <div class="nav-sec">Management</div>
+  <a class="nav-item" href="#endpoints" onclick="nav('endpoints',this,event)"><i class="bi bi-plug"></i> Endpoints</a>
+  <a class="nav-item" href="#logs" onclick="nav('logs',this,event)"><i class="bi bi-journal-text"></i> Logs</a>
+  <div class="sb-footer">
+    <a class="nav-item" href="#auth" onclick="return confirmNav(event,'Sign out')"><i class="bi bi-box-arrow-right"></i> Sign out</a>
+  </div>
+</div>
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <button class="tb-btn d-lg-none menu-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+      <span class="tb-title" id="tb-title">Dashboard</span>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="#dashboard" onclick="nav('dashboard',null,event)">Home</a></li>
+          <li class="breadcrumb-item active" id="bc-current">Overview</li>
+        </ol>
+      </nav>
+    </div>
+    <div class="tb-right">
+      <div class="dropdown">
+        <button class="tb-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-bell"></i><span class="badge-count">3</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end">
+          <div class="dropdown-header">Notifications</div>
+          <div class="notification-item unread" onclick="markRead(this)">
+            <div class="notification-title">High error rate detected</div>
+            <div class="notification-desc">/nfc endpoint: 18.4% errors in last hour</div>
+            <div class="notification-time">5 min ago</div>
+          </div>
+          <div class="notification-item unread" onclick="markRead(this)">
+            <div class="notification-title">Memory usage warning</div>
+            <div class="notification-desc">Heap at 95% capacity</div>
+            <div class="notification-time">12 min ago</div>
+          </div>
+          <div class="notification-item" onclick="markRead(this)">
+            <div class="notification-title">System health check passed</div>
+            <div class="notification-desc">All services operational</div>
+            <div class="notification-time">1 hour ago</div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item text-center" href="#notifications" onclick="nav('analytics',null,event)">View all</a>
+        </div>
+      </div>
+      <div class="dropdown">
+        <div class="avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">AD</div>
+        <div class="dropdown-menu dropdown-menu-end profile-dropdown">
+          <div class="profile-header">
+            <div class="profile-avatar">AD</div>
+            <div class="profile-info"><div>Admin User</div><div>admin@nfcapi.com</div></div>
+          </div>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item" href="#profile" onclick="nav('dashboard',null,event)"><i class="bi bi-person"></i> My Profile</a>
+          <a class="dropdown-item" href="#settings" onclick="nav('dashboard',null,event)"><i class="bi bi-gear"></i> Settings</a>
+          <div class="dropdown-divider"></div>
+          <a class="dropdown-item text-danger" href="#auth" onclick="return confirmNav(event,'Sign out')"><i class="bi bi-box-arrow-right"></i> Sign out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="content">
+    <div id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h2 class="page-title">Dashboard</h2>
+        <div><span class="badge badge-success me-2">ACTIVE</span><span class="badge badge-info">VERIFIED</span></div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon"><i class="bi bi-clock-history"></i></div>
+          <div class="stat-label">Uptime</div>
+          <div class="stat-val">35m 32s</div>
+          <div class="stat-sub"><i class="bi bi-arrow-up"></i> Stable</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="bi bi-arrow-left-right"></i></div>
+          <div class="stat-label">Total Requests</div>
+          <div class="stat-val">87</div>
+          <div class="stat-sub"><i class="bi bi-arrow-up"></i> +12% vs last hour</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="bi bi-exclamation-triangle"></i></div>
+          <div class="stat-label">Error Rate</div>
+          <div class="stat-val">18.4%</div>
+          <div class="stat-sub negative"><i class="bi bi-arrow-up"></i> +3.2% needs attention</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon"><i class="bi bi-speedometer2"></i></div>
+          <div class="stat-label">Avg Latency</div>
+          <div class="stat-val">42ms</div>
+          <div class="stat-sub"><i class="bi bi-arrow-down"></i> -8ms improvement</div>
+        </div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Request Rate by Endpoint</span><select class="sel-sm"><option>1h</option><option selected>24h</option><option>7d</option></select></div>
+            <div class="card-body"><div class="chart-container" id="requestRateChart"></div></div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Error Distribution</span></div>
+            <div class="card-body"><div class="chart-container" id="errorChart"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-4">
+        <div class="card-header"><span class="card-title">Endpoint Performance</span><button class="btn-custom" onclick="nav('endpoints',null,event)">View all</button></div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Endpoint</th><th>Method</th><th>Requests</th><th>Errors</th><th>Error Rate</th><th>Avg Latency</th><th>Status</th></tr></thead>
+            <tbody id="endpointTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="page-analytics" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Analytics</h2>
+        <div class="d-flex gap-2">
+          <button class="btn-custom" onclick="refreshMetrics()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+          <button class="btn-custom primary" onclick="exportData()"><i class="bi bi-download"></i> Export</button>
+        </div>
+      </div>
+      <div class="d-flex align-items-center gap-2 mb-4">
+        <span class="badge badge-success"><i class="bi bi-circle-fill me-1" style="font-size:8px"></i> System Healthy</span>
+        <span class="text-muted small">Last updated: <span id="lastUpdated">Just now</span></span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">CPU Usage</div><div class="stat-val">39.5s</div><div class="stat-sub">User: 28.1s, System: 11.4s</div></div>
+        <div class="stat-card"><div class="stat-label">Memory</div><div class="stat-val">72MB</div><div class="stat-sub">Used / 75MB Total</div></div>
+        <div class="stat-card"><div class="stat-label">Event Loop</div><div class="stat-val">12.4ms</div><div class="stat-sub">Current lag</div></div>
+        <div class="stat-card"><div class="stat-label">GC Time</div><div class="stat-val">230ms</div><div class="stat-sub">Total last hour</div></div>
+      </div>
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">CPU Utilization</div><div class="card-subtitle">Process CPU time (seconds)</div></div></div>
+            <div class="card-body"><div class="chart-container" id="cpuChart"></div></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Memory Usage</div><div class="card-subtitle">Heap & Resident memory (MB)</div></div></div>
+            <div class="card-body"><div class="chart-container" id="memoryChart"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="row g-4 mt-1">
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Latency Percentiles</div><div class="card-subtitle">P50, P90, P99 response times</div></div></div>
+            <div class="card-body"><div class="chart-container" id="latencyChart"></div></div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header"><div><div class="card-title">Event Loop Lag</div><div class="card-subtitle">Node.js event loop delay (ms)</div></div></div>
+            <div class="card-body"><div class="chart-container" id="eventLoopChart"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-4">
+        <div class="card-header"><div><div class="card-title">Garbage Collection</div><div class="card-subtitle">GC duration by type (ms)</div></div></div>
+        <div class="card-body"><div class="chart-container" id="gcChart"></div></div>
+      </div>
+    </div>
+    <div id="page-health" class="page">
+      <div class="page-header">
+        <h2 class="page-title">API Health Inspection</h2>
+        <div class="d-flex gap-2">
+          <button class="btn-custom" onclick="runHealthCheck()"><i class="bi bi-arrow-clockwise"></i> Run Check</button>
+          <button class="btn-custom primary" onclick="exportHealthReport()"><i class="bi bi-file-earmark-pdf"></i> Report</button>
+        </div>
+      </div>
+      <div class="alert alert-info d-flex align-items-center gap-2" role="alert" style="background:var(--bg-card);border-color:var(--border-color);color:var(--text-primary)">
+        <i class="bi bi-info-circle"></i>
+        <div>Health checks run automatically every 5 minutes. Last check: <strong id="lastHealthCheck">2 min ago</strong></div>
+      </div>
+      <div class="health-grid">
+        <div class="health-card healthy">
+          <div class="health-title"><i class="bi bi-check-circle text-success"></i> API Gateway</div>
+          <div class="health-value">Operational</div>
+          <div class="health-desc">All routes responding within SLA</div>
+          <div class="health-metric"><span class="label">Response Time</span><span class="value">42ms</span></div>
+          <div class="health-metric"><span class="label">Success Rate</span><span class="value">94.2%</span></div>
+          <div class="progress-sm"><div class="bar green" style="width:94%"></div></div>
+        </div>
+        <div class="health-card healthy">
+          <div class="health-title"><i class="bi bi-check-circle text-success"></i> Database</div>
+          <div class="health-value">Connected</div>
+          <div class="health-desc">PostgreSQL primary replica</div>
+          <div class="health-metric"><span class="label">Connections</span><span class="value">12/50</span></div>
+          <div class="health-metric"><span class="label">Query Time</span><span class="value">8ms avg</span></div>
+          <div class="progress-sm"><div class="bar green" style="width:24%"></div></div>
+        </div>
+        <div class="health-card warning">
+          <div class="health-title"><i class="bi bi-exclamation-triangle text-warning"></i> M-Pesa Integration</div>
+          <div class="health-value">Degraded</div>
+          <div class="health-desc">Increased latency on STK push</div>
+          <div class="health-metric"><span class="label">Response Time</span><span class="value">1.2s</span></div>
+          <div class="health-metric"><span class="label">Timeout Rate</span><span class="value">2.1%</span></div>
+          <div class="progress-sm"><div class="bar yellow" style="width:68%"></div></div>
+        </div>
+        <div class="health-card healthy">
+          <div class="health-title"><i class="bi bi-check-circle text-success"></i> NFC Service</div>
+          <div class="health-value">Operational</div>
+          <div class="health-desc">Tag validation service active</div>
+          <div class="health-metric"><span class="label">Validations/min</span><span class="value">23</span></div>
+          <div class="health-metric"><span class="label">Cache Hit</span><span class="value">98%</span></div>
+          <div class="progress-sm"><div class="bar green" style="width:98%"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Endpoint Health Status</span><span class="badge badge-secondary">12 endpoints</span></div>
+        <div class="card-body">
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>POST /auth/login</code></div>
+            <div class="endpoint-status"><span class="status-dot healthy"></span><span class="badge badge-success">Healthy</span></div>
+          </div>
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>GET /merchants/:id</code></div>
+            <div class="endpoint-status"><span class="status-dot healthy"></span><span class="badge badge-success">Healthy</span></div>
+          </div>
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>POST /nfc</code></div>
+            <div class="endpoint-status"><span class="status-dot warning"></span><span class="badge badge-warning">Degraded</span></div>
+          </div>
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>POST /payments/stk</code></div>
+            <div class="endpoint-status"><span class="status-dot warning"></span><span class="badge badge-warning">Degraded</span></div>
+          </div>
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>GET /health</code></div>
+            <div class="endpoint-status"><span class="status-dot healthy"></span><span class="badge badge-success">Healthy</span></div>
+          </div>
+          <div class="endpoint-health">
+            <div class="endpoint-name"><i class="bi bi-plug"></i> <code>GET /audit/logs</code></div>
+            <div class="endpoint-status"><span class="status-dot critical"></span><span class="badge badge-danger">Critical</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-4">
+        <div class="card-header"><span class="card-title">Recent Health Events</span></div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead><tr><th>Time</th><th>Component</th><th>Event</th><th>Severity</th><th>Resolution</th></tr></thead>
+            <tbody>
+              <tr><td class="text-muted">14:22</td><td><code>/nfc</code></td><td>Error rate exceeded threshold</td><td><span class="badge badge-warning">Warning</span></td><td>Auto-scaled workers</td></tr>
+              <tr><td class="text-muted">13:45</td><td>Database</td><td>Connection pool near limit</td><td><span class="badge badge-info">Info</span></td><td>Pool expanded to 50</td></tr>
+              <tr><td class="text-muted">12:30</td><td>M-Pesa API</td><td>Increased latency detected</td><td><span class="badge badge-warning">Warning</span></td><td>Monitoring</td></tr>
+              <tr><td class="text-muted">11:15</td><td>Cache</td><td>Redis reconnected</td><td><span class="badge badge-success">Resolved</span></td><td>Auto-recovery</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="page-reconciliation" class="page">
+      <div class="page-header">
+        <h2 class="page-title">Reconciliation</h2>
+        <div class="d-flex gap-2">
+          <button class="btn-custom" onclick="filterRecon()"><i class="bi bi-funnel"></i> Filter</button>
+          <button class="btn-custom primary" onclick="reconcileAll()"><i class="bi bi-check2-all"></i> Reconcile All</button>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Transactions</div><div class="stat-val">1,247</div><div class="stat-sub">This month</div></div>
+        <div class="stat-card"><div class="stat-label">Matched</div><div class="stat-val">1,198</div><div class="stat-sub"><i class="bi bi-check-circle"></i> 96.1%</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-val">32</div><div class="stat-sub negative">Requires review</div></div>
+        <div class="stat-card"><div class="stat-label">Discrepancies</div><div class="stat-val">17</div><div class="stat-sub negative"><i class="bi bi-exclamation-triangle"></i> Action needed</div></div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-row">
+            <div class="search-box"><i class="bi bi-search text-muted"></i><input type="text" placeholder="Search by reference or phone..." id="reconSearch"></div>
+            <select class="sel-sm" id="statusFilter"><option value="">All status</option><option value="matched">Matched</option><option value="pending">Pending</option><option value="discrepancy">Discrepancy</option></select>
+            <select class="sel-sm" id="dateFilter"><option value="">All time</option><option value="today">Today</option><option value="week">This week</option><option value="month" selected>This month</option></select>
+            <button class="btn-custom" onclick="applyFilters()"><i class="bi bi-funnel"></i> Apply</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="recon-row" style="background:var(--bg-card);font-weight:600">
+            <div>Reference / Customer</div><div>Amount</div><div>Our System</div><div>M-Pesa</div><div class="recon-status">Status</div><div>Actions</div>
+          </div>
+          <div class="recon-row">
+            <div><div><code>NLJ7RT61SV</code></div><div class="text-muted small"><code>254712345678</code></div></div>
+            <div class="recon-amount">KES 500</div>
+            <div><span class="badge badge-success">Received</span></div>
+            <div><span class="badge badge-success">Confirmed</span></div>
+            <div class="recon-status"><span class="badge badge-success">Matched</span></div>
+            <div class="recon-actions"><button class="btn-custom" onclick="viewDetails('NLJ7RT61SV')"><i class="bi bi-eye"></i></button></div>
+          </div>
+          <div class="recon-row">
+            <div><div><code>UCG9HT72TW</code></div><div class="text-muted small"><code>254734567890</code></div></div>
+            <div class="recon-amount">KES 2,000</div>
+            <div><span class="badge badge-success">Received</span></div>
+            <div><span class="badge badge-success">Confirmed</span></div>
+            <div class="recon-status"><span class="badge badge-success">Matched</span></div>
+            <div class="recon-actions"><button class="btn-custom" onclick="viewDetails('UCG9HT72TW')"><i class="bi bi-eye"></i></button></div>
+          </div>
+          <div class="recon-row">
+            <div><div><code>PND8KL45MN</code></div><div class="text-muted small"><code>254756789012</code></div></div>
+            <div class="recon-amount">KES 800</div>
+            <div><span class="badge badge-warning">Pending</span></div>
+            <div><span class="badge badge-secondary">Not found</span></div>
+            <div class="recon-status"><span class="badge badge-warning">Pending</span></div>
+            <div class="recon-actions">
+              <button class="btn-custom" onclick="viewDetails('PND8KL45MN')"><i class="bi bi-eye"></i></button>
+              <button class="btn-custom primary" onclick="manualMatch('PND8KL45MN')"><i class="bi bi-link-45deg"></i></button>
+            </div>
+          </div>
+          <div class="recon-row">
+            <div><div><code>ERR3XY92PQ</code></div><div class="text-muted small"><code>254799311413</code></div></div>
+            <div class="recon-amount">KES 150</div>
+            <div><span class="badge badge-danger">Failed</span></div>
+            <div><span class="badge badge-success">Confirmed</span></div>
+            <div class="recon-status"><span class="badge badge-danger">Discrepancy</span></div>
+            <div class="recon-actions">
+              <button class="btn-custom" onclick="viewDetails('ERR3XY92PQ')"><i class="bi bi-eye"></i></button>
+              <button class="btn-custom danger" onclick="flagIssue('ERR3XY92PQ')"><i class="bi bi-flag"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center mt-3">
+        <span class="text-muted small">Showing 1-4 of 1,247</span>
+        <nav><ul class="pagination pagination-sm mb-0"><li class="page-item disabled"><a class="page-link" href="#">Previous</a></li><li class="page-item active"><a class="page-link" href="#">1</a></li><li class="page-item"><a class="page-link" href="#">2</a></li><li class="page-item"><a class="page-link" href="#">3</a></li><li class="page-item"><a class="page-link" href="#">Next</a></li></ul></nav>
+      </div>
+    </div>
+    <div id="page-endpoints" class="page">
+      <div class="page-header"><h2 class="page-title">Endpoint Management</h2><button class="btn-custom primary" onclick="toast('Endpoint registry refreshed')"><i class="bi bi-arrow-clockwise"></i> Refresh</button></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>Route</th><th>Method</th><th>Rate Limit</th><th>Auth</th><th>Timeout</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>
+                <tr><td><code>/auth/login</code></td><td><span class="badge badge-secondary">POST</span></td><td>100/min</td><td><span class="badge badge-info">Public</span></td><td>30s</td><td><span class="badge badge-success">Active</span></td><td><button class="btn-custom" onclick="toast('Config opened')"><i class="bi bi-gear"></i></button></td></tr>
+                <tr><td><code>/merchants/:id</code></td><td><span class="badge badge-secondary">GET</span></td><td>200/min</td><td><span class="badge badge-info">Bearer</span></td><td>15s</td><td><span class="badge badge-success">Active</span></td><td><button class="btn-custom" onclick="toast('Config opened')"><i class="bi bi-gear"></i></button></td></tr>
+                <tr><td><code>/nfc</code></td><td><span class="badge badge-secondary">POST</span></td><td>50/min</td><td><span class="badge badge-info">Bearer</span></td><td>45s</td><td><span class="badge badge-warning">Throttled</span></td><td><button class="btn-custom" onclick="toast('Config opened')"><i class="bi bi-gear"></i></button></td></tr>
+                <tr><td><code>/payments/stk</code></td><td><span class="badge badge-secondary">POST</span></td><td>30/min</td><td><span class="badge badge-info">Bearer</span></td><td>60s</td><td><span class="badge badge-warning">Degraded</span></td><td><button class="btn-custom" onclick="toast('Config opened')"><i class="bi bi-gear"></i></button></td></tr>
+                <tr><td><code>/health</code></td><td><span class="badge badge-secondary">GET</span></td><td>Unlimited</td><td><span class="badge badge-info">Public</span></td><td>5s</td><td><span class="badge badge-success">Active</span></td><td><button class="btn-custom" onclick="toast('Config opened')"><i class="bi bi-gear"></i></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="page-logs" class="page">
+      <div class="page-header"><h2 class="page-title">System Logs</h2><div class="d-flex gap-2"><button class="btn-custom" onclick="toast('Logs filtered')"><i class="bi bi-funnel"></i> Filter</button><button class="btn-custom primary" onclick="toast('Export started')"><i class="bi bi-download"></i> Export</button></div></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="filter-row">
+            <select class="sel-sm"><option>All levels</option><option>ERROR</option><option>WARN</option><option>INFO</option></select>
+            <select class="sel-sm"><option>All sources</option><option>API</option><option>Database</option><option>Auth</option></select>
+            <div class="search-box"><i class="bi bi-search text-muted"></i><input type="text" placeholder="Search logs..."></div>
+          </div>
+          <div style="font-family:monospace;font-size:12px;line-height:1.6;max-height:400px;overflow-y:auto">
+            <div style="color:var(--accent-red)">[14:22:08] ERROR /nfc POST - 500 - Timeout connecting to tag service</div>
+            <div style="color:var(--accent-yellow)">[14:21:55] WARN /payments/stk POST - Latency 1.2s exceeds threshold</div>
+            <div style="color:var(--text-secondary)">[14:21:30] INFO /auth/login POST - 201 - User authenticated: 254712***</div>
+            <div style="color:var(--text-secondary)">[14:20:15] INFO /health GET - 200 - All systems operational</div>
+            <div style="color:var(--accent-red)">[14:19:42] ERROR /audit/logs GET - 400 - Invalid query parameter</div>
+            <div style="color:var(--text-secondary)">[14:18:20] INFO /merchants/:id GET - 200 - Merchant data retrieved</div>
+            <div style="color:var(--accent-yellow)">[14:17:05] WARN Memory usage at 95% - GC triggered</div>
+            <div style="color:var(--text-secondary)">[14:15:30] INFO /nfc/:id GET - 200 - Tag validation successful</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Confirm Action</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="confirmMessage">Are you sure you want to proceed?</div>
+      <div class="modal-footer"><button type="button" class="btn-custom" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn-custom primary" id="confirmYes">Confirm</button></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const PAGE_TITLES={dashboard:'Dashboard',analytics:'Analytics',health:'API Health',reconciliation:'Reconciliation',endpoints:'Endpoints',logs:'Logs'};
+const BREADCRUMBS={dashboard:'Overview',analytics:'Analytics',health:'System Health',reconciliation:'Reconciliation',endpoints:'Endpoint Management',logs:'System Logs'};
+function nav(pageId,navEl,event){if(event)event.preventDefault();document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));const pg=document.getElementById('page-'+pageId);if(pg)pg.classList.add('active');if(navEl)navEl.classList.add('active');else{document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('href")==='#'+pageId)n.classList.add('active');});}document.getElementById('tb-title').textContent=PAGE_TITLES[pageId]||pageId;document.getElementById('bc-current').textContent=BREADCRUMBS[pageId]||pageId;if(window.innerWidth<992)document.getElementById('sidebar').classList.remove('show');if(pageId==='analytics')initCharts();if(pageId==='dashboard')populateEndpointTable();}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('show');}
+function confirmNav(event,action){event.preventDefault();const modal=new bootstrap.Modal(document.getElementById('confirmModal'));document.getElementById('confirmMessage').textContent='Are you sure you want to '+action.toLowerCase()+'?';document.getElementById('confirmYes').onclick=function(){modal.hide();if(event.currentTarget.href)window.location.href=event.currentTarget.href;};modal.show();return false;}
+function toast(msg,type='success'){const colors={success:{bg:'var(--success-bg)',color:'var(--accent-green)',border:'#16a34a'},error:{bg:'var(--error-bg)',color:'var(--accent-red)',border:'#dc2626'},info:{bg:'rgba(59,130,246,0.1)',color:'var(--accent-blue)',border:'#2563eb'}};const c=colors[type]||colors.success;const el=document.getElementById('toast');el.textContent=msg;el.style.cssText='position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;background:'+c.bg+';color:'+c.color+';border:1px solid '+c.border+';display:block;font-family:inherit';clearTimeout(window._t);window._t=setTimeout(()=>{el.style.display='none';},3500);}
+function markRead(el){el.classList.remove('unread');const count=document.querySelectorAll('.notification-item.unread').length;const badge=document.querySelector('.badge-count');if(badge){badge.textContent=count;badge.style.display=count>0?'block':'none';}toast('Notification marked as read','info');}
+const metricsData={cpu:{user:28.09,system:11.44},memory:{heapUsed:72,heapTotal:75,external:4},httpRequests:[{route:'/auth/login',method:'POST',status:'201',count:8},{route:'/auth/login',method:'POST',status:'401',count:2},{route:'/nfc',method:'POST',status:'500',count:2},{route:'/payments/stk',method:'POST',status:'400',count:3},{route:'/health',method:'GET',status:'200',count:2}],latencies:{'/auth/login':{p50:117,p90:117,p99:117},'/health':{p50:2,p90:2,p99:2},'/nfc/:id':{p50:4.33,p90:4.33,p99:4.33}}};
+function initCharts(){new ApexCharts(document.querySelector("#requestRateChart"),{series:[{name:'Requests',data:metricsData.httpRequests.filter(r=>r.status==='200'||r.status==='201').map(r=>({x:r.route,y:r.count})).sort((a,b)=>b.y-a.y).slice(0,8)}],chart:{type:'bar',height:300,toolbar:{show:false},background:'transparent'},colors:['#22c55e'],plotOptions:{bar:{horizontal:true,borderRadius:4,dataLabels:{position:'top'}}},xaxis:{labels:{style:{colors:'#94a3b8'},rotate:-45},axisBorder:{show:false},axisTicks:{show:false}},yaxis:{labels:{style:{colors:'#94a3b8'}}},grid:{borderColor:'#475569',strokeDashArray:4},tooltip:{theme:'dark',y:{formatter:v=>v+' requests'}}}).render();new ApexCharts(document.querySelector("#errorChart"),{series:Object.values(metricsData.httpRequests.filter(r=>r.status.startsWith('4')||r.status.startsWith('5')).reduce((acc,r)=>{const k=r.status+' - '+r.route;acc[k]=(acc[k]||0)+r.count;return acc;})),labels:Object.keys(metricsData.httpRequests.filter(r=>r.status.startsWith('4')||r.status.startsWith('5')).reduce((acc,r)=>{const k=r.status+' - '+r.route;acc[k]=(acc[k]||0)+r.count;return acc;})),chart:{type:'pie',height:300,background:'transparent'},colors:['#ef4444','#f59e0b','#ec4899'],dataLabels:{enabled:false},legend:{position:'bottom',labels:{colors:'#f1f5f9'}},tooltip:{theme:'dark',y:{formatter:v=>v+' errors'}}}).render();new ApexCharts(document.querySelector("#cpuChart"),{series:[{name:'User',data:[metricsData.cpu.user]},{name:'System',data:[metricsData.cpu.system]}],chart:{type:'area',height:300,toolbar:{show:false},background:'transparent'},colors:['#3b82f6','#8b5cf6'],stroke:{curve:'smooth',width:2},fill:{type:'gradient',gradient:{opacityFrom:0.6,opacityTo:0.1}},xaxis:{categories:['Now'],labels:{style:{colors:'#94a3b8'}},axisBorder:{show:false},axisTicks:{show:false}},yaxis:{labels:{style:{colors:'#94a3b8'},formatter:v=>v.toFixed(1)+'s'}},grid:{borderColor:'#475569',strokeDashArray:4},tooltip:{theme:'dark',y:{formatter:v=>v.toFixed(2)+' seconds'}},legend:{position:'top',labels:{colors:'#f1f5f9'}}}).render();new ApexCharts(document.querySelector("#memoryChart"),{series:[metricsData.memory.heapUsed,metricsData.memory.heapTotal-metricsData.memory.heapUsed,metricsData.memory.external],labels:['Used','Free','External'],chart:{type:'donut',height:300,background:'transparent'},colors:['#22c55e','#64748b','#f59e0b'],plotOptions:{pie:{donut:{size:'65%',labels:{show:true,total:{show:true,label:'Total',formatter:()=>metricsData.memory.heapTotal+' MB'}}}}},dataLabels:{enabled:false},legend:{position:'bottom',labels:{colors:'#f1f5f9'}}}).render();new ApexCharts(document.querySelector("#latencyChart"),{series:[{name:'P50',data:Object.values(metricsData.latencies).map(l=>l.p50)},{name:'P90',data:Object.values(metricsData.latencies).map(l=>l.p90)},{name:'P99',data:Object.values(metricsData.latencies).map(l=>l.p99)}],chart:{type:'radar',height:300,toolbar:{show:false},background:'transparent'},colors:['#22c55e','#f59e0b','#ef4444'],stroke:{width:2,curve:'smooth'},fill:{opacity:0.2},markers:{size:4},xaxis:{categories:Object.keys(metricsData.latencies),labels:{style:{colors:'#94a3b8',fontSize:'10px'},rotate:-45}},yaxis:{labels:{style:{colors:'#94a3b8'},formatter:v=>v+'ms'}},grid:{borderColor:'#475569',strokeDashArray:4},tooltip:{theme:'dark',y:{formatter:v=>v+' ms'}},legend:{position:'top',labels:{colors:'#f1f5f9'}}}).render();new ApexCharts(document.querySelector("#eventLoopChart"),{series:[{name:'Current',data:[12.4]},{name:'P99',data:[11.2]}],chart:{type:'line',height:300,toolbar:{show:false},background:'transparent'},colors:['#3b82f6','#ef4444'],stroke:{curve:'smooth',width:3},markers:{size:5},xaxis:{categories:['Now'],labels:{style:{colors:'#94a3b8'}},axisBorder:{show:false},axisTicks:{show:false}},yaxis:{labels:{style:{colors:'#94a3b8'},formatter:v=>v.toFixed(1)+'ms'},title:{text:'Lag (ms)',style:{color:'#94a3b8'}}},grid:{borderColor:'#475569',strokeDashArray:4},tooltip:{theme:'dark',y:{formatter:v=>v.toFixed(2)+' ms'}},legend:{position:'top',labels:{colors:'#f1f5f9'}}}).render();new ApexCharts(document.querySelector("#gcChart"),{series:[{name:'Duration (ms)',data:[{x:'Minor',y:1.13},{x:'Major',y:12.98},{x:'Incremental',y:1.38}]}],chart:{type:'bar',height:300,toolbar:{show:false},background:'transparent'},colors:['#8b5cf6'],plotOptions:{bar:{borderRadius:6,columnWidth:'50%',dataLabels:{position:'top'}}},dataLabels:{enabled:true,formatter:val=>val.toFixed(1)+'ms',style:{colors:['#f1f5f9'],fontSize:'12px'}},xaxis:{labels:{style:{colors:'#94a3b8'}},axisBorder:{show:false},axisTicks:{show:false}},yaxis:{labels:{style:{colors:'#94a3b8'},formatter:val=>val.toFixed(1)+'ms'}},grid:{borderColor:'#475569',strokeDashArray:4},tooltip:{theme:'dark',y:{formatter:val=>val.toFixed(2)+' ms avg'}}}).render();populateEndpointTable();document.getElementById('lastUpdated').textContent=new Date().toLocaleTimeString();}
+function populateEndpointTable(){const tbody=document.getElementById('endpointTable');tbody.innerHTML='';const stats={};metricsData.httpRequests.forEach(req=>{const key=req.method+' '+req.route;if(!stats[key])stats[key]={route:req.route,method:req.method,total:0,errors:0};stats[key].total+=req.count;if(req.status.startsWith('4')||req.status.startsWith('5'))stats[key].errors+=req.count;});Object.values(stats).forEach(s=>{const rate=s.total>0?((s.errors/s.total)*100).toFixed(1):'0.0';const status=rate>20?'danger':rate>5?'warning':'success';const lat=metricsData.latencies[s.route]||{};const row=document.createElement('tr');row.innerHTML='<td><code>'+s.route+'</code></td><td><span class="badge badge-secondary">'+s.method+'</span></td><td>'+s.total+'</td><td>'+s.errors+'</td><td><span class="badge badge-'+status+'">'+rate+'%</span></td><td>'+(lat.p50?lat.p50.toFixed(1)+'ms':'N/A')+'</td><td><span class="badge badge-'+status+'">'+status.toUpperCase()+'</span></td>';tbody.appendChild(row);});}
+function refreshMetrics(){const btn=event.target.closest('button');const original=btn.innerHTML;btn.innerHTML='<i class="bi bi-arrow-clockwise spinner"></i> Refreshing...';btn.disabled=true;setTimeout(()=>{btn.innerHTML=original;btn.disabled=false;document.getElementById('lastUpdated').textContent=new Date().toLocaleTimeString();toast('Metrics refreshed','success');},1000);}
+function exportData(){const csv=[['Endpoint','Method','Requests','Errors','Error Rate','P50','P99']].concat(Object.values(metricsData.httpRequests.reduce((acc,r)=>{const k=r.method+'|'+r.route;if(!acc[k])acc[k]={route:r.route,method:r.method,total:0,errors:0};acc[k].total+=r.count;if(r.status.startsWith('4')||r.status.startsWith('5'))acc[k].errors+=r.count;return acc;})).map(s=>[s.route,s.method,s.total,s.errors,s.total>0?((s.errors/s.total)*100).toFixed(1)+'%':'0%',metricsData.latencies[s.route]?.p50?.toFixed(1)+'ms'||'N/A',metricsData.latencies[s.route]?.p99?.toFixed(1)+'ms'||'N/A'])).map(r=>r.join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='analytics-export-'+Date.now()+'.csv';a.click();URL.revokeObjectURL(url);toast('Export started','success');}
+function runHealthCheck(){toast('Health check initiated','info');setTimeout(()=>{toast('All checks completed','success');document.getElementById('lastHealthCheck').textContent='Just now';},1500);}
+function exportHealthReport(){toast('Generating PDF report...','info');setTimeout(()=>{toast('Report downloaded','success');},2000);}
+function filterRecon(){toast('Filters applied','info');}
+function applyFilters(){toast('Filters updated','info');}
+function reconcileAll(){const modal=new bootstrap.Modal(document.getElementById('confirmModal'));document.getElementById('confirmMessage').textContent='Reconcile all pending transactions? This action cannot be undone.';document.getElementById('confirmYes').onclick=function(){modal.hide();toast('Reconciliation in progress...','info');setTimeout(()=>toast('32 transactions reconciled','success'),1500);};modal.show();}
+function viewDetails(ref){toast('Viewing details for '+ref,'info');}
+function manualMatch(ref){const modal=new bootstrap.Modal(document.getElementById('confirmModal'));document.getElementById('confirmMessage').textContent='Manually match reference '+ref+'?';document.getElementById('confirmYes').onclick=function(){modal.hide();toast('Transaction matched','success');};modal.show();}
+function flagIssue(ref){const modal=new bootstrap.Modal(document.getElementById('confirmModal'));document.getElementById('confirmMessage').textContent='Flag '+ref+' for manual review?';document.getElementById('confirmYes').onclick=function(){modal.hide();toast('Issue flagged for review','info');};modal.show();}
+document.addEventListener('DOMContentLoaded',function(){initCharts();if(location.hash){const page=location.hash.slice(1);if(PAGE_TITLES[page])nav(page,null,null);}document.querySelectorAll('.nav-item').forEach(link=>{link.addEventListener('click',function(e){const href=this.getAttribute('href');if(href&&href.startsWith('#')){history.pushState(null,null,href);}});});window.addEventListener('hashchange',function(){const page=location.hash.slice(1);if(PAGE_TITLES[page])nav(page,null,null);});});
+</script>
+</body>
+</html>
