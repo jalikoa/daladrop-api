@@ -4,6 +4,7 @@ import { PaymentResponseDto } from './dto/payment-response.dto';
 import { InitiateStkUseCase } from './use-cases/initiate-stk.usecase';
 import { GetPaymentUseCase } from './use-cases/get-payment.usecase';
 import { GetMerchantPaymentsUseCase } from './use-cases/get-merchant-payments.usecase';
+import { GetAllPaymentsUseCase } from './use-cases/get-all-payments.usecase';
 import { PaymentMapper } from './mappers/payment.mapper';
 import { PaymentStatus } from './enums/payment-status.enum';
 
@@ -13,6 +14,7 @@ export class PaymentsService {
     private readonly initiateStkUseCase: InitiateStkUseCase,
     private readonly getPaymentUseCase: GetPaymentUseCase,
     private readonly getMerchantPaymentsUseCase: GetMerchantPaymentsUseCase,
+    private readonly getAllPaymentsUseCase: GetAllPaymentsUseCase,
   ) {}
 
   async initiateStk(dto: InitiateStkDto): Promise<any> {
@@ -28,6 +30,11 @@ export class PaymentsService {
   async findByUuid(uuid: string): Promise<PaymentResponseDto> {
     const payment = await this.getPaymentUseCase.byUuid(uuid);
     return PaymentMapper.toDTO(payment);
+  }
+
+  async findAll(page: number, limit: number, status?: PaymentStatus): Promise<{ data: PaymentResponseDto[]; total: number }> {
+    const result = await this.getAllPaymentsUseCase.execute(page, limit, status);
+    return { data: PaymentMapper.toDTOArray(result.data), total: result.total };
   }
 
   async findByMerchant(merchantId: number, page: number, limit: number, status?: PaymentStatus): Promise<{ data: PaymentResponseDto[]; total: number }> {

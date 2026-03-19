@@ -64,11 +64,18 @@ describe('NfcController', () => {
   });
 
   describe('GET /nfc', () => {
-    it('returns paginated tag list', async () => {
+    it('returns paginated tag list with merchant_id', async () => {
       mockNfcService.findByMerchant.mockResolvedValue({ data: [mockNfcTagDto], total: 1 });
       const result = await controller.findByMerchant(1, 1, 10);
       expect(result.total).toBe(1);
       expect(result.data[0].id).toBe(1);
+    });
+
+    it('returns all tags when merchant_id is null', async () => {
+      mockNfcService.findByMerchant.mockResolvedValue({ data: [mockNfcTagDto], total: 1 });
+      const result = await controller.findByMerchant(null, 1, 10);
+      expect(result.total).toBe(1);
+      expect(mockNfcService.findByMerchant).toHaveBeenCalledWith(null, 1, 10);
     });
   });
 

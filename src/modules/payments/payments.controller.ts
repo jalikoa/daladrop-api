@@ -34,9 +34,9 @@ export class PaymentsController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MERCHANT)
-  async findAll(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number, @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number, @Query('status') status?: PaymentStatus, @Query('merchant_id', ParseIntPipe) merchantId?: number) {
-    if (merchantId) return this.paymentsService.findByMerchant(merchantId, page, limit, status);
-    return { data: [], total: 0 };
+  async findAll(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number, @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number, @Query('status') status?: PaymentStatus, @Query('merchant_id') merchantId?: number) {
+    if (merchantId) return this.paymentsService.findByMerchant(+merchantId, page, limit, status);
+    return this.paymentsService.findAll(page, limit, status);
   }
 
   @Get(':id')

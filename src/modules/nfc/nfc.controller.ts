@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   ParseIntPipe,
+  DefaultValuePipe,
   UseGuards,
   UsePipes,
   ValidationPipe,
@@ -27,23 +28,24 @@ import { MerchantOwnerGuard } from '../merchants/guards/merchant-owner.guard';
 export class NfcController {
   constructor(private readonly nfcService: NfcService) {}
 
-  @Post()
-  @UseGuards(JwtAuthGuard, MerchantOwnerGuard)
-  async createTag(
-    @Body() dto: CreateNfcTagDto,
-    @Query('merchant_id', ParseIntPipe) merchantId: number,
-  ): Promise<NfcTagResponseDto> {
-    return this.nfcService.createTag(merchantId, dto);
-  }
+@Post()
+@UseGuards(JwtAuthGuard, MerchantOwnerGuard)
+async createTag(
+  @Body() dto: CreateNfcTagDto & { merchantId: number },
+): Promise<NfcTagResponseDto> {
+  const { merchantId, ...tagData } = dto;
+  return this.nfcService.createTag(merchantId, tagData);
+}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MERCHANT)
   async findByMerchant(
-    @Query('merchant_id', ParseIntPipe) merchantId: number,
-    @Query('page', ParseIntPipe) page: number = 1,
-    @Query('limit', ParseIntPipe) limit: number = 10,
-  ): Promise<{ data: NfcTagResponseDto[]; total: number }> {
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('merchant_id') merchantIdStr?: string,
+  ) {
+    const merchantId = merchantIdStr ? parseInt(merchantIdStr, 10) : null;
     return this.nfcService.findByMerchant(merchantId, page, limit);
   }
 

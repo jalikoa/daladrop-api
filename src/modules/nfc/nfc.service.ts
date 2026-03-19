@@ -35,7 +35,7 @@ export class NfcService {
     return this.mapToResponse(tag);
   }
 
-  async findByMerchant(merchantId: number, page: number, limit: number): Promise<{ data: NfcTagResponseDto[]; total: number }> {
+  async findByMerchant(merchantId: number | null, page: number, limit: number): Promise<{ data: NfcTagResponseDto[]; total: number }> {
     const result = await (this.nfcRepo as any).findByMerchantId(merchantId, page, limit);
     return {
       data: result.data.map((tag) => this.mapToResponse(tag)),
@@ -46,7 +46,7 @@ export class NfcService {
   private mapToResponse(tag: any): NfcTagResponseDto {
     return {
       id: tag.id,
-      merchant_id: tag.merchant_id,
+      // merchant_id: tag.merchant_id,
       tag_uid: tag.tag_uid,
       encrypted_payload: tag.encrypted_payload,
       is_active: tag.is_active,

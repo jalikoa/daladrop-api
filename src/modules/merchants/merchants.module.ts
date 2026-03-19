@@ -35,6 +35,6 @@ import { QrService } from '../qr/services/qr.service';
     QrService,
   ],
   controllers: [MerchantsController],
-  exports: [MerchantsService, 'IMerchantRepository', GeneratePaymentLinkUseCase],
+  exports: [MerchantsService, 'IMerchantRepository', GeneratePaymentLinkUseCase, MerchantRepository],
 })
 export class MerchantsModule {}

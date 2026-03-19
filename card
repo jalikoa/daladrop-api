@@ -1,1 +1,1 @@
-{"statusCode":404,"message":"Cannot GET /pdf/merchant/1/card","timestamp":"2026-03-16T06:58:32.599Z","path":"/pdf/merchant/1/card"}
+{"statusCode":401,"message":"Unauthorized","timestamp":"2026-03-18T18:29:49.139Z","path":"/pdf/merchant/1/card"}

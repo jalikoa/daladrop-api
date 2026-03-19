@@ -9,6 +9,7 @@ export interface IPaymentRepository {
   findByCheckoutId(checkoutId: string): Promise<PaymentSession | null>;
   findByReceipt(receipt: string): Promise<PaymentSession | null>;
   findByMerchant(merchantId: number, page: number, limit: number, status?: PaymentStatus): Promise<{ data: PaymentSession[]; total: number }>;
+  findAll(page: number, limit: number, status?: PaymentStatus): Promise<{ data: PaymentSession[]; total: number }>;
   createSession(data: CreateSessionData): Promise<PaymentSession>;
   updateStatus(id: number, status: PaymentStatus, metadata?: Partial<PaymentSession>): Promise<PaymentSession>;
   markCompleted(id: number, receipt: string): Promise<PaymentSession>;

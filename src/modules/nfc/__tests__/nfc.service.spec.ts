@@ -102,6 +102,13 @@ describe('NfcService', () => {
       const result = await service.findByMerchant(1, 1, 10);
       expect(result.data).toHaveLength(0);
     });
+
+    it('returns all tags when merchantId is null', async () => {
+      mockNfcRepo.findByMerchantId.mockResolvedValue({ data: [mockNfcTag], total: 1 });
+      const result = await service.findByMerchant(null, 1, 10);
+      expect(result.total).toBe(1);
+      expect(mockNfcRepo.findByMerchantId).toHaveBeenCalledWith(null, 1, 10);
+    });
   });
 });
 

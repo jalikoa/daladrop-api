@@ -1,4 +1,4 @@
-import { Injectable, Logger, Inject } from '@nestjs/common';
+import { Injectable, Logger, Inject,BadRequestException,NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IPaymentRepository } from '../interfaces/payment-repository.interface';
 import type { IDarajaAdapter } from '../interfaces/daraja-adapter.interface';
@@ -7,6 +7,8 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 import { PAYMENT_CONSTANTS } from '../constants/payment.constants';
 import { PhoneNumber } from '../value-objects/phone-number.vo';
 import { Money } from '../value-objects/money.vo';
+import { MerchantRepository } from 'src/modules/merchants/repositories/merchant.repository';
+import { EncryptionService } from 'src/common/security/encryption.service';
 
 @Injectable()
 export class InitiateStkUseCase {
@@ -16,14 +18,30 @@ export class InitiateStkUseCase {
     @Inject('IPaymentRepository') private readonly paymentRepo: IPaymentRepository,
     @Inject('IDarajaAdapter') private readonly darajaAdapter: IDarajaAdapter,
     private readonly eventEmitter: EventEmitter2,
+    private readonly encryptionService: EncryptionService,
+    private readonly merchantRepo: MerchantRepository,
   ) {}
 
   async execute(dto: InitiateStkDto) {
     const phone = new PhoneNumber(dto.phone);
     const money = new Money(dto.amount);
+    const decrypted = this.encryptionService.decryptPayload(dto.merchant_hash);
+    const payload = JSON.parse(decrypted);
 
+    if (!payload.mid || !payload.issuedAt) {
+      throw new BadRequestException('Invalid token payload');
+    }
+
+    if (payload.expiresAt && new Date(payload.expiresAt) < new Date()) {
+      throw new BadRequestException('Token has expired');
+    }
+
+    const merchant = await this.merchantRepo.findById(payload.mid);
+    if (!merchant || !merchant.isActive()) {
+      throw new NotFoundException('Merchant not found or inactive');
+    }
     const session = await this.paymentRepo.createSession({
-      merchantId: dto.merchant_id,
+      merchantId: merchant.id,
       customerPhone: phone.toString(),
       amount: money.amount,
       currency: money.currency,

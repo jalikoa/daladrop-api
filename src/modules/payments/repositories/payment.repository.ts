@@ -54,6 +54,27 @@ export class PaymentRepository implements IPaymentRepository {
     return { data, total };
   }
 
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    status?: PaymentStatus,
+  ): Promise<{ data: PaymentSession[]; total: number }> {
+    const queryBuilder = this.sessionRepo.createQueryBuilder('session')
+      .leftJoinAndSelect('session.merchant', 'merchant');
+
+    if (status) {
+      queryBuilder.andWhere('session.status = :status', { status });
+    }
+
+    const [data, total] = await queryBuilder
+      .orderBy('session.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return { data, total };
+  }
+
   async createSession(data: CreateSessionData): Promise<PaymentSession> {
     const session = this.sessionRepo.create({
       merchant: { id: data.merchantId },

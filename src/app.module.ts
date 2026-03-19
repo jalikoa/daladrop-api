@@ -22,7 +22,8 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { QueuesModule } from './modules/queues/queues.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
-
+import { QrModule } from './modules/qr/qr.module';
+import { PdfModule } from './modules/pdf/pdf.module';
 import { PublicController } from './interfaces/public/public.controller';
 
 @Module({
@@ -103,6 +104,8 @@ import { PublicController } from './interfaces/public/public.controller';
     QueuesModule,
     HealthModule,
     AuditModule,
+    QrModule,
+    PdfModule,
   ],
 
   controllers: [PublicController],

@@ -4,8 +4,8 @@ export class NfcTagResponseDto {
   @Expose()
   id: number;
 
-  @Expose()
-  merchant_id: number;
+  // @Expose()
+  // merchant_id: number;
 
   @Expose()
   tag_uid: string | null;
@@ -30,7 +30,8 @@ export class DecodedTokenResponseDto {
 
   @Expose()
   data: {
-    merchant_id: number;
+    paybill_number: string;
+    // merchant_id: number;
     merchant_name: string;
     merchant_logo?: string | null;
     session_uuid?: string;

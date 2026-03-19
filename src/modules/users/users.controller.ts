@@ -23,6 +23,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from './enums/user-role.enum';
 import { UserOwnerGuard } from './guards/user-owner.guard';
 import { UserLoggingInterceptor } from './interceptors/user-logging.interceptor';
+import { User } from '../auth/decorators/user.decorator';
 
 @Controller('users')
 @UseInterceptors(UserLoggingInterceptor)
@@ -45,6 +46,12 @@ export class UsersController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
   ): Promise<{ data: UserResponseDto[]; total: number }> {
     return this.usersService.findAll(page, limit);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@User() user: { id: number }): Promise<UserResponseDto> {
+    return this.usersService.findOne(user.id);
   }
 
   @Get(':id')

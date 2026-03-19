@@ -16,12 +16,17 @@ export class NfcRepository implements INfcRepository {
   }
 
   async findByMerchantId(
-    merchantId: number,
+    merchantId: number | null,
     page: number = 1,
     limit: number = 10,
   ): Promise<{ data: NfcTag[]; total: number }> {
+    const whereCondition: any = {};
+    if (merchantId !== null && merchantId !== undefined) {
+      whereCondition.merchant_id = merchantId;
+    }
+
     const [data, total] = await this.repo.findAndCount({
-      where: { merchant_id: merchantId },
+      where: whereCondition,
       skip: (page - 1) * limit,
       take: limit,
       order: { created_at: 'DESC' },

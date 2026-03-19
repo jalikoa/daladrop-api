@@ -20,9 +20,9 @@ export class InitiateStkDto {
   @IsNotEmpty()
   phone: string;
 
-  @IsInt()
+  @IsString()
   @IsNotEmpty()
-  merchant_id: number;
+  merchant_hash: string;
 
   @IsUUID()
   @IsOptional()

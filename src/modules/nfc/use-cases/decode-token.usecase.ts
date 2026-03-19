@@ -54,8 +54,9 @@ export class DecodeTokenUseCase {
       return {
         success: true,
         data: {
-          merchant_id: merchant.id,
+          // merchant_id: merchant.id,
           merchant_name: merchant.business_name,
+          paybill_number: merchant.paybill_number,
           merchant_logo: merchant.logo_url,
           session_uuid: sessionUuid,
           expires_at: payload.expiresAt,

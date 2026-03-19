@@ -18,13 +18,13 @@ export class NfcTag {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
 
-  @Column({ type: 'bigint' })
+  @Column({ type: 'bigint', nullable: true })
   @Index()
-  merchant_id: number;
+  merchant_id: number | null;
 
-  @ManyToOne(() => MerchantProfile, { eager: false })
+  @ManyToOne(() => MerchantProfile, { eager: false, nullable: true })
   @JoinColumn({ name: 'merchant_id' })
-  merchant: MerchantProfile;
+  merchant: MerchantProfile | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
   tag_uid: string | null;
