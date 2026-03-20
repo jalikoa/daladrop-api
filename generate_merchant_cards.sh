@@ -4,7 +4,7 @@
 # Endpoint: http://localhost:3000/pdf/merchant/{id}/card/generate?async=true
 # Auth: Bearer JWT (same token as initial request)
 
-API_BASE="http://localhost:3000/pdf/merchant"
+API_BASE="https://tapapi.lads.sc.ke/pdf/merchant"
 AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZW1haWwiOiJhZG1pbkBuZmNhcGkuY29tIiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzczODU4MzExLCJleHAiOjE3NzM5NDQ3MTF9._CprYH9U91I4ko5_9I3PBsVH1gfg2zLJEMH4kYFkfD4"
 
 # Merchant user_id range (matches identity_users after inserting 150 merchants)
