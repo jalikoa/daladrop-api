@@ -1,5 +1,5 @@
 export const PAYMENT_CONSTANTS = {
-  BASE_PAYMENT_URL:"http://10.42.0.150:8080",
+  BASE_PAYMENT_URL:"https://tappay.lads.sc.ke",
   EVENT_PREFIX: 'payment',
   EVENTS: {
     SESSION_CREATED: 'payment.session.created',
