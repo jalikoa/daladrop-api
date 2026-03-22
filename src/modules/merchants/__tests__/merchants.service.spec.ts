@@ -1,10 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { MerchantsService } from '../merchants.service';
 import { CreateMerchantUseCase } from '../use-cases/create-merchant.usecase';
 import { FindMerchantUseCase } from '../use-cases/find-merchant.usecase';
 import { GeneratePaymentLinkUseCase } from '../use-cases/generate-payment-link.usecase';
 import { MerchantStatus, MerchantVerificationStatus } from '../enums/merchant-status.enum';
+import { EncryptionService } from '../../../common/security/encryption.service';
+import { QrService } from '../../qr/services/qr.service';
 
 // ─── shared fixture ───────────────────────────────────────────────────────────
 const mockMerchantEntity = {
@@ -148,21 +152,12 @@ describe('GeneratePaymentLinkUseCase', () => {
       providers: [
         GeneratePaymentLinkUseCase,
         { provide: 'IMerchantRepository', useValue: mockMerchantRepoForUseCase },
-        { provide: 'EncryptionService', useValue: mockEncryptionService },
-        { provide: 'QrService', useValue: mockQrService },
-        { provide: 'ConfigService', useValue: mockConfigService },
-        { provide: 'EventEmitter2', useValue: mockEventEmitter },
+        { provide: EncryptionService, useValue: mockEncryptionService },
+        { provide: QrService, useValue: mockQrService },
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
-    })
-      .overrideProvider('EncryptionService')
-      .useValue(mockEncryptionService)
-      .overrideProvider('QrService')
-      .useValue(mockQrService)
-      .overrideProvider('ConfigService')
-      .useValue(mockConfigService)
-      .overrideProvider('EventEmitter2')
-      .useValue(mockEventEmitter)
-      .compile();
+    }).compile();
     useCase = module.get<GeneratePaymentLinkUseCase>(GeneratePaymentLinkUseCase);
   });
 

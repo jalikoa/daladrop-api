@@ -18,6 +18,13 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:smoke": "jest --config ./test/jest-e2e.json test/smoke.e2e-spec.ts --runInBand",
+    "test:regression": "jest --config ./test/jest-e2e.json test/regression.e2e-spec.ts --runInBand",
+    "test:integration": "jest --config ./test/jest-e2e.json --testPathPattern=integration",
+    "test:security": "jest --testPathPattern=security",
+    "test:perf": "echo 'Run k6 load test: k6 run test/load-test.k6.js'",
+    "test:load": "k6 run test/load-test.k6.js",
+    "test:all": "npm run test && npm run test:e2e",
     "migration:run": "typeorm migration:run -d src/data-source.ts",
     "migration:revert": "typeorm migration:revert -d src/data-source.ts",
     "migration:generate": "typeorm migration:generate -d src/data-source.ts src/migrations/NewMigration"
@@ -33,6 +40,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/terminus": "^11.1.1",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
@@ -104,10 +112,16 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(uuid)/)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
   }
 }

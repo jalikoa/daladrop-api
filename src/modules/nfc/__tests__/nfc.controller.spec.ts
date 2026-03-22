@@ -50,30 +50,30 @@ describe('NfcController', () => {
   describe('POST /nfc', () => {
     it('creates tag and returns DTO', async () => {
       mockNfcService.createTag.mockResolvedValue(mockNfcTagDto);
-      const result = await controller.createTag({ tag_uid: '04:AB:CD:EF:12:34' } as any, 1);
+      const result = await controller.createTag({ tag_uid: '04:AB:CD:EF:12:34', merchantId: 1 } as any);
       expect(result.tag_uid).toBe('04:AB:CD:EF:12:34');
-      expect(mockNfcService.createTag).toHaveBeenCalledWith(1, expect.any(Object));
+      expect(mockNfcService.createTag).toHaveBeenCalledWith(1, expect.objectContaining({ tag_uid: '04:AB:CD:EF:12:34' }));
     });
 
     it('propagates UnprocessableEntityException for inactive merchant', async () => {
       mockNfcService.createTag.mockRejectedValue(
         new UnprocessableEntityException('merchant is not active'),
       );
-      await expect(controller.createTag({} as any, 2)).rejects.toThrow(UnprocessableEntityException);
+      await expect(controller.createTag({ merchantId: 2 } as any)).rejects.toThrow(UnprocessableEntityException);
     });
   });
 
   describe('GET /nfc', () => {
     it('returns paginated tag list with merchant_id', async () => {
       mockNfcService.findByMerchant.mockResolvedValue({ data: [mockNfcTagDto], total: 1 });
-      const result = await controller.findByMerchant(1, 1, 10);
+      const result = await controller.findByMerchant(1, 10, '1');
       expect(result.total).toBe(1);
       expect(result.data[0].id).toBe(1);
     });
 
     it('returns all tags when merchant_id is null', async () => {
       mockNfcService.findByMerchant.mockResolvedValue({ data: [mockNfcTagDto], total: 1 });
-      const result = await controller.findByMerchant(null, 1, 10);
+      const result = await controller.findByMerchant(1, 10, undefined);
       expect(result.total).toBe(1);
       expect(mockNfcService.findByMerchant).toHaveBeenCalledWith(null, 1, 10);
     });

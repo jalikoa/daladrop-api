@@ -79,6 +79,7 @@ describe('PaymentsController', () => {
     });
 
     it('returns empty list when no merchant_id provided', async () => {
+      mockPaymentsService.findAll.mockResolvedValue({ data: [], total: 0 });
       const result = await controller.findAll(1, 10, undefined, undefined);
       expect(result).toEqual({ data: [], total: 0 });
     });

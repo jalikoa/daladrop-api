@@ -1,7 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { WebhooksService } from '../webhooks.service';
 import { WebhookSource, WebhookStatus } from '../enums/webhook-source.enum';
+import { WebhookLog } from '../entities/webhook-log.entity';
+import { DarajaWebhookHandler } from '../handlers/daraja-webhook.handler';
+import { AfricaTalkingWebhookHandler } from '../handlers/africastalking-webhook.handler';
 
 const mockWebhookLog = {
   id: 1,
@@ -91,18 +96,18 @@ describe('WebhooksService', () => {
       providers: [
         WebhooksService,
         { provide: 'WebhookLogRepository', useValue: mockWebhookRepo },
-        { provide: 'EventEmitter2', useValue: mockEventEmitter },
-        { provide: 'DarajaWebhookHandler', useValue: mockDarajaHandler },
-        { provide: 'AfricaTalkingWebhookHandler', useValue: mockAfricaTalkingHandler },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
+        { provide: DarajaWebhookHandler, useValue: mockDarajaHandler },
+        { provide: AfricaTalkingWebhookHandler, useValue: mockAfricaTalkingHandler },
       ],
     })
-      .overrideProvider(require('typeorm').InjectRepository(require('../entities/webhook-log.entity').WebhookLog))
+      .overrideProvider(InjectRepository(WebhookLog))
       .useValue(mockWebhookRepo)
-      .overrideProvider(require('@nestjs/event-emitter').EventEmitter2)
+      .overrideProvider(EventEmitter2)
       .useValue(mockEventEmitter)
-      .overrideProvider(require('../handlers/daraja-webhook.handler').DarajaWebhookHandler)
+      .overrideProvider(DarajaWebhookHandler)
       .useValue(mockDarajaHandler)
-      .overrideProvider(require('../handlers/africastalking-webhook.handler').AfricaTalkingWebhookHandler)
+      .overrideProvider(AfricaTalkingWebhookHandler)
       .useValue(mockAfricaTalkingHandler)
       .compile();
     service = module.get<WebhooksService>(WebhooksService);

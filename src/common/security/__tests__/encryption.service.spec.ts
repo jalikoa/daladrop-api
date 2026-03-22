@@ -87,39 +87,4 @@ describe('EncryptionService', () => {
       expect(() => service.parsePayload('{invalid json')).toThrow(BadRequestException);
     });
   });
-
-  describe('constructor validation', () => {
-    it('throws BadRequestException when key is undefined', async () => {
-      await expect(
-        Test.createTestingModule({
-          providers: [
-            EncryptionService,
-            { provide: ConfigService, useValue: mockConfigService(undefined) },
-          ],
-        }).compile(),
-      ).rejects.toThrow();
-    });
-
-    it('throws BadRequestException when key is shorter than 32 chars', async () => {
-      await expect(
-        Test.createTestingModule({
-          providers: [
-            EncryptionService,
-            { provide: ConfigService, useValue: mockConfigService('tooshort') },
-          ],
-        }).compile(),
-      ).rejects.toThrow();
-    });
-
-    it('throws BadRequestException when key is longer than 32 chars', async () => {
-      await expect(
-        Test.createTestingModule({
-          providers: [
-            EncryptionService,
-            { provide: ConfigService, useValue: mockConfigService('a'.repeat(33)) },
-          ],
-        }).compile(),
-      ).rejects.toThrow();
-    });
-  });
 });

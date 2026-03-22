@@ -1,14 +1,12 @@
 import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
-import { EncryptionService } from '../../../common/security/encryption.service';
 import { DecodedTokenResponseDto } from '../dto/nfc-tag-response.dto';
 import { NFC_CONSTANTS } from '../constants/nfc.constants';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface DecodeTokenInput {
-  encryptedToken: string;
+  merchantId: string;
   ipAddress?: string;
   userAgent?: string;
 }
@@ -17,25 +15,13 @@ export interface DecodeTokenInput {
 export class DecodeTokenUseCase {
   constructor(
     @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
-    private readonly encryptionService: EncryptionService,
-    private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async execute(input: DecodeTokenInput): Promise<DecodedTokenResponseDto> {
     try {
-      const decrypted = this.encryptionService.decryptPayload(input.encryptedToken);
-      const payload = JSON.parse(decrypted);
 
-      if (!payload.mid || !payload.issuedAt) {
-        throw new BadRequestException('Invalid token payload');
-      }
-
-      if (payload.expiresAt && new Date(payload.expiresAt) < new Date()) {
-        throw new BadRequestException('Token has expired');
-      }
-
-      const merchant = await this.merchantRepo.findById(payload.mid);
+      const merchant = await this.merchantRepo.findById(parseInt(input.merchantId));
       if (!merchant || !merchant.isActive()) {
         throw new NotFoundException('Merchant not found or inactive');
       }
@@ -54,12 +40,12 @@ export class DecodeTokenUseCase {
       return {
         success: true,
         data: {
-          // merchant_id: merchant.id,
+          merchant_id: merchant.id,
           merchant_name: merchant.business_name,
           paybill_number: merchant.paybill_number,
           merchant_logo: merchant.logo_url,
           session_uuid: sessionUuid,
-          expires_at: payload.expiresAt,
+          expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // Token expires in 15 minutes
         },
       };
     } catch (error) {

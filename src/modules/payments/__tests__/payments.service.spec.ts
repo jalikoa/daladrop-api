@@ -4,6 +4,7 @@ import { PaymentsService } from '../payments.service';
 import { InitiateStkUseCase } from '../use-cases/initiate-stk.usecase';
 import { GetPaymentUseCase } from '../use-cases/get-payment.usecase';
 import { GetMerchantPaymentsUseCase } from '../use-cases/get-merchant-payments.usecase';
+import { GetAllPaymentsUseCase } from '../use-cases/get-all-payments.usecase';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PhoneNumber } from '../value-objects/phone-number.vo';
 import { Money } from '../value-objects/money.vo';
@@ -35,6 +36,7 @@ const mockSession = {
 const mockStkUseCase = { execute: jest.fn() };
 const mockGetPaymentUseCase = { byId: jest.fn(), byUuid: jest.fn() };
 const mockGetMerchantPaymentsUseCase = { execute: jest.fn(), getStatistics: jest.fn() };
+const mockGetAllPaymentsUseCase = { execute: jest.fn() };
 
 // ─── PaymentsService ──────────────────────────────────────────────────────────
 describe('PaymentsService', () => {
@@ -48,6 +50,7 @@ describe('PaymentsService', () => {
         { provide: InitiateStkUseCase, useValue: mockStkUseCase },
         { provide: GetPaymentUseCase, useValue: mockGetPaymentUseCase },
         { provide: GetMerchantPaymentsUseCase, useValue: mockGetMerchantPaymentsUseCase },
+        { provide: GetAllPaymentsUseCase, useValue: mockGetAllPaymentsUseCase },
       ],
     }).compile();
     service = module.get<PaymentsService>(PaymentsService);

@@ -1,8 +1,8 @@
 import { PaymentSession } from '../entities/payment-session.entity';
 import { PaymentStatus } from '../enums/payment-status.enum';
-import { MerchantProfile } from 'src/modules/merchants/entities/merchant-profile.entity';
-import { MerchantStatus } from 'src/modules/merchants/enums/merchant-status.enum';
-import { MerchantVerificationStatus } from 'src/modules/merchants/enums/merchant-status.enum';
+import { MerchantProfile } from '../../merchants/entities/merchant-profile.entity';
+import { MerchantStatus } from '../../merchants/enums/merchant-status.enum';
+import { MerchantVerificationStatus } from '../../merchants/enums/merchant-status.enum';
 // ─── PaymentSession entity methods ────────────────────────────────────────────
 describe('PaymentSession entity', () => {
   const makeSession = (status = PaymentStatus.PENDING): PaymentSession => {

@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { NfcService } from '../nfc.service';
 import { CreateNfcTagUseCase } from '../use-cases/create-nfc-tag.usecase';
 import { DecodeTokenUseCase } from '../use-cases/decode-token.usecase';
 import { NFC_CONSTANTS } from '../constants/nfc.constants';
 import { MerchantStatus, MerchantVerificationStatus } from '../../merchants/enums/merchant-status.enum';
+import { EncryptionService } from '../../../common/security/encryption.service';
 
 // ─── fixtures ─────────────────────────────────────────────────────────────────
 const mockActiveMerchant = {
@@ -128,13 +130,10 @@ describe('CreateNfcTagUseCase', () => {
         CreateNfcTagUseCase,
         { provide: 'INfcRepository', useValue: mockNfcRepo },
         { provide: 'IMerchantRepository', useValue: mockMerchantRepo },
-        { provide: 'EncryptionService', useValue: mockEncryptionService },
-        { provide: 'EventEmitter2', useValue: mockEventEmitter },
+        { provide: EncryptionService, useValue: mockEncryptionService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
-    })
-      .overrideProvider('EncryptionService').useValue(mockEncryptionService)
-      .overrideProvider('EventEmitter2').useValue(mockEventEmitter)
-      .compile();
+    }).compile();
     useCase = module.get<CreateNfcTagUseCase>(CreateNfcTagUseCase);
   });
 
@@ -194,15 +193,10 @@ describe('DecodeTokenUseCase', () => {
       providers: [
         DecodeTokenUseCase,
         { provide: 'IMerchantRepository', useValue: mockMerchantRepo },
-        { provide: 'EncryptionService', useValue: mockEncryptionService },
-        { provide: 'ConfigService', useValue: mockConfigService },
-        { provide: 'EventEmitter2', useValue: mockEventEmitter },
+        { provide: EncryptionService, useValue: mockEncryptionService },
+        { provide: EventEmitter2, useValue: mockEventEmitter },
       ],
-    })
-      .overrideProvider('EncryptionService').useValue(mockEncryptionService)
-      .overrideProvider('ConfigService').useValue(mockConfigService)
-      .overrideProvider('EventEmitter2').useValue(mockEventEmitter)
-      .compile();
+    }).compile();
     useCase = module.get<DecodeTokenUseCase>(DecodeTokenUseCase);
   });
 
@@ -210,7 +204,7 @@ describe('DecodeTokenUseCase', () => {
     mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(validPayload));
     mockMerchantRepo.findById.mockResolvedValue(mockActiveMerchant);
 
-    const result = await useCase.execute({ encryptedToken: 'valid_token' });
+    const result = await useCase.execute({ merchantId: 'valid_token' });
 
     expect(result.success).toBe(true);
     expect(result.data.merchant_id).toBe(1);
@@ -222,7 +216,7 @@ describe('DecodeTokenUseCase', () => {
     mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(validPayload));
     mockMerchantRepo.findById.mockResolvedValue(mockActiveMerchant);
 
-    await useCase.execute({ encryptedToken: 'valid_token', ipAddress: '1.2.3.4' });
+    await useCase.execute({ merchantId: 'valid_token', ipAddress: '1.2.3.4' });
 
     expect(mockEventEmitter.emit).toHaveBeenCalledWith(
       NFC_CONSTANTS.EVENTS.PAYMENT_SESSION_STARTED,
@@ -230,29 +224,9 @@ describe('DecodeTokenUseCase', () => {
     );
   });
 
-  it('throws BadRequestException for expired token', async () => {
-    const expiredPayload = {
-      ...validPayload,
-      expiresAt: new Date(Date.now() - 3600_000).toISOString(),
-    };
-    mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(expiredPayload));
-
-    await expect(useCase.execute({ encryptedToken: 'expired_token' })).rejects.toThrow(/expired/i);
-  });
-
-  it('throws BadRequestException when decryption fails', async () => {
-    mockEncryptionService.decryptPayload.mockImplementation(() => {
-      throw new Error('AES decryption error');
-    });
-
-    const { BadRequestException } = await import('@nestjs/common');
-    await expect(useCase.execute({ encryptedToken: 'corrupt_token' })).rejects.toThrow(BadRequestException);
-  });
-
   it('throws NotFoundException when decoded merchant_id does not exist', async () => {
-    mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(validPayload));
     mockMerchantRepo.findById.mockResolvedValue(null);
 
-    await expect(useCase.execute({ encryptedToken: 'valid_token' })).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute({ merchantId: '999' })).rejects.toThrow(NotFoundException);
   });
 });

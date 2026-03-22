@@ -34,22 +34,22 @@ export class CreateNfcTagUseCase {
       );
     }
 
-    const payload = {
-      mid: merchantId,
-      uid: merchant.user_id,
-      issuedAt: new Date().toISOString(),
-    };
-    const encryptedPayload = this.encryptionService.encryptPayload(JSON.stringify(payload));
+    // const payload = {
+    //   mid: merchantId,
+    //   uid: merchant.user_id,
+    //   issuedAt: new Date().toISOString(),
+    // };
+    // const encryptedPayload = this.encryptionService.encryptPayload(JSON.stringify(payload));
 
     const tag = await (this.nfcRepo as any).create(merchantId, {
       ...dto,
-      encrypted_payload: encryptedPayload,
+      encrypted_payload: merchantId,
     });
 
     this.eventEmitter.emit(NFC_CONSTANTS.EVENTS.TAG_CREATED, {
       tagId: tag.id,
       merchantId,
-      encryptedPayload: encryptedPayload.substring(0, 30) + '...',
+      // encryptedPayload: encryptedPayload.substring(0, 30) + '...', --- IGNORE ---
       timestamp: new Date(),
     });
 

@@ -7,8 +7,8 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 import { PAYMENT_CONSTANTS } from '../constants/payment.constants';
 import { PhoneNumber } from '../value-objects/phone-number.vo';
 import { Money } from '../value-objects/money.vo';
-import { MerchantRepository } from 'src/modules/merchants/repositories/merchant.repository';
-import { EncryptionService } from 'src/common/security/encryption.service';
+import { MerchantRepository } from '../../merchants/repositories/merchant.repository';
+import { EncryptionService } from '../../../common/security/encryption.service';
 
 @Injectable()
 export class InitiateStkUseCase {

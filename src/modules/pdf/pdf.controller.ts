@@ -58,7 +58,7 @@ export class PdfController {
         businessName: businessProfile.business_name,
         paybillNumber: businessProfile.paybill_number,
         accountNumber: businessProfile.account_number,
-        qrCodeDataUrl: '',
+        qrCodeDataUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?token=${nfcTag.data[0].encrypted_payload}&type=qr`,
         paymentUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?token=${nfcTag.data[0].encrypted_payload}`,
       });
 

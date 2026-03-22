@@ -21,7 +21,7 @@ export class NfcService {
 
   async decodeToken(dto: DecodeTokenDto, ipAddress?: string, userAgent?: string): Promise<DecodedTokenResponseDto> {
     return this.decodeTokenUseCase.execute({
-      encryptedToken: dto.token,
+      merchantId: dto.token,
       ipAddress,
       userAgent,
     });
@@ -46,7 +46,7 @@ export class NfcService {
   private mapToResponse(tag: any): NfcTagResponseDto {
     return {
       id: tag.id,
-      // merchant_id: tag.merchant_id,
+      merchant_id: tag.merchant_id,
       tag_uid: tag.tag_uid,
       encrypted_payload: tag.encrypted_payload,
       is_active: tag.is_active,

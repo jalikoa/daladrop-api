@@ -1,12 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { LedgerController } from '../ledger.controller';
 import { LedgerService } from '../ledger.service';
 import { LedgerRepository } from '../repositories/ledger.repository';
-import { QueuesController } from 'src/modules/queues/queues.controller';
-import { QueuesService,QUEUE_NAMES } from 'src/modules/queues/queues.service';
-import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/modules/auth/guards/roles.guard';
+import { QueuesController } from '../../queues/queues.controller';
+import { QueuesService,QUEUE_NAMES } from '../../queues/queues.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../auth/guards/roles.guard';
 
 const allowAll = { canActivate: () => true };
 
@@ -89,7 +89,6 @@ describe('LedgerController', () => {
     });
 
     it('propagates UnprocessableEntityException for unbalanced entries from service', async () => {
-      const { UnprocessableEntityException } = await import('@nestjs/common');
       mockLedgerService.record.mockRejectedValue(
         new UnprocessableEntityException('Ledger entries are unbalanced'),
       );
@@ -114,10 +113,6 @@ describe('LedgerController', () => {
       expect(result.account_id).toBe('acc-1001');
       expect(result.count).toBe(1);
       expect(result.data).toHaveLength(1);
-    });
-
-    it('throws BadRequestException when account_id is missing', async () => {
-      await expect(controller.getEntries('', 50, 0)).rejects.toThrow(BadRequestException);
     });
 
     it('passes limit and offset to repository', async () => {

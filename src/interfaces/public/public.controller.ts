@@ -26,7 +26,7 @@ export class PublicController {
   ): Promise<void> {
     try {
       const result = await this.decodeTokenUseCase.execute({
-        encryptedToken: token,
+        merchantId: token,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });

@@ -34,11 +34,16 @@ const mockConfigService = {
   get: jest.fn().mockReturnValue('1d'),
 };
 
+// Mock bcrypt at the module level
+jest.mock('bcryptjs', () => ({
+  compare: jest.fn(),
+}));
+
 describe('AuthService', () => {
   let service: AuthService;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    (bcrypt.compare as jest.Mock).mockClear();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -57,7 +62,7 @@ describe('AuthService', () => {
   describe('login()', () => {
     it('returns tokens and user on valid credentials', async () => {
       mockUsersService.findUserWithPassword.mockResolvedValue(mockUser);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await service.login({ email: 'alice@example.com', password: 'password123' });
 
@@ -79,7 +84,7 @@ describe('AuthService', () => {
 
     it('throws UnauthorizedException when password is wrong', async () => {
       mockUsersService.findUserWithPassword.mockResolvedValue(mockUser);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(false as never);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
       await expect(
         service.login({ email: 'alice@example.com', password: 'wrongpassword' }),
@@ -99,7 +104,7 @@ describe('AuthService', () => {
 
     it('includes role in JWT payload', async () => {
       mockUsersService.findUserWithPassword.mockResolvedValue(mockUser);
-      jest.spyOn(bcrypt, 'compare').mockResolvedValue(true as never);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       await service.login({ email: 'alice@example.com', password: 'password123' });
 
