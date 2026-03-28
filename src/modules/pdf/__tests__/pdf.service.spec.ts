@@ -19,6 +19,7 @@ describe('PdfService', () => {
   it.skip('should generate merchant card PDF', async () => {
     const merchantData: MerchantCardData = {
       merchantId: 1,
+      muid: 'test-uuid-12345',
       businessName: 'Test Merchant',
       businessEmail: 'test@example.com',
       businessPhone: '254700000000',
@@ -26,7 +27,7 @@ describe('PdfService', () => {
       paybillNumber: '123456',
       accountNumber: 'TEST001',
       qrCodeDataUrl: 'data:image/png;base64,test',
-      paymentUrl: 'https://pay.example.com/pay?merchant=1',
+      paymentUrl: 'https://pay.example.com/pay?muid=test-uuid-12345',
       generatedAt: new Date(),
     };
 

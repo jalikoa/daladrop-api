@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { IMerchantRepository } from '../../merchants/interfaces/merchant-repository.interface';
 import { DecodedTokenResponseDto } from '../dto/nfc-tag-response.dto';
@@ -6,13 +6,15 @@ import { NFC_CONSTANTS } from '../constants/nfc.constants';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface DecodeTokenInput {
-  merchantId: string;
+  muid: string;
   ipAddress?: string;
   userAgent?: string;
 }
 
 @Injectable()
 export class DecodeTokenUseCase {
+  private readonly logger = new Logger(DecodeTokenUseCase.name);
+
   constructor(
     @Inject('IMerchantRepository') private readonly merchantRepo: IMerchantRepository,
     private readonly eventEmitter: EventEmitter2,
@@ -20,8 +22,13 @@ export class DecodeTokenUseCase {
 
   async execute(input: DecodeTokenInput): Promise<DecodedTokenResponseDto> {
     try {
+      // Validate muid is a valid UUID format
+      if (!input.muid || typeof input.muid !== 'string') {
+        this.logger.warn(`Invalid muid format: ${input.muid}`);
+        throw new BadRequestException('Invalid or corrupted merchant uid');
+      }
 
-      const merchant = await this.merchantRepo.findById(parseInt(input.merchantId));
+      const merchant = await this.merchantRepo.findByUid(input.muid);
       if (!merchant || !merchant.isActive()) {
         throw new NotFoundException('Merchant not found or inactive');
       }
@@ -40,6 +47,7 @@ export class DecodeTokenUseCase {
       return {
         success: true,
         data: {
+          muid: merchant.uid,
           merchant_id: merchant.id,
           merchant_name: merchant.business_name,
           paybill_number: merchant.paybill_number,
@@ -52,8 +60,8 @@ export class DecodeTokenUseCase {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
-      console.error('Token decryption failed:', error);
-      throw new BadRequestException('Invalid or corrupted payment token');
+      this.logger.error(`Token decryption failed: ${error.message}`, error.stack);
+      throw new BadRequestException('Invalid or corrupted merchant uid');
     }
   }
 }

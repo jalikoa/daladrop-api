@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
 import { AppModule } from './app.module';
 import { HttpMetricsInterceptor } from './common/interceptors/Http-metrics.interceptor';
+import { AuditLoggingInterceptor } from './modules/audit/interceptors/audit-logging.interceptor';
 import { AppLogger } from './modules/logger/logger.service';
 import { MetricsService } from './modules/metrics/metrics.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -44,6 +45,11 @@ async function bootstrap() {
   // ── Global HTTP metrics + request logging interceptor ─────────────────────
   const metricsService = app.get(MetricsService);
   app.useGlobalInterceptors(new HttpMetricsInterceptor(metricsService, logger));
+
+  // ── Global audit logging interceptor ──────────────────────────────────────
+  // Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
+  const auditLoggingInterceptor = app.get(AuditLoggingInterceptor);
+  app.useGlobalInterceptors(auditLoggingInterceptor);
 
   const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')

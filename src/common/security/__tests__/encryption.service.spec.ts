@@ -26,6 +26,11 @@ describe('EncryptionService', () => {
     service = module.get<EncryptionService>(EncryptionService);
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+  });
+
   it('should be defined', () => expect(service).toBeDefined());
 
   describe('encryptPayload()', () => {

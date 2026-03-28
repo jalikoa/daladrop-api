@@ -4,6 +4,10 @@ import { MerchantStatus, MerchantVerificationStatus } from '../enums/merchant-st
 export class MerchantResponseDto {
   @Expose()
   id: number;
+  
+  @Expose()
+  uid: number;
+  
 
   @Expose()
   user_id: number;

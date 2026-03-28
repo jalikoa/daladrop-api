@@ -9,6 +9,7 @@ import * as path from 'path';
 
 export interface MerchantCardJobData {
   merchantId: number;
+  muid: string;
   userId?: number;
   businessName: string;
   businessEmail?: string | null;
@@ -30,6 +31,7 @@ export class PdfProcessor {
   async handleMerchantCardGeneration(job: Job<MerchantCardJobData>) {
     const {
       merchantId,
+      muid,
       userId,
       businessName,
       businessEmail,
@@ -46,6 +48,7 @@ export class PdfProcessor {
 
       const merchantCardData: MerchantCardData = {
         merchantId,
+        muid,
         businessName,
         businessEmail,
         businessPhone,

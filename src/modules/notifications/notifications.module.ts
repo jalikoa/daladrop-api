@@ -12,6 +12,8 @@ import { AfricaTalkingProvider } from './providers/africastalking.provider';
 import { NodemailerProvider } from './providers/nodemailer.provider';
 import { FirebaseProvider } from './providers/firebase.provider';
 import { UsersModule } from '../users/users.module';
+import { NotificationsRepository } from './repositories/notifications.repository';
+import { NotificationMapper } from './mappers/notification.mapper';
 import { NOTIFICATION_CONSTANTS } from './constants/notification.constants';
 
 @Module({
@@ -43,6 +45,8 @@ import { NOTIFICATION_CONSTANTS } from './constants/notification.constants';
     { provide: 'IEmailProvider', useExisting: NodemailerProvider },
     FirebaseProvider,
     { provide: 'IPushProvider', useExisting: FirebaseProvider },
+    NotificationsRepository,
+    NotificationMapper,
   ],
   controllers: [NotificationsController],
   exports: [NotificationsService],

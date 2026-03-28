@@ -18,6 +18,10 @@ export class MerchantRepository implements IMerchantRepository {
     return this.repo.findOne({ where: { id }, relations: ['user'] });
   }
 
+  async findByUid(uid: string): Promise<MerchantProfile | null> {
+    return this.repo.findOne({ where: { uid }, relations: ['user'] });
+  }
+
   async findByUserId(userId: number): Promise<MerchantProfile | null> {
     return this.repo.findOne({ where: { user_id: userId }, relations: ['user'] });
   }

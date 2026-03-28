@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsNotEmpty,
   IsInt,
   Min,
   Max,
@@ -17,12 +16,10 @@ export class InitiateStkDto {
   amount: number;
 
   @IsString()
-  @IsNotEmpty()
   phone: string;
 
-  @IsString()
-  @IsNotEmpty()
-  merchant_hash: string;
+  @IsUUID()
+  muid: string;
 
   @IsUUID()
   @IsOptional()

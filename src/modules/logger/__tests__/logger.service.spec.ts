@@ -20,6 +20,11 @@ describe('AppLogger - Unit Tests', () => {
     };
   });
 
+  afterEach(() => {
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+  });
+
   describe('Construction', () => {
     it('should create logger with default config', () => {
       logger = new AppLogger(mockConfigService as ConfigService);

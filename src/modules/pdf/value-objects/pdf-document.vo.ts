@@ -54,6 +54,7 @@ export class PdfDocumentValueObject {
 
 export interface MerchantCardData {
   merchantId: number;
+  muid: string;
   businessName: string;
   businessEmail?: string | null;
   businessPhone?: string | null;

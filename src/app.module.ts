@@ -24,6 +24,7 @@ import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { QrModule } from './modules/qr/qr.module';
 import { PdfModule } from './modules/pdf/pdf.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { PublicController } from './interfaces/public/public.controller';
 
 @Module({
@@ -106,6 +107,7 @@ import { PublicController } from './interfaces/public/public.controller';
     AuditModule,
     QrModule,
     PdfModule,
+    AdminModule,
   ],
 
   controllers: [PublicController],

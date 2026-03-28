@@ -20,13 +20,13 @@ export class PublicController {
   @Get('pay')
   @HttpCode(HttpStatus.OK)
   async handleNfcPaymentRequest(
-    @Query('token') token: string,
+    @Query('muid') muid: string,
     @Req() req: Request,
     @Res() res: Response,
   ): Promise<void> {
     try {
       const result = await this.decodeTokenUseCase.execute({
-        merchantId: token,
+        muid,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
@@ -37,7 +37,7 @@ export class PublicController {
       });
     } catch (error) {
       // Safely extract error message to avoid unknown type error
-      const message = error instanceof Error ? error.message : 'Invalid payment token';
+      const message = error instanceof Error ? error.message : 'Invalid merchant uid';
 
       res.status(HttpStatus.BAD_REQUEST).json({
         success: false,

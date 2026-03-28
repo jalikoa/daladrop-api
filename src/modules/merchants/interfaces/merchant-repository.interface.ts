@@ -5,6 +5,7 @@ import { MerchantStatus } from '../enums/merchant-status.enum';
 
 export interface IMerchantRepository {
   findById(id: number): Promise<MerchantProfile | null>;
+  findByUid(uid: string): Promise<MerchantProfile | null>;
   findByUserId(userId: number): Promise<MerchantProfile | null>;
   findByPaybill(paybill: string): Promise<MerchantProfile | null>;
   findAll(page: number, limit: number, status?: MerchantStatus): Promise<{ data: MerchantProfile[]; total: number }>;

@@ -55,11 +55,12 @@ export class PdfController {
 
       const job = await this.pdfQueue.add('merchant.card.generate', {
         merchantId,
+        muid:businessProfile.uid,
         businessName: businessProfile.business_name,
         paybillNumber: businessProfile.paybill_number,
         accountNumber: businessProfile.account_number,
-        qrCodeDataUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?token=${nfcTag.data[0].encrypted_payload}&type=qr`,
-        paymentUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?token=${nfcTag.data[0].encrypted_payload}`,
+        qrCodeDataUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?muid=${businessProfile.uid}&type=qr`,
+        paymentUrl: `${PAYMENT_CONSTANTS.BASE_PAYMENT_URL}/payment?muid=${businessProfile.uid}&type=nfc`,
       });
 
       return { success: true, message: 'Merchant card generation queued', jobId: job.id?.toString() };
@@ -78,6 +79,7 @@ async getMerchantCard(
 ): Promise<void> {
   const merchantData = {
     merchantId,
+    muid: `uuid-${merchantId}`,
     businessName: 'Demo Merchant',
     businessEmail: 'demo@example.com',
     businessPhone: '254700000000',
@@ -85,7 +87,7 @@ async getMerchantCard(
     paybillNumber: '123456',
     accountNumber: 'MERCHANT001',
     qrCodeDataUrl: '',
-    paymentUrl: `https://pay.example.com/pay?merchant=${merchantId}`,
+    paymentUrl: `https://pay.example.com/pay?muid=uuid-${merchantId}`,
     generatedAt: new Date(),
   };
 

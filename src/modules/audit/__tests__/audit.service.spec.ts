@@ -1,20 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Logger } from '@nestjs/common';
 import { AuditService } from '../audit.service';
+import { AuditQueue } from '../queues/audit.queue';
 import { AuditRepository } from '../repositories/audit.repository';
 
-const mockAuditLog = {
-  id: 1,
-  user_id: 2,
-  action: 'LOGIN',
-  ip_address: '1.2.3.4',
-  request_method: 'POST',
-  endpoint: '/auth/login',
-  payload: {},
-  created_at: new Date('2026-01-01'),
+const mockAuditQueue = {
+  add: jest.fn(),
+  getBufferSize: jest.fn().mockReturnValue(0),
 };
 
-const mockAuditRepo = {
-  create: jest.fn(),
+const mockAuditRepository = {
   findAll: jest.fn(),
 };
 
@@ -23,47 +18,109 @@ describe('AuditService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuditService,
-        { provide: AuditRepository, useValue: mockAuditRepo },
+        {
+          provide: AuditQueue,
+          useValue: mockAuditQueue,
+        },
+        {
+          provide: AuditRepository,
+          useValue: mockAuditRepository,
+        },
       ],
     }).compile();
+
     service = module.get<AuditService>(AuditService);
   });
 
-  it('should be defined', () => expect(service).toBeDefined());
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
   describe('log()', () => {
-    it('persists an audit log entry', async () => {
-      mockAuditRepo.create.mockResolvedValue(mockAuditLog);
-      const result = await service.log({ action: 'LOGIN', user_id: 2, ip_address: '1.2.3.4' });
-      expect(result.id).toBe(1);
-      expect(result.action).toBe('LOGIN');
-      expect(mockAuditRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'LOGIN' }),
+    it('should add log to queue', async () => {
+      const logData = {
+        user_id: 1,
+        action: 'GET.users',
+        endpoint: '/users',
+        ip_address: '127.0.0.1',
+        request_method: 'GET',
+      };
+
+      mockAuditQueue.add.mockResolvedValue(undefined);
+
+      await service.log(logData);
+
+      expect(mockAuditQueue.add).toHaveBeenCalledWith(logData);
+    });
+
+    it('should not throw error if queue fails', async () => {
+      const logData = {
+        user_id: 1,
+        action: 'test.action',
+        endpoint: '/test',
+      };
+
+      mockAuditQueue.add.mockRejectedValue(new Error('Queue error'));
+
+      // Should not throw
+      await expect(service.log(logData)).resolves.toBeUndefined();
+    });
+
+    it('should log error when queue fails', async () => {
+      const logData = {
+        user_id: 1,
+        action: 'test.action',
+        endpoint: '/test',
+      };
+
+      mockAuditQueue.add.mockRejectedValue(new Error('Queue error'));
+
+      const loggerSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      await service.log(logData);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to queue audit log'),
+        expect.any(Error),
       );
+
+      loggerSpy.mockRestore();
     });
   });
 
   describe('getLogs()', () => {
-    it('returns paginated logs', async () => {
-      mockAuditRepo.findAll.mockResolvedValue({ data: [mockAuditLog], total: 1 });
+    it('should return paginated audit logs', async () => {
+      const mockLogs = { data: [], total: 0 };
+      mockAuditRepository.findAll.mockResolvedValue(mockLogs);
+
       const result = await service.getLogs(1, 20);
-      expect(result.total).toBe(1);
-      expect(result.data[0].action).toBe('LOGIN');
+
+      expect(mockAuditRepository.findAll).toHaveBeenCalledWith(1, 20, undefined);
+      expect(result).toEqual(mockLogs);
     });
 
-    it('passes filters to repository', async () => {
-      mockAuditRepo.findAll.mockResolvedValue({ data: [], total: 0 });
-      await service.getLogs(1, 20, { userId: 2, action: 'LOGIN' });
-      expect(mockAuditRepo.findAll).toHaveBeenCalledWith(1, 20, { userId: 2, action: 'LOGIN' });
-    });
+    it('should pass filters to repository', async () => {
+      const mockLogs = { data: [], total: 0 };
+      mockAuditRepository.findAll.mockResolvedValue(mockLogs);
 
-    it('returns empty list when no logs match', async () => {
-      mockAuditRepo.findAll.mockResolvedValue({ data: [], total: 0 });
-      const result = await service.getLogs(1, 20, { userId: 9999 });
-      expect(result.data).toHaveLength(0);
+      await service.getLogs(1, 20, { userId: 1, action: 'GET' });
+
+      expect(mockAuditRepository.findAll).toHaveBeenCalledWith(1, 20, { userId: 1, action: 'GET' });
+    });
+  });
+
+  describe('getBufferSize()', () => {
+    it('should return current buffer size', () => {
+      mockAuditQueue.getBufferSize.mockReturnValue(5);
+
+      const size = service.getBufferSize();
+
+      expect(size).toBe(5);
+      expect(mockAuditQueue.getBufferSize).toHaveBeenCalled();
     });
   });
 });

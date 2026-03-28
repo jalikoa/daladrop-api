@@ -25,18 +25,8 @@ export class InitiateStkUseCase {
   async execute(dto: InitiateStkDto) {
     const phone = new PhoneNumber(dto.phone);
     const money = new Money(dto.amount);
-    const decrypted = this.encryptionService.decryptPayload(dto.merchant_hash);
-    const payload = JSON.parse(decrypted);
 
-    if (!payload.mid || !payload.issuedAt) {
-      throw new BadRequestException('Invalid token payload');
-    }
-
-    if (payload.expiresAt && new Date(payload.expiresAt) < new Date()) {
-      throw new BadRequestException('Token has expired');
-    }
-
-    const merchant = await this.merchantRepo.findById(payload.mid);
+    const merchant = await this.merchantRepo.findByUid(dto.muid);
     if (!merchant || !merchant.isActive()) {
       throw new NotFoundException('Merchant not found or inactive');
     }

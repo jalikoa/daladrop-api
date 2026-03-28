@@ -2,12 +2,61 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bull';
 import { NotificationsService } from '../notifications.service';
-import { SendNotificationUseCase } from '../use-cases/send-notification.usecase';
-import { NotificationChannel } from '../enums/notification-channel.enum';
+import { NotificationsRepository } from '../repositories/notifications.repository';
+import { NotificationMapper } from '../mappers/notification.mapper';
+import { Notification } from '../entities/notification.entity';
+import { NotificationChannel, NotificationStatus, NotificationPriority } from '../enums/notification-channel.enum';
 import { NOTIFICATION_CONSTANTS } from '../constants/notification.constants';
+import { QueryNotificationDto } from '../dto/query-notifications.dto';
+import { SendNotificationUseCase } from '../use-cases/send-notification.usecase';
 
 const mockQueue = {
   add: jest.fn().mockResolvedValue({ id: 'job-1' }),
+};
+
+const mockNotification: Notification = {
+  id: 1,
+  user_id: 1,
+  user: null,
+  channel: NotificationChannel.SMS,
+  recipient: '+254712345678',
+  message: 'Payment received: KES 500',
+  subject: null,
+  status: NotificationStatus.DELIVERED,
+  priority: NotificationPriority.NORMAL,
+  provider: 'AfricaTalking',
+  provider_message_id: 'msg-123',
+  error_message: null,
+  retry_count: 0,
+  meta: null,
+  template_data: null,
+  template_name: null,
+  created_at: new Date('2026-03-16T14:22:00Z'),
+  updated_at: new Date('2026-03-16T14:22:05Z'),
+  sent_at: new Date('2026-03-16T14:22:05Z'),
+  delivered_at: new Date('2026-03-16T14:22:05Z'),
+  failed_at: null,
+  toJSON: function () {
+    const { user, ...values } = { ...this };
+    return values;
+  },
+  canRetry: jest.fn(),
+  markSent: jest.fn(),
+  markDelivered: jest.fn(),
+  markFailed: jest.fn(),
+  markCancelled: jest.fn(),
+};
+
+const mockNotificationsRepository = {
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findByUserId: jest.fn(),
+  findByStatus: jest.fn(),
+};
+
+const mockNotificationMapper = {
+  toDto: jest.fn(),
+  toMany: jest.fn(),
 };
 
 describe('NotificationsService', () => {
@@ -22,12 +71,22 @@ describe('NotificationsService', () => {
           provide: getQueueToken(NOTIFICATION_CONSTANTS.QUEUE.NAME),
           useValue: mockQueue,
         },
+        {
+          provide: NotificationsRepository,
+          useValue: mockNotificationsRepository,
+        },
+        {
+          provide: NotificationMapper,
+          useValue: mockNotificationMapper,
+        },
       ],
     }).compile();
     service = module.get<NotificationsService>(NotificationsService);
   });
 
-  it('should be defined', () => expect(service).toBeDefined());
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
   describe('sendSms()', () => {
     it('enqueues an SMS job', async () => {
@@ -73,6 +132,109 @@ describe('NotificationsService', () => {
     it('enqueues with correct job name for PUSH', async () => {
       await service.queueNotification(NotificationChannel.PUSH, { token: 'fcm' });
       expect(mockQueue.add).toHaveBeenCalledWith('send.push', { token: 'fcm' });
+    });
+  });
+
+  describe('getNotifications()', () => {
+    it('should return paginated notifications with default pagination', async () => {
+      const mockNotificationsArray = [mockNotification];
+      const mockDto: QueryNotificationDto = {
+        id: 1,
+        userId: 1,
+        channel: 'SMS',
+        recipient: '+254712345678',
+        message: 'Payment received: KES 500',
+        priority: 'NORMAL',
+        status: 'DELIVERED',
+        createdAt: '2026-03-16T14:22:00.000Z',
+        deliveredAt: '2026-03-16T14:22:05.000Z',
+      };
+
+      mockNotificationsRepository.findAll.mockResolvedValue({
+        data: mockNotificationsArray,
+        total: 50,
+      });
+
+      mockNotificationMapper.toMany.mockReturnValue([mockDto]);
+
+      const result = await service.getNotifications();
+
+      expect(mockNotificationsRepository.findAll).toHaveBeenCalledWith(1, 20);
+      expect(result).toEqual({
+        data: [mockDto],
+        total: 50,
+      });
+    });
+
+    it('should return paginated notifications with custom pagination', async () => {
+      const mockNotificationsArray = [mockNotification, mockNotification];
+      const mockDto: QueryNotificationDto = {
+        id: 1,
+        userId: 1,
+        channel: 'SMS',
+        recipient: '+254712345678',
+        message: 'Payment received: KES 500',
+        priority: 'NORMAL',
+        status: 'DELIVERED',
+        createdAt: '2026-03-16T14:22:00.000Z',
+        deliveredAt: '2026-03-16T14:22:05.000Z',
+      };
+
+      mockNotificationsRepository.findAll.mockResolvedValue({
+        data: mockNotificationsArray,
+        total: 100,
+      });
+
+      mockNotificationMapper.toMany.mockReturnValue([mockDto, mockDto]);
+
+      const result = await service.getNotifications(2, 10);
+
+      expect(mockNotificationsRepository.findAll).toHaveBeenCalledWith(2, 10);
+      expect(result.data).toHaveLength(2);
+      expect(result.total).toBe(100);
+    });
+
+    it('should return empty array when no notifications exist', async () => {
+      mockNotificationsRepository.findAll.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      mockNotificationMapper.toMany.mockReturnValue([]);
+
+      const result = await service.getNotifications();
+
+      expect(result).toEqual({
+        data: [],
+        total: 0,
+      });
+    });
+
+    it('should map all notifications to DTOs', async () => {
+      const mockNotificationsArray = [mockNotification, mockNotification];
+      const mockDto: QueryNotificationDto = {
+        id: 1,
+        userId: 1,
+        channel: 'SMS',
+        recipient: '+254712345678',
+        message: 'Payment received: KES 500',
+        priority: 'NORMAL',
+        status: 'DELIVERED',
+        createdAt: '2026-03-16T14:22:00.000Z',
+        deliveredAt: '2026-03-16T14:22:05.000Z',
+      };
+
+      mockNotificationsRepository.findAll.mockResolvedValue({
+        data: mockNotificationsArray,
+        total: 2,
+      });
+
+      mockNotificationMapper.toMany.mockReturnValue([mockDto, mockDto]);
+
+      await service.getNotifications();
+
+      expect(mockNotificationMapper.toMany).toHaveBeenCalledTimes(1);
+      expect(mockNotificationMapper.toMany).toHaveBeenCalledWith(mockNotificationsArray);
     });
   });
 });

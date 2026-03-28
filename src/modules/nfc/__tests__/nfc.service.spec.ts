@@ -204,7 +204,7 @@ describe('DecodeTokenUseCase', () => {
     mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(validPayload));
     mockMerchantRepo.findById.mockResolvedValue(mockActiveMerchant);
 
-    const result = await useCase.execute({ merchantId: 'valid_token' });
+    const result = await useCase.execute({ muid: '1' });
 
     expect(result.success).toBe(true);
     expect(result.data.merchant_id).toBe(1);
@@ -216,7 +216,7 @@ describe('DecodeTokenUseCase', () => {
     mockEncryptionService.decryptPayload.mockReturnValue(JSON.stringify(validPayload));
     mockMerchantRepo.findById.mockResolvedValue(mockActiveMerchant);
 
-    await useCase.execute({ merchantId: 'valid_token', ipAddress: '1.2.3.4' });
+    await useCase.execute({ muid: '1', ipAddress: '1.2.3.4' });
 
     expect(mockEventEmitter.emit).toHaveBeenCalledWith(
       NFC_CONSTANTS.EVENTS.PAYMENT_SESSION_STARTED,
@@ -224,9 +224,15 @@ describe('DecodeTokenUseCase', () => {
     );
   });
 
-  it('throws NotFoundException when decoded merchant_id does not exist', async () => {
+  it('throws BadRequestException when muid is not a valid number', async () => {
+    await expect(useCase.execute({ muid: 'invalid' })).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute({ muid: 'abc' })).rejects.toThrow(BadRequestException);
+    await expect(useCase.execute({ muid: '' })).rejects.toThrow(BadRequestException);
+  });
+
+  it('throws NotFoundException when decoded muid does not exist', async () => {
     mockMerchantRepo.findById.mockResolvedValue(null);
 
-    await expect(useCase.execute({ merchantId: '999' })).rejects.toThrow(NotFoundException);
+    await expect(useCase.execute({ muid: '999' })).rejects.toThrow(NotFoundException);
   });
 });

@@ -38,12 +38,14 @@ describe('QueuesService', () => {
   let ledgerQueue: ReturnType<typeof makeQueueMock>;
   let pdfQueue: ReturnType<typeof makeQueueMock>;
   let pdfReportQueue: ReturnType<typeof makeQueueMock>;
+  let auditQueue: ReturnType<typeof makeQueueMock>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     ledgerQueue = makeQueueMock(QUEUE_NAMES.LEDGER);
     pdfQueue = makeQueueMock(QUEUE_NAMES.PDF);
     pdfReportQueue = makeQueueMock(QUEUE_NAMES.PDF_REPORT);
+    auditQueue = makeQueueMock(QUEUE_NAMES.AUDIT);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,6 +53,7 @@ describe('QueuesService', () => {
         { provide: getQueueToken(QUEUE_NAMES.LEDGER), useValue: ledgerQueue },
         { provide: getQueueToken(QUEUE_NAMES.PDF), useValue: pdfQueue },
         { provide: getQueueToken(QUEUE_NAMES.PDF_REPORT), useValue: pdfReportQueue },
+        { provide: getQueueToken(QUEUE_NAMES.AUDIT), useValue: auditQueue },
       ],
     }).compile();
     service = module.get<QueuesService>(QueuesService);
@@ -59,11 +62,16 @@ describe('QueuesService', () => {
   it('should be defined', () => expect(service).toBeDefined());
 
   describe('getAllStatuses()', () => {
-    it('returns status for all three queues', async () => {
+    it('returns status for all four queues', async () => {
       const result = await service.getAllStatuses();
-      expect(result).toHaveLength(3);
+      expect(result).toHaveLength(4);
       expect(result.map(q => q.name)).toEqual(
-        expect.arrayContaining([QUEUE_NAMES.LEDGER, QUEUE_NAMES.PDF, QUEUE_NAMES.PDF_REPORT]),
+        expect.arrayContaining([
+          QUEUE_NAMES.LEDGER,
+          QUEUE_NAMES.PDF,
+          QUEUE_NAMES.PDF_REPORT,
+          QUEUE_NAMES.AUDIT,
+        ]),
       );
     });
 

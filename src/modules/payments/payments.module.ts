@@ -82,6 +82,8 @@ import { EncryptionService } from 'src/common/security/encryption.service';
       },
     }),
     BullModule.registerQueue({ name: 'audit-queue' }),
+    BullModule.registerQueue({ name: 'notification-events' }),
+    BullModule.registerQueue({ name: 'notification-queue' }),
     EventEmitterModule.forRoot(),
     MerchantsModule,
   ],

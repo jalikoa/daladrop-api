@@ -35,6 +35,8 @@ export class PaymentListener {
     private readonly paymentQueue: Queue,
     @InjectQueue('audit-queue')
     private readonly auditQueue: Queue,
+    @InjectQueue('notification-events')
+    private readonly notificationQueue: Queue,
   ) {}
 
   // ── session.created ──────────────────────────────────────────────────────
@@ -131,15 +133,67 @@ export class PaymentListener {
         this.logger.warn('Ledger accounts not found — skipping double-entry');
       }
 
-      // ── 2. SMS receipt notification ─────────────────────────────────────
+      // ── 2. SMS receipt notification (max 324 chars for Africa's Talking) ─
       const merchant = await this.merchantRepo.findOne({ where: { id: event.merchantId } });
+      
+      // Build SMS receipt message (max 324 characters)
+      const smsMessage = `Payment received: KES ${event.amount}. Receipt: ${event.receipt}. Thank you for using TapPay!`;
+      const truncatedMessage = smsMessage.slice(0, 324);
 
+      this.logger.log(`Queuing SMS notification to ${event.customerPhone}`);
+      this.logger.log(`   Message: ${truncatedMessage}`);
+
+      // Queue SMS via notification processor
+      await this.notificationQueue.add('send.sms', {
+        phone: event.customerPhone,
+        message: truncatedMessage,
+      });
+
+      // Queue email notification if merchant email is available
+      if (merchant?.business_email) {
+        const emailBody = `
+          <html>
+            <body style="font-family: Arial, sans-serif;">
+              <h2 style="color: #4cca5a;">Payment Received</h2>
+              <p>A payment of <strong>KES ${event.amount}</strong> has been received.</p>
+              <table style="border-collapse: collapse; margin: 20px 0;">
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;"><strong>Receipt Number:</strong></td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${event.receipt}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount:</strong></td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">KES ${event.amount}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;"><strong>Date:</strong></td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${new Date().toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px; border: 1px solid #ddd;"><strong>Merchant:</strong></td>
+                  <td style="padding: 8px; border: 1px solid #ddd;">${merchant.business_name}</td>
+                </tr>
+              </table>
+              <p style="color: #666; font-size: 14px;">Thank you for using TapPay!</p>
+            </body>
+          </html>
+        `;
+
+        this.logger.log(`Queuing email notification to ${merchant.business_email}`);
+        await this.notificationQueue.add('send.email', {
+          email: merchant.business_email,
+          subject: `Payment Received - KES ${event.amount}`,
+          body: emailBody,
+        });
+      }
+
+      // Save notification record to database
       await this.notificationRepo.save(
         this.notificationRepo.create({
           user_id:   merchant?.user_id ?? null,
           channel:   NotificationChannel.SMS,
           recipient: event.customerPhone,
-          message:   `Payment received: KES ${event.amount}. Receipt: ${event.receipt}`,
+          message:   truncatedMessage,
           status:    NotificationStatus.QUEUED,
           provider:  'africastalking',
         }),

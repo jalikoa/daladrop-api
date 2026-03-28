@@ -22,7 +22,7 @@
 set -e
 
 # [**] CONFIGURATION
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:5050"
 
 # [**] Pre-generated Authentication Tokens (update when expired)
 # Admin token (user_id=1, role=ADMIN)

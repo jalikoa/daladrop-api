@@ -343,7 +343,7 @@ describe('PublicController', () => {
       await controller.handleNfcPaymentRequest('token', mockReq, mockRes);
 
       expect(mockDecodeUseCase.execute).toHaveBeenCalledWith({
-        merchantId: 'token',
+        muid: 'token',
         ipAddress: '10.0.0.1',
         userAgent: 'curl/7.81',
       });

@@ -21,7 +21,7 @@ export class NfcService {
 
   async decodeToken(dto: DecodeTokenDto, ipAddress?: string, userAgent?: string): Promise<DecodedTokenResponseDto> {
     return this.decodeTokenUseCase.execute({
-      merchantId: dto.token,
+      muid: dto.muid,
       ipAddress,
       userAgent,
     });

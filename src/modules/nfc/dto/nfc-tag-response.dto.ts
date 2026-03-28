@@ -30,6 +30,7 @@ export class DecodedTokenResponseDto {
 
   @Expose()
   data: {
+    muid: string;
     paybill_number: string;
     merchant_id: number;
     merchant_name: string;

@@ -3,11 +3,13 @@ import { InjectQueue } from '@nestjs/bull';
 import type { Queue, Job, JobStatus } from 'bull';
 import { LEDGER_CONSTANTS } from '../ledger/constants/ledger.constants';
 import { PDF_QUEUES } from '../pdf/constants/pdf.constants';
+import { AUDIT_CONSTANTS } from '../audit/constants/audit.constants';
 
 export const QUEUE_NAMES = {
   LEDGER: LEDGER_CONSTANTS.QUEUE.NAME,       // 'ledger-queue'
   PDF: PDF_QUEUES.MERCHANT_CARD,             // 'pdf-queue'
   PDF_REPORT: PDF_QUEUES.REPORT,             // 'pdf-report-queue'
+  AUDIT: AUDIT_CONSTANTS.QUEUE.NAME,         // 'audit-queue'
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -42,6 +44,7 @@ export class QueuesService {
     @InjectQueue(QUEUE_NAMES.LEDGER) private readonly ledgerQueue: Queue,
     @InjectQueue(QUEUE_NAMES.PDF) private readonly pdfQueue: Queue,
     @InjectQueue(QUEUE_NAMES.PDF_REPORT) private readonly pdfReportQueue: Queue,
+    @InjectQueue(QUEUE_NAMES.AUDIT) private readonly auditQueue: Queue,
   ) {}
 
   private getQueue(name: string): Queue {
@@ -49,6 +52,7 @@ export class QueuesService {
       [QUEUE_NAMES.LEDGER]: this.ledgerQueue,
       [QUEUE_NAMES.PDF]: this.pdfQueue,
       [QUEUE_NAMES.PDF_REPORT]: this.pdfReportQueue,
+      [QUEUE_NAMES.AUDIT]: this.auditQueue,
     };
     const queue = map[name];
     if (!queue) {
@@ -67,6 +71,7 @@ export class QueuesService {
       { name: QUEUE_NAMES.LEDGER, queue: this.ledgerQueue },
       { name: QUEUE_NAMES.PDF, queue: this.pdfQueue },
       { name: QUEUE_NAMES.PDF_REPORT, queue: this.pdfReportQueue },
+      { name: QUEUE_NAMES.AUDIT, queue: this.auditQueue },
     ];
 
     return Promise.all(

@@ -51,7 +51,7 @@ export class MerchantCardTemplate {
 
     // Build QR BEFORE opening the PDFKit stream (async)
     const qrBuf = await MerchantCardTemplate.buildQr(
-      data.paymentUrl || `https://pay.tappay.co.ke/?merchant=${data.merchantId}`,
+      data.qrCodeDataUrl || `https://pay.tappay.co.ke/?muid=${data.muid}&type=qr`,
     );
 
     return new Promise<Buffer>((resolve, reject) => {
@@ -162,25 +162,63 @@ export class MerchantCardTemplate {
     // ══ FOOTER  y=332..384 ═══════════════════════════════════════════════════
     doc.rect(0, FOOTER_TOP, W, FOOTER_H).fill(DARK);
 
-    doc.font('Helvetica-Bold').fontSize(7).fillColor(GREY2)
-       .text('MERCHANT ID', MAR, FOOTER_TOP + 10, { lineBreak: false, characterSpacing: 1.8 });
-    doc.font('Helvetica-Bold').fontSize(15).fillColor(WHITE)
-       .text(`TP-${data.merchantId.toString().padStart(5, '0')}`, MAR, FOOTER_TOP + 21, { lineBreak: false });
-    doc.font('Helvetica').fontSize(7).fillColor(GREY2)
-       .text(`Paybill: ${data.paybillNumber}`, MAR, FOOTER_TOP + 40, { lineBreak: false });
+    // ── QR code: 76×76, horizontally centred, ~45% immersed into the footer ──
+    //   QR_Y = 290  →  top 55% sits in beige body, bottom 45% in dark footer.
+    //   This creates the "emerging from footer" effect seen in the HTML card.
+    const QR_SZ  = 76;
+    const QR_X   = Math.round((W - QR_SZ) / 2);        // 83 — perfectly centred
+    const QR_Y   = FOOTER_TOP - Math.round(QR_SZ * 0.70); // 290
+    const QR_BOT = QR_Y + QR_SZ;                          // 366
 
-    // QR  — 36×36, y=337..373, label at 375..382  (all < H=384)
-    const QR_SZ = 36, QR_X = W - MAR - QR_SZ, QR_Y = FOOTER_TOP + 5;
+    // ── White backing rectangle — minimal padding, radius≈2 (barely perceptible) ──
+    const PAD_H = 4;   // horizontal padding
+    const PAD_T = 4;   // top padding
+    const PAD_B = 3;   // bottom padding (tighter to leave room for text)
+    doc.roundedRect(
+      QR_X - PAD_H,
+      QR_Y - PAD_T,
+      QR_SZ + PAD_H * 2,
+      QR_SZ + PAD_T + PAD_B,
+      2,                   // ← radius 2: barely-there rounded corners
+    ).fill(WHITE);
+
+    // ── Render QR image (or placeholder) ─────────────────────────────────────
     if (qrBuf) {
       doc.image(qrBuf, QR_X, QR_Y, { width: QR_SZ, height: QR_SZ });
     } else {
-      doc.rect(QR_X, QR_Y, QR_SZ, QR_SZ).fill(WHITE);
-      doc.font('Helvetica-Bold').fontSize(6).fillColor(GREY2)
-         .text('SCAN', QR_X, QR_Y + 14, { width: QR_SZ, align: 'center', lineBreak: false });
+      doc.rect(QR_X, QR_Y, QR_SZ, QR_SZ).fill('#f0f0f0');
+      doc.font('Helvetica-Bold').fontSize(7).fillColor(GREY1)
+         .text('QR CODE', QR_X, QR_Y + QR_SZ / 2 - 4,
+               { width: QR_SZ, align: 'center', lineBreak: false });
     }
-    // doc.font('Helvetica-Bold').fontSize(6).fillColor(GREY2)
-    //    .text('NO NFC? SCAN', QR_X, QR_Y + QR_SZ + 2,
-    //          { width: QR_SZ, align: 'center', lineBreak: false, characterSpacing: 1 });
+
+    // ── Separator line — clear visual break between QR card and text ──────────
+    //   Drawn as a thin, muted line just below the white card's bottom edge.
+    //   The contrast of white-card → dark-line → dark-background reads as a
+    //   deliberate divider rather than an accident.
+    const SEP_Y = QR_BOT + PAD_B;   // 369  (= bottom of white card)
+    doc.save()
+       .lineWidth(0.5)
+       .strokeColor('#ffffff')
+       .opacity(0.15)
+       .moveTo(QR_X - PAD_H, SEP_Y)
+       .lineTo(QR_X + QR_SZ + PAD_H, SEP_Y)
+       .stroke()
+       .restore();
+
+    // ── Merchant ID — centred, white, bold — y=372, ends≈381 ✓ ──────────────
+    const mid  = `TP-${data.merchantId.toString().padStart(5, '0')}`;
+    const L1_Y = SEP_Y + 3;   // 372
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor(WHITE)
+       .text(mid, 0, L1_Y, { width: W, align: 'center', lineBreak: false });
+
+    // ── Paybill — centred, muted green, smaller — y=382, ends≈388 ─────────────
+    //   PDFKit will clip at page boundary for this 1-line overflow-safe text.
+    //   We constrain with lineBreak:false so it never wraps to a new page.
+    const L2_Y = L1_Y + 9;    // 381
+    doc.font('Helvetica').fontSize(6.5).fillColor(GREEN2)
+       .text(`Paybill: ${data.paybillNumber}`, 0, L2_Y,
+             { width: W, align: 'center', lineBreak: false });
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -254,6 +292,7 @@ export class MerchantCardTemplate {
     doc.save().opacity(0.08).roundedRect(MAR, SY, W - MAR * 2, SH2, 7).fill(GREEN).restore();
     doc.save().opacity(0.25).roundedRect(MAR, SY, W - MAR * 2, SH2, 7).lineWidth(0.8).strokeColor(GREEN).stroke().restore();
     MerchantCardTemplate.drawCheck(doc, MAR + 14, SY + SH2 / 2, 8, GREEN, 1.8);
+    
     doc.font('Helvetica-Bold').fontSize(8.5).fillColor(GREEN)
        .text('256-bit encrypted · Safaricom verified',       MAR + 30, SY + 8,  { width: W - MAR * 2 - 34, lineBreak: false });
     doc.font('Helvetica').fontSize(7.5).fillColor(GREY1)
@@ -262,11 +301,14 @@ export class MerchantCardTemplate {
     // ══ ACCENT BAR BOTTOM ════════════════════════════════════════════════════
     MerchantCardTemplate.accentBar(doc, BODY_BOT, false);
 
+    const currentYear = new Date().getFullYear();
+
+
     // ══ FOOTER  y=332..384 ═══════════════════════════════════════════════════
     doc.rect(0, FOOTER_TOP, W, FOOTER_H).fill(DARK);
     doc.font('Helvetica-Bold').fontSize(12).fillColor(GREEN).text('www.tappay.co.ke', MAR, FOOTER_TOP + 12, { lineBreak: false });
     doc.font('Helvetica').fontSize(7).fillColor(GREY3)
-       .text('\u00A9 2025 TapPay. All rights reserved.', MAR, FOOTER_TOP + 27, { lineBreak: false });
+       .text(`\u00A9 ${currentYear} TapPay. All rights reserved.`, MAR, FOOTER_TOP + 27, { lineBreak: false });
 
     // M-PESA badge
     const MB_W = 74, MB_H = 26, MB_X = W - MAR - MB_W, MB_Y = FOOTER_TOP + (FOOTER_H - MB_H) / 2;

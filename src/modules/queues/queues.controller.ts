@@ -40,7 +40,7 @@ export class QueuesController {
   /**
    * GET /queues/:name
    * Returns the status snapshot for a single queue by name.
-   * Valid names: ledger-queue | pdf-queue | pdf-report-queue
+   * Valid names: ledger-queue | pdf-queue | pdf-report-queue | audit-queue
    */
   @Get(':name')
   async getQueue(@Param('name') name: string) {

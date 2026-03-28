@@ -13,12 +13,21 @@ import {
 import { MerchantStatus, MerchantVerificationStatus } from '../enums/merchant-status.enum';
 import { User } from '../../users/entities/user.entity';
 
-@Entity('merchant_profiles', { schema: 'merchant' })
+@Entity('merchant_profiles')
 @Index(['user_id'], { unique: true })
 @Index(['business_name'])
+@Index(['uid'], { unique: true })
 export class MerchantProfile {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
+
+  @Column({
+    type: 'char',
+    length: 36,
+    unique: true,
+    default: () => 'UUID()',
+  })
+  uid: string;
 
   @Column({ type: 'bigint', unique: true })
   @Index()
