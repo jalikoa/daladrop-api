@@ -1,83 +1,133 @@
 ################################################################################
 # filebeat/filebeat.yml
 #
-# Reads:
-#   1. JSON log files written by Winston in /app/logs/
-#   2. Container stdout/stderr from Docker via the Docker socket
+# PURPOSE:
+# Reads application logs (Winston JSON) and Docker container stdout/stderr,
+# then ships them to Logstash for parsing, enrichment, and forwarding to 
+# Elasticsearch or other observability backends.
 #
-# Ships to Logstash (preferred) so Logstash can parse and enrich.
+# REQUIREMENTS:
+# - The NestJS application must be configured to write JSON logs to /app/logs/
+# - Docker containers must be labeled with 'logging=true' to be captured.
 ################################################################################
 
 filebeat.inputs:
 
-  # ── Winston JSON log files ──────────────────────────────────────────────────
+  # ============================================================================
+  # INPUT 1: Winston JSON Log Files
+  # ============================================================================
+  # Reads structured JSON logs written directly by the NestJS Winston logger.
   - type: log
-    id: nfc-api-file-logs
+    id: api-file-logs
     enabled: true
     paths:
+      # Adjust this path if your Dockerfile mounts logs elsewhere
       - /app/logs/combined.log
       - /app/logs/error.log
+    
+    # Parse JSON directly at the Filebeat level for better performance
     json.keys_under_root: true
     json.add_error_key: true
     json.message_key: message
+    
+    # Handle multi-line JSON objects (e.g., stack traces)
     multiline.type: pattern
     multiline.pattern: '^\{'
     multiline.negate: true
     multiline.match: after
+    
+    # Add custom metadata to identify the source
     fields:
       log_source: file
-      app: nfc-payment-api
+      app: hms-api
     fields_under_root: true
+    
+    # Resource management
     close_inactive: 5m
     scan_frequency: 5s
 
-  # ── Docker container stdout/stderr ─────────────────────────────────────────
-  # Captures logs from ALL containers labelled with logging=true
+  # ============================================================================
+  # INPUT 2: Docker Container stdout/stderr
+  # ============================================================================
+  # Captures logs from the Docker daemon. Acts as a fallback or complement 
+  # to file-based logging, capturing anything written to console.
   - type: container
     id: docker-container-logs
     enabled: true
     paths:
       - /var/lib/docker/containers/*/*.log
     stream: all
-    # Only collect from containers with the label logging=true
+    
     processors:
+      # Enrich with Docker metadata (container name, image, etc.)
       - add_docker_metadata:
           host: unix:///var/run/docker.sock
+      
+      # Filter: Only collect logs from containers explicitly opted-in
       - drop_event:
           when:
             not:
               equals:
                 docker.container.labels.logging: "true"
+      
+      # Attempt to parse JSON if the container outputs structured logs
       - decode_json_fields:
-          fields: ["message"]
+          fields: ["message", "log"]
           target: ""
           overwrite_keys: true
           add_error_key: false
+
     fields:
       log_source: docker
+      app: hms-api
     fields_under_root: true
 
-# ── Output: Logstash ──────────────────────────────────────────────────────────
+# ============================================================================
+# OUTPUT: Logstash
+# ============================================================================
+# Shipping to Logstash is preferred over direct Elasticsearch output because 
+# Logstash can parse, filter, and enrich logs (e.g., adding geo-ip, masking PII)
+# before they are indexed.
 output.logstash:
   hosts: ["${LOGSTASH_URL:-logstash:5044}"]
   bulk_max_size: 2048
   worker: 2
+  
+  # Optional: Enable SSL/TLS if Logstash is on a different network/host
+  # ssl.enabled: true
+  # ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
 
-# ── Disable Elasticsearch output (all goes through Logstash) ─────────────────
-# output.elasticsearch is intentionally not set.
-
-# ── Processors applied to every event ────────────────────────────────────────
+# ============================================================================
+# GLOBAL PROCESSORS
+# ============================================================================
+# Applied to every event before sending to the output.
 processors:
   - add_host_metadata: ~
   - add_cloud_metadata: ~
+  # Optional: Mask sensitive fields (e.g., passwords, tokens) before they leave the host
+  # - drop_fields:
+  #     fields: ["password", "token", "authorization"]
+  #     ignore_missing: true
 
-# ── Logging ───────────────────────────────────────────────────────────────────
+# ============================================================================
+# FILEBEAT INTERNAL LOGGING
+# ============================================================================
+# Keep Filebeat's own logs quiet to avoid polluting the system logs.
 logging.level: warning
 logging.to_files: false
+logging.to_syslog: false
 
-# ── Internal metrics ──────────────────────────────────────────────────────────
+# ============================================================================
+# INTERNAL METRICS
+# ============================================================================
+# Disable internal monitoring to reduce overhead. 
+# (Enable only if you are actively debugging Filebeat performance)
 monitoring.enabled: false
 
-# ── Index template ────────────────────────────────────────────────────────────
-setup.ilm.enabled: false           # Logstash handles ILM
-setup.template.enabled: false      # Logstash handles the template
+# ============================================================================
+# INDEX MANAGEMENT
+# ============================================================================
+# Disable Filebeat's automatic setup. Logstash is responsible for creating 
+# the index templates and managing Index Lifecycle Management (ILM).
+setup.ilm.enabled: false
+setup.template.enabled: false

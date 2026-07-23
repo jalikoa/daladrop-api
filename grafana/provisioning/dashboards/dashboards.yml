@@ -1,16 +1,44 @@
 ################################################################################
 # grafana/provisioning/dashboards/dashboards.yml
+#
+# PURPOSE:
+# Automatically provisions Grafana dashboards from JSON files located in the 
+# specified directory. This ensures dashboards are version-controlled and 
+# reproducible across environments.
+#
+# USAGE:
+# Place your exported dashboard JSON files in the mounted volume path.
+# Grafana will automatically detect and load them on startup.
 ################################################################################
 
 apiVersion: 1
 
 providers:
-  - name: NFC API Dashboards
+  - name: 'API Dashboards'
     orgId: 1
+    folder: 'API'
     type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
+    
+    # ============================================================================
+    # PROTECTION & UPDATE SETTINGS
+    # ============================================================================
+    # Prevent users from accidentally deleting provisioned dashboards via the UI.
+    # This ensures your Git repository remains the single source of truth.
+    disableDeletion: true
+    
+    # Allow users to tweak dashboards in the UI for debugging. 
+    # Note: Changes made in the UI are lost on container restart unless saved 
+    # back to the JSON file in your repository.
     allowUiUpdates: true
+    
+    # How often Grafana scans the directory for new/updated JSON files (seconds)
+    updateIntervalSeconds: 30
+    
     options:
+      # This path must match the volume mount in your docker-compose.yml
+      # Example: - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
       path: /etc/grafana/provisioning/dashboards
+      
+      # Automatically create folders based on the directory structure inside 
+      # the 'path' directory. Keeps large numbers of dashboards organized.
       foldersFromFilesStructure: true

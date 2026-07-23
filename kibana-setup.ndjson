@@ -1,17 +1,28 @@
 ################################################################################
 # kibana-setup.ndjson
 #
-# Import via Kibana → Stack Management → Saved Objects → Import
-# or with curl:
+# PURPOSE:
+# Pre-configured Kibana index patterns and saved searches for API log exploration.
 #
-#   curl -X POST "http://localhost:5601/api/saved_objects/_import?overwrite=true" \
-#     -H "kbn-xsrf: true" \
-#     -F "file=@kibana/kibana-setup.ndjson"
+# IMPORT INSTRUCTIONS:
+# 1. Via UI: Kibana → Stack Management → Saved Objects → Import
+# 2. Via CLI: 
+#    curl -X POST "http://localhost:5601/api/saved_objects/_import?overwrite=true" \
+#      -H "kbn-xsrf: true" \
+#      -F "file=@kibana/kibana-setup.ndjson"
+#
+# NOTE: This configuration is project-agnostic. The saved searches use generic 
+# field names (service.name, tags, http.*) that align with the Logstash pipeline.
 ################################################################################
 
-{"type":"index-pattern","id":"nfc-api-logs-*","attributes":{"title":"nfc-api-logs-*","timeFieldName":"@timestamp","fields":"[]"}}
-{"type":"search","id":"nfc-payment-events","attributes":{"title":"NFC Payment Events","description":"All payment-related log lines","hits":0,"columns":["@timestamp","log.level","context","message","payment.sessionUuid","payment.merchantId","payment.amount","payment.status"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"nfc-api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"type\",\"params\":{\"query\":\"payment_event\"}},\"query\":{\"match_phrase\":{\"type\":\"payment_event\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
-{"type":"search","id":"nfc-http-errors","attributes":{"title":"HTTP Errors (4xx/5xx)","description":"All requests returning an error status","hits":0,"columns":["@timestamp","http.request.method","url.path","http.response.status","message","userId","requestId"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"nfc-api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"range\",\"key\":\"http.response.status\",\"params\":{\"gte\":400}},\"query\":{\"range\":{\"http.response.status\":{\"gte\":400}}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
-{"type":"search","id":"nfc-nfc-taps","attributes":{"title":"NFC Tag Taps","description":"GET /pay token decode requests","hits":0,"columns":["@timestamp","merchant_id","session_uuid","ip_address","geo.country_name","message"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"nfc-api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"type\",\"params\":{\"query\":\"nfc_tap\"}},\"query\":{\"match_phrase\":{\"type\":\"nfc_tap\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
-{"type":"search","id":"nfc-auth-failures","attributes":{"title":"Authentication Failures","description":"Failed login attempts","hits":0,"columns":["@timestamp","message","ip_address","user_agent","geo.country_name"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"nfc-api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"type\",\"params\":{\"query\":\"auth_login\"}},\"query\":{\"match_phrase\":{\"type\":\"auth_login\"}}},{\"meta\":{\"type\":\"phrase\",\"key\":\"result\",\"params\":{\"query\":\"failure\"}},\"query\":{\"match_phrase\":{\"result\":\"failure\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
-{"type":"search","id":"nfc-webhook-errors","attributes":{"title":"Webhook Processing Errors","description":"Webhook callbacks that failed to process","hits":0,"columns":["@timestamp","source","eventType","webhookId","message"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"nfc-api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"log.level\",\"params\":{\"query\":\"error\"}},\"query\":{\"match_phrase\":{\"log.level\":\"error\"}}},{\"meta\":{\"type\":\"phrase\",\"key\":\"context\",\"params\":{\"query\":\"WebhooksService\"}},\"query\":{\"match_phrase\":{\"context\":\"WebhooksService\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
+{"type":"index-pattern","id":"api-logs","attributes":{"title":"api-logs-*","timeFieldName":"@timestamp","fields":"[]"}}
+
+{"type":"search","id":"api-business-events","attributes":{"title":"Business & Transaction Events","description":"All logs tagged as business or transaction events","hits":0,"columns":["@timestamp","log.level","service.name","message","transaction.id"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"tags\",\"params\":{\"query\":\"business_event\"}},\"query\":{\"match_phrase\":{\"tags\":\"business_event\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
+
+{"type":"search","id":"api-http-errors","attributes":{"title":"HTTP Errors (4xx/5xx)","description":"All requests returning an error status code","hits":0,"columns":["@timestamp","http.request.method","url.path","http.response.status","message","requestId"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"range\",\"key\":\"http.response.status\",\"params\":{\"gte\":400}},\"query\":{\"range\":{\"http.response.status\":{\"gte\":400}}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
+
+{"type":"search","id":"api-security-events","attributes":{"title":"Security & Auth Events","description":"Authentication and authorization related logs","hits":0,"columns":["@timestamp","log.level","service.name","message","ip_address","geo.country_name"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"service.name\",\"params\":{\"query\":\"auth\"}},\"query\":{\"match_phrase\":{\"service.name\":\"auth\"}}}],\"query\":{\"query\":\"\",\"language\":\"kuery\"}}"}}}
+
+{"type":"search","id":"api-integration-errors","attributes":{"title":"Integration & Webhook Errors","description":"Errors from external service integrations or background jobs","hits":0,"columns":["@timestamp","log.level","service.name","message","requestId"],"sort":[["@timestamp","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"phrase\",\"key\":\"log.level\",\"params\":{\"query\":\"error\"}},\"query\":{\"match_phrase\":{\"log.level\":\"error\"}}}],\"query\":{\"query\":\"type:integration OR type:webhook OR type:job\",\"language\":\"kuery\"}}"}}}
+
+{"type":"search","id":"api-slow-requests","attributes":{"title":"Slow Requests (>1000ms)","description":"HTTP requests that took longer than 1 second to process","hits":0,"columns":["@timestamp","http.request.method","url.path","http.duration_ms","message","requestId"],"sort":[["http.duration_ms","desc"]],"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"index\":\"api-logs-*\",\"filter\":[{\"meta\":{\"type\":\"range\",\"key\":\"http.duration_ms\",\"params\":{\"gte\":1000}},\"query\":{\"range\":{\"http.duration_ms\":{\"gte\":1000}}}}],\"query\":{\"query\":\"http.request.method:*\",\"language\":\"kuery\"}}"}}}

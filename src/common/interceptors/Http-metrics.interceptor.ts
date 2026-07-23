@@ -8,15 +8,17 @@ import { Observable } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
 import { Request, Response } from 'express';
-import { MetricsService } from 'src/modules/metrics/metrics.service';
-import { AppLogger } from 'src/modules/logger/logger.service';
+import { MetricsService } from '../modules/metrics/metrics.service';
+import { AppLogger } from '../modules/logger/logger.service';
 
 /**
- * Global HTTP interceptor that fires Prometheus counters + histograms
- * and writes one structured log line per request.
- *
+ * Global HTTP Metrics and Logging Interceptor
+ * 
+ * Fires Prometheus counters and histograms for every request.
+ * Writes one structured log line per request for observability.
+ * 
  * Registration: app.useGlobalInterceptors(new HttpMetricsInterceptor(...))
- * in main.ts (see updated main.ts snippet below).
+ * in main.ts.
  */
 @Injectable()
 export class HttpMetricsInterceptor implements NestInterceptor {
@@ -33,12 +35,20 @@ export class HttpMetricsInterceptor implements NestInterceptor {
     const res = http.getResponse<Response>();
 
     const method = req.method;
+    
+    /**
+     * Normalise the route to prevent Prometheus label cardinality explosion.
+     * Falls back to req.url if req.route is undefined (e.g., unmatched routes),
+     * which is then cleaned by the normaliseRoute method.
+     */
     const route = this.normaliseRoute(req.route?.path || req.url);
     const startMs = Date.now();
     const userId = (req as any).user?.id;
     const requestId = (req.headers['x-request-id'] as string) || undefined;
 
-    // Skip Prometheus scrape endpoint from its own metrics
+    /**
+     * Skip the Prometheus scrape endpoint to prevent recursive metric generation.
+     */
     if (req.url === '/metrics') {
       return next.handle();
     }
@@ -72,6 +82,10 @@ export class HttpMetricsInterceptor implements NestInterceptor {
       }),
 
       catchError((err) => {
+        /**
+         * If an error is thrown, we must still record the metrics before 
+         * passing the error down the chain to the Global Exception Filter.
+         */
         const statusCode = err?.status || 500;
         const durationMs = Date.now() - startMs;
         const durationSec = durationMs / 1000;
@@ -94,8 +108,11 @@ export class HttpMetricsInterceptor implements NestInterceptor {
 
   /**
    * Normalise parameterised paths so Prometheus label cardinality stays low.
-   * e.g. /payments/12345  →  /payments/:id
-   *      /users/uuid/550e → /users/uuid/:uuid
+   * 
+   * Examples:
+   * /payments/12345       → /payments/:id
+   * /users/uuid/550e...   → /users/uuid/:uuid
+   * /api/test?foo=bar     → /api/test
    */
   private normaliseRoute(path: string): string {
     return path

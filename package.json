@@ -1,8 +1,8 @@
 {
-  "name": "nfcapi",
+  "name": "api",
   "version": "0.0.1",
   "description": "",
-  "author": "",
+  "author": "Calvince Owino Ochieng <t313jalikoa@gmail.com>",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -67,7 +67,8 @@
     "typeorm": "^0.3.28",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
-    "winston-elasticsearch": "^0.19.0"
+    "winston-elasticsearch": "^0.19.0",
+    "@prisma/client": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -76,7 +77,6 @@
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@types/bcryptjs": "^3.0.0",
-    "@types/crypto-js": "^4.2.2",
     "@types/express": "^5.0.0",
     "@types/ioredis": "^5.0.0",
     "@types/jest": "^30.0.0",

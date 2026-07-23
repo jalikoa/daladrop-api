@@ -1,42 +1,72 @@
 ################################################################################
-# prometheus.yml
-# Place at: ./prometheus/prometheus.yml
+# prometheus/prometheus.yml
+#
+# PURPOSE:
+# Core Prometheus configuration. Defines global settings, alerting rule files,
+# and scrape targets for the application and supporting infrastructure.
 ################################################################################
 
 global:
-  scrape_interval:     15s   # How often to scrape targets
-  evaluation_interval: 15s   # How often to evaluate alerting rules
-  scrape_timeout:      10s
+  # How frequently to scrape targets by default
+  scrape_interval: 15s
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+  # Timeout for scraping targets before considering them failed
+  scrape_timeout: 10s
 
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager).
   external_labels:
     environment: "${PROMETHEUS_ENV:-development}"
-    app: "nfc-payment-api"
+    app: "api"
 
-# ─── Alerting rules ──────────────────────────────────────────────────────────
+# ============================================================================
+# ALERTING RULES
+# ============================================================================
 rule_files:
   - "alerts.yml"
 
-# ─── Scrape configs ──────────────────────────────────────────────────────────
+# ============================================================================
+# SCRAPE CONFIGURATIONS
+# ============================================================================
 scrape_configs:
 
-  # The NFC API itself — exposes GET /metrics (prom-client format)
-  - job_name: "nfc-api"
+  # --------------------------------------------------------------------------
+  # TARGET 1: The NestJS API
+  # Exposes metrics via GET /metrics (using prom-client)
+  # --------------------------------------------------------------------------
+  - job_name: "api"
     static_configs:
+      # Use docker service name (e.g., 'api:3000') in compose, 
+      # or 'localhost:3000' if running locally outside docker.
       - targets:
-          - "nfc_api:3000"    # docker service name; change to localhost:3000 if running locally
+          - "api:3000"
     metrics_path: /metrics
     scrape_interval: 10s
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
 
-  # Prometheus self-monitoring
+  # --------------------------------------------------------------------------
+  # TARGET 2: Prometheus Self-Monitoring
+  # --------------------------------------------------------------------------
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Grafana self-monitoring (optional but useful)
+  # --------------------------------------------------------------------------
+  # TARGET 3: Grafana Self-Monitoring (Optional)
+  # --------------------------------------------------------------------------
   - job_name: "grafana"
     static_configs:
       - targets: ["grafana:3000"]
     metrics_path: /metrics
+
+  # --------------------------------------------------------------------------
+  # TARGET 4: Node Exporter (Optional but Recommended for Production)
+  # Uncomment and configure if you are running node_exporter to monitor 
+  # host-level metrics (CPU, Memory, Disk I/O, Network).
+  # --------------------------------------------------------------------------
+  # - job_name: "node"
+  #   static_configs:
+  #     - targets: ["node-exporter:9100"]

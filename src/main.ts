@@ -1,6 +1,5 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import { ValidationError } from 'class-validator';
 import { AppModule } from './app.module';
 import { HttpMetricsInterceptor } from './common/interceptors/Http-metrics.interceptor';
 import { AuditLoggingInterceptor } from './modules/audit/interceptors/audit-logging.interceptor';
@@ -11,19 +10,28 @@ import { v4 as uuidv4 } from 'uuid';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    // Hand off NestJS internal logs to our Winston logger
+    /**
+     * Hand off NestJS internal logs to Winston logger
+     * */
+
     logger: false,
     bufferLogs: true,
   });
 
-  // ── Structured logger ──────────────────────────────────────────────────────
+  /**
+   * Structured logger
+   **/
+
   const logger = app.get(AppLogger);
   logger.setContext('Bootstrap');
   app.useLogger(logger);
 
-  // ── Request ID middleware ──────────────────────────────────────────────────
-  // Attaches x-request-id to every request so logs, metrics, and traces
-  // can be correlated across services.
+  /**
+   * Request ID middleware
+   * Attaches x-request-id to every request so logs, metrics, and traces
+   * can be correlated across services.  
+   * */
+
   app.use((req: any, _res: any, next: () => void) => {
     if (!req.headers['x-request-id']) {
       req.headers['x-request-id'] = uuidv4();
@@ -33,31 +41,64 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter(logger));
 
-  // ── Global validation ──────────────────────────────────────────────────────
+  /**
+   * Global validation
+   */
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
       forbidNonWhitelisted: false,
+      disableErrorMessages: process.env.NODE_ENV === 'production',
     }),
   );
 
-  // ── Global HTTP metrics + request logging interceptor ─────────────────────
+  /**
+   * Global HTTP metrics + request logging interceptor
+   * */
+
   const metricsService = app.get(MetricsService);
   app.useGlobalInterceptors(new HttpMetricsInterceptor(metricsService, logger));
 
-  // ── Global audit logging interceptor ──────────────────────────────────────
-  // Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
+  /**
+   * Global audit logging interceptor
+   * Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
+   */
+
   const auditLoggingInterceptor = app.get(AuditLoggingInterceptor);
   app.useGlobalInterceptors(auditLoggingInterceptor);
 
+  /**
+   * Global audit logging interceptor
+   * Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
+   * SAFETY NET: If a future project doesn't use the AuditModule, this won't crash the app.
+   */
+  
+  try {
+    const auditLoggingInterceptor = app.get(AuditLoggingInterceptor);
+    app.useGlobalInterceptors(auditLoggingInterceptor);
+  } catch (error) {
+    logger.warn('AuditLoggingInterceptor not found. Skipping global audit logging.', {
+      context: 'Bootstrap',
+    });
+  }
+
+  /**
+   * CORS configuration
+   */
+
   const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost:8080'];
+    : ['http://localhost'];
 
   app.enableCors({
     origin: (origin, callback) => {
-      // allow requests with no origin (like Postman)
+
+      /**
+       * allow requests with no origin (like Postman)
+       * */
+
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -69,16 +110,19 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ── Graceful shutdown ──────────────────────────────────────────────────────
+  /**
+   * Graceful shutdown
+   * */
+
   app.enableShutdownHooks();
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 
-  logger.log(`NFC API running on port ${port}`, {
+  logger.log(`API running on port ${port}`, {
     port,
     nodeEnv: process.env.NODE_ENV,
-    metricsUrl: `http://localhost:${port}/metrics`,
+    metricsUrl: `/metrics`,
   });
 }
 

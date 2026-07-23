@@ -1,51 +1,51 @@
 ################################################################################
 # .github/workflows/cd.yml
 #
-# Runs ONLY after CI passes on main.
-# Builds and pushes the Docker image to GHCR, then SSH-deploys to the server.
+# PURPOSE:
+# Runs ONLY after the CI workflow passes on the main branch.
+# Builds and pushes the Docker image to GitHub Container Registry (GHCR),
+# then securely deploys it to the production server via SSH.
 #
-# Required secrets (Settings → Secrets → Actions):
-#   DEPLOY_HOST          — server IP or hostname
-#   DEPLOY_USER          — SSH user (e.g. ubuntu)
-#   DEPLOY_SSH_KEY       — private key (matching the public key on the server)
-#   DEPLOY_APP_DIR       — absolute path to the project on the server
-#   GHCR_TOKEN           — GitHub PAT with packages:write (or use GITHUB_TOKEN)
+# REQUIRED SECRETS (GitHub Repo -> Settings -> Secrets and variables -> Actions):
+#   DEPLOY_HOST          : Server IP address or hostname
+#   DEPLOY_USER          : SSH user (e.g., ubuntu, root)
+#   DEPLOY_SSH_KEY       : Private SSH key (must match public key on server)
+#   DEPLOY_APP_DIR       : Absolute path to the project on the server
+#   DEPLOY_COMPOSE_SVC   : The service name in docker-compose.yml (e.g., 'api')
+#   GHCR_TOKEN           : GitHub PAT with 'packages:write' scope (or use GITHUB_TOKEN)
 ################################################################################
 
 name: CD
 
 on:
   workflow_run:
-    workflows: [CI]
+    workflows: ["CI"]
     types: [completed]
     branches: [main]
 
 jobs:
-
-  # ────────────────────────────────────────────────────────────────────────────
-  # Only deploy when CI passed
-  # ────────────────────────────────────────────────────────────────────────────
   deploy:
     name: "Deploy to Production"
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Only proceed if the triggering CI workflow was successful
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Checkout
+      - name: "Checkout Repository"
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
+      - name: "Log in to GitHub Container Registry"
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
+      - name: "Set up Docker Buildx"
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push image
+      - name: "Build and Push Docker Image"
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -58,17 +58,40 @@ jobs:
           cache-to: type=gha,mode=max
           target: production
 
-      - name: Deploy via SSH
+      - name: "Deploy to Server via SSH"
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            # Navigate to the application directory
             cd ${{ secrets.DEPLOY_APP_DIR }}
+            
+            # Authenticate Docker with GHCR
             echo "${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull the newly built image
             docker pull ghcr.io/${{ github.repository }}:${{ github.sha }}
-            docker compose pull app
-            docker compose up -d --no-deps app
+            
+            # Update the specific service without restarting dependencies (e.g., DB, Redis)
+            docker compose pull ${{ secrets.DEPLOY_COMPOSE_SVC }}
+            docker compose up -d --no-deps ${{ secrets.DEPLOY_COMPOSE_SVC }}
+            
+            # Clean up old, unused images to prevent disk space exhaustion
             docker image prune -f
-            echo "Deployed ${{ github.sha }} at $(date)"
+            
+            echo "[**] Deployed commit ${{ github.sha }} at $(date)"
+
+      - name: "Post-Deployment Health Check"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            # Wait a few seconds for the container to initialize
+            sleep 5
+            # Attempt to hit the health endpoint. Adjust URL/Port as needed.
+            curl -f http://localhost:3000/public/health || exit 1
+            echo "[**] Health check passed successfully."

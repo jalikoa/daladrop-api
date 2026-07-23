@@ -1,16 +1,44 @@
 import { DataSource } from 'typeorm';
-import { InitialSchema1773464660676 } from './database/migrations/1773464660676-InitialSchema';
 
 export const AppDataSource = new DataSource({
-  type: 'mysql', // or 'mysql'
-  host: 'localhost',
-  port: 3306,
-  username: 'root',
-  password: '',
-  database: 'nfc_db',
-  entities: [__dirname + '/entities/**/*{.js,.ts}'],
-  migrations: [InitialSchema1773464660676], // or [__dirname + '/migrations/**/*{.js,.ts}']
-  migrationsRun: false,
+  /**
+   * Database type
+   * Supports 'postgres', 'mysql', 'sqlite', etc.
+   * Driven by environment variables for maximum flexibility.
+   */
+  type: (process.env.DB_TYPE as any) || 'postgres',
+
+  /**
+   * Database connection credentials
+   * Defaults provided for local dev, but always overridden by .env in real environments.
+   */
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DB_USERNAME || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'api_db',
+
+  /**
+   * Entity and Migration paths
+   * Using glob patterns ensures new modules and migrations are 
+   * automatically picked up by TypeORM without requiring manual file edits.
+   */
+  entities: [__dirname + '/../modules/**/entities/*{.js,.ts}'],
+  migrations: [__dirname + '/migrations/**/*{.js,.ts}'],
+
+  /**
+   * Migration and Sync settings
+   * synchronize MUST be false to prevent accidental schema destruction.
+   * migrationsRun is false to ensure migrations are executed explicitly 
+   * via CLI (e.g., npm run migration:run) for safe, version-controlled deployments.
+   */
   synchronize: false,
-  logging: true,
+  migrationsRun: false,
+
+  /**
+   * Logging configuration
+   * Enable SQL logging only in non-production environments to reduce 
+   * noise and prevent sensitive data exposure in production logs.
+   */
+  logging: process.env.NODE_ENV !== 'production',
 });

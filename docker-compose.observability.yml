@@ -1,57 +1,50 @@
 ################################################################################
-# NFC API — Observability Stack
-# Prometheus + Grafana  (metrics)
-# Elasticsearch + Logstash + Kibana  (logs)
+# docker-compose.observability.yml
 #
-# Usage:
+# PURPOSE:
+# Observability stack: Prometheus, Grafana, Elasticsearch, Logstash, Kibana, Filebeat.
+#
+# USAGE:
 #   docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
-#
-# Ports exposed on localhost:
-#   :9090  Prometheus
-#   :3100  Grafana      (admin / admin — change on first login)
-#   :9200  Elasticsearch
-#   :5601  Kibana
-#   :5044  Logstash Beats input
-#   :12201 Logstash GELF input  (optional)
 ################################################################################
 
-version: "3.9"
+version: '3.9'
 
 networks:
-  observability:
-    driver: bridge
-  # Attach to the same network your app + DB already use
-  app_default:
+  app-net:
     external: true
+  observability-net:
+    driver: bridge
 
 volumes:
-  prometheus_data:
-  grafana_data:
-  elasticsearch_data:
-  logstash_data:
-  kibana_data:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+  logstash-data:
+  kibana-data:
 
 services:
-
-  # ─────────────────────────────────────────────────────────────
-  # PROMETHEUS  — scrapes /metrics from the NFC API
-  # ─────────────────────────────────────────────────────────────
+  # ============================================================================
+  # SERVICE: Prometheus (Metrics)
+  # ============================================================================
   prometheus:
     image: prom/prometheus:v2.51.2
-    container_name: nfc_prometheus
+    container_name: prometheus
     restart: unless-stopped
-    networks: [observability, app_default]
+    networks:
+      - observability-net
+      - app-net
     ports:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
-      - prometheus_data:/prometheus
+      - prometheus-data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=30d
-      - --web.enable-lifecycle          # allows POST /-/reload
+      - --web.enable-lifecycle
       - --web.enable-admin-api
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/ready"]
@@ -59,18 +52,19 @@ services:
       timeout: 5s
       retries: 3
 
-  # ─────────────────────────────────────────────────────────────
-  # GRAFANA  — dashboards for metrics and log datasources
-  # ─────────────────────────────────────────────────────────────
+  # ============================================================================
+  # SERVICE: Grafana (Dashboards)
+  # ============================================================================
   grafana:
     image: grafana/grafana:10.4.2
-    container_name: nfc_grafana
+    container_name: grafana
     restart: unless-stopped
-    networks: [observability]
+    networks:
+      - observability-net
     ports:
       - "3100:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -78,7 +72,6 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3100}
       GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-clock-panel
-      # Prometheus datasource — auto-provisioned
       GF_FEATURE_TOGGLES_ENABLE: publicDashboards
     depends_on:
       prometheus:
@@ -89,25 +82,26 @@ services:
       timeout: 5s
       retries: 3
 
-  # ─────────────────────────────────────────────────────────────
-  # ELASTICSEARCH  — log storage and search backend
-  # ─────────────────────────────────────────────────────────────
+  # ============================================================================
+  # SERVICE: Elasticsearch (Log Storage)
+  # ============================================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
-    container_name: nfc_elasticsearch
+    container_name: elasticsearch
     restart: unless-stopped
-    networks: [observability]
+    networks:
+      - observability-net
     ports:
       - "9200:9200"
     volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
+      - elasticsearch-data:/usr/share/elasticsearch/data
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false        # disable TLS for dev; enable in prod
+      - xpack.security.enabled=false
       - xpack.security.enrollment.enabled=false
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
-      - cluster.name=nfc-logs
-      - node.name=nfc-es-01
+      - cluster.name=api-logs
+      - node.name=api-es-01
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
@@ -120,22 +114,24 @@ services:
       retries: 5
       start_period: 60s
 
-  # ─────────────────────────────────────────────────────────────
-  # LOGSTASH  — receives JSON logs from the NestJS app, parses
-  #             and ships them to Elasticsearch
-  # ─────────────────────────────────────────────────────────────
+  # ============================================================================
+  # SERVICE: Logstash (Log Pipeline)
+  # ============================================================================
   logstash:
     image: docker.elastic.co/logstash/logstash:8.13.4
-    container_name: nfc_logstash
+    container_name: logstash
     restart: unless-stopped
-    networks: [observability, app_default]
+    networks:
+      - observability-net
+      - app-net
     ports:
-      - "5044:5044"     # Beats / TCP input (NestJS ships here)
-      - "9600:9600"     # Logstash monitoring API
+      - "5044:5044"
+      - "9600:9600"
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - logstash_data:/usr/share/logstash/data
+      - logstash-data:/usr/share/logstash/data
+      - app-logs:/app/logs:ro
     environment:
       LS_JAVA_OPTS: -Xms256m -Xmx512m
     depends_on:
@@ -148,22 +144,22 @@ services:
       retries: 5
       start_period: 90s
 
-  # ─────────────────────────────────────────────────────────────
-  # KIBANA  — log explorer, dashboards, APM UI
-  # ─────────────────────────────────────────────────────────────
+  # ============================================================================
+  # SERVICE: Kibana (Log Exploration)
+  # ============================================================================
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.4
-    container_name: nfc_kibana
+    container_name: kibana
     restart: unless-stopped
-    networks: [observability]
+    networks:
+      - observability-net
     ports:
       - "5601:5601"
     volumes:
-      - kibana_data:/usr/share/kibana/data
+      - kibana-data:/usr/share/kibana/data
     environment:
       ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
-      KIBANA_SYSTEM_PASSWORD: ${KIBANA_PASSWORD:-changeme}
-      SERVER_NAME: nfc-kibana
+      SERVER_NAME: api-kibana
       SERVER_PUBLICBASEURL: ${KIBANA_PUBLIC_URL:-http://localhost:5601}
       XPACK_SECURITY_ENABLED: "false"
       XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: ${KIBANA_ENCRYPTION_KEY:-32-char-random-key-here-change-me}
@@ -176,3 +172,25 @@ services:
       timeout: 10s
       retries: 5
       start_period: 120s
+
+  # ============================================================================
+  # SERVICE: Filebeat (Log Shipper)
+  # ============================================================================
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.4
+    container_name: filebeat
+    restart: unless-stopped
+    user: root
+    networks:
+      - observability-net
+      - app-net
+    environment:
+      LOGSTASH_URL: logstash:5044
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - app-logs:/app/logs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    depends_on:
+      - logstash
+    command: filebeat -e -strict.perms=false

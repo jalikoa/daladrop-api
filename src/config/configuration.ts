@@ -1,20 +1,29 @@
 import { IConfig } from './interfaces/config.interface';
 
+/**
+ * Configuration factory function.
+ * Maps environment variables to the strict IConfig interface.
+ * Provides sensible defaults for local development where appropriate.
+ */
 export default (): IConfig => ({
   app: {
     port: parseInt(process.env.PORT || '3000', 10),
     environment: process.env.NODE_ENV || 'development',
     apiUrl: process.env.PUBLIC_URL || 'http://localhost:3000',
-    name: process.env.APP_NAME || 'nfc-payment-api',
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['*'],
+    name: process.env.APP_NAME || 'HMS API',
+    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
   },
   database: {
+    type: process.env.DB_TYPE || 'postgres',
     host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '3306', 10),
-    username: process.env.DB_USERNAME || '',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || '',
-    name: process.env.DB_NAME || 'nfc_db',
+    name: process.env.DB_NAME || 'hms_db',
     synchronize: process.env.DB_SYNC === 'true',
+  },
+  orm: {
+    type: (process.env.ORM_TYPE as 'prisma' | 'typeorm') || 'prisma',
   },
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
@@ -22,15 +31,18 @@ export default (): IConfig => ({
     password: process.env.REDIS_PASSWORD || undefined,
   },
   jwt: {
-    secret: process.env.JWT_SECRET || '',
+    secret: process.env.JWT_SECRET || 'default-dev-secret-change-in-production',
     expiration: process.env.JWT_EXPIRATION || '1d',
+  },
+  encryption: {
+    secretKey: process.env.ENCRYPTION_SECRET_KEY || 'default-dev-encryption-key-32-chars!!',
   },
   daraja: {
     consumerKey: process.env.DARAJA_CONSUMER_KEY || '',
     consumerSecret: process.env.DARAJA_CONSUMER_SECRET || '',
     paybill: process.env.DARAJA_PAYBILL || '',
     passkey: process.env.DARAJA_PASSKEY || '',
-    environment: (process.env.DARAJA_ENV as 'sandbox' | 'production') || 'sandbox',
+    callbackUrl: process.env.DARAJA_CALLBACK_URL || '',
   },
   africastalking: {
     username: process.env.AFRICASTALKING_USERNAME || 'sandbox',
@@ -39,13 +51,26 @@ export default (): IConfig => ({
   firebase: {
     projectId: process.env.FIREBASE_PROJECT_ID || '',
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
-    privateKey: process.env.FIREBASE_PRIVATE_KEY || '',
+    /**
+     * Replace literal \n characters with actual newlines for Firebase private keys.
+     */
+    privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
   },
-  nfc: {
-    secretKey: process.env.NFC_SECRET_KEY || '',
+  email: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || 'noreply@hms.local',
   },
-
-  // ── Observability ──────────────────────────────────────────────────────────
+  storage: {
+    provider: process.env.STORAGE_PROVIDER || 'local',
+    bucket: process.env.STORAGE_BUCKET || 'hms-documents',
+    endpoint: process.env.STORAGE_ENDPOINT || undefined,
+    accessKey: process.env.STORAGE_ACCESS_KEY || undefined,
+    secretKey: process.env.STORAGE_SECRET_KEY || undefined,
+  },
   observability: {
     logLevel: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
     elasticsearch: {
@@ -58,5 +83,6 @@ export default (): IConfig => ({
       port: parseInt(process.env.LOGSTASH_PORT || '5000', 10),
     },
     metricsToken: process.env.METRICS_TOKEN || '',
+    sentryDsn: process.env.SENTRY_DSN || undefined,
   },
 });

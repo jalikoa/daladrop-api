@@ -1,107 +1,105 @@
 ################################################################################
-# alerts.yml  — Prometheus alerting rules for the NFC Payment API
-# Place at: ./prometheus/alerts.yml
+# prometheus/alerts.yml
+#
+# PURPOSE:
+# Defines Prometheus alerting rules to detect infrastructure issues,
+# application degradation, and runtime anomalies.
+#
+# NOTE: The 'business_logic' group contains generic examples. You should
+# adapt the metric names (e.g., job_failures_total) to match your specific
+# application's custom domain metrics.
 ################################################################################
 
 groups:
-
-  # ─── API availability ─────────────────────────────────────────────────────
-  - name: api_availability
+  # ============================================================================
+  # GROUP 1: Infrastructure & API Availability
+  # ============================================================================
+  - name: infrastructure
     rules:
       - alert: ApiDown
-        expr: up{job="nfc-api"} == 0
+        expr: up{job="api"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "NFC API is down"
-          description: "The NFC Payment API has been unreachable for more than 1 minute."
+          summary: "API instance is down"
+          description: "The API instance {{ $labels.instance }} has been unreachable for more than 1 minute."
 
       - alert: HighErrorRate
         expr: |
-          sum(rate(http_requests_total{job="nfc-api", status_code=~"5.."}[5m]))
+          sum(rate(http_requests_total{job="api", status_code=~"5.."}[5m]))
           /
-          sum(rate(http_requests_total{job="nfc-api"}[5m]))
+          sum(rate(http_requests_total{job="api"}[5m]))
           > 0.05
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: "High HTTP 5xx error rate"
-          description: "More than 5% of requests are returning 5xx errors over the last 5 minutes."
+          description: "More than 5% of requests are returning 5xx errors over the last 5 minutes on {{ $labels.instance }}."
 
       - alert: SlowResponses
         expr: |
           histogram_quantile(0.95,
-            sum(rate(http_request_duration_seconds_bucket{job="nfc-api"}[5m])) by (le, route)
+            sum(rate(http_request_duration_seconds_bucket{job="api"}[5m])) by (le, route)
           ) > 2
         for: 3m
         labels:
           severity: warning
         annotations:
           summary: "Slow API responses (p95 > 2s)"
-          description: "The 95th percentile response time for {{ $labels.route }} exceeds 2 seconds."
+          description: "The 95th percentile response time for route {{ $labels.route }} exceeds 2 seconds."
 
-  # ─── Payment business rules ────────────────────────────────────────────────
-  - name: payments
+  # ============================================================================
+  # GROUP 2: Business Logic & Background Processing (Generic Examples)
+  # ============================================================================
+  - name: business_logic
     rules:
-      - alert: HighPaymentFailureRate
+      - alert: HighJobFailureRate
         expr: |
-          sum(rate(payments_failed_total{job="nfc-api"}[10m]))
+          sum(rate(job_failures_total{job="api"}[10m]))
           /
-          (sum(rate(payments_initiated_total{job="nfc-api"}[10m])) + 0.001)
+          (sum(rate(job_initiated_total{job="api"}[10m])) + 0.001)
           > 0.10
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "High payment failure rate (>10%)"
-          description: "More than 10% of initiated STK payments are failing over the last 10 minutes."
+          summary: "High background job failure rate (>10%)"
+          description: "More than 10% of initiated background jobs are failing over the last 10 minutes."
 
-      - alert: NoPaymentsProcessed
-        expr: sum(rate(payments_completed_total{job="nfc-api"}[30m])) == 0
+      - alert: ZeroSuccessfulTransactions
+        expr: sum(rate(successful_transactions_total{job="api"}[30m])) == 0
         for: 30m
         labels:
           severity: info
         annotations:
-          summary: "No payments completed in 30 minutes"
-          description: "Zero payments have completed in the last 30 minutes — may be off-hours or an issue."
+          summary: "No successful transactions in 30 minutes"
+          description: "Zero successful transactions have occurred in the last 30 minutes. This may indicate a systemic issue or expected off-hours downtime."
 
-  # ─── Webhook reliability ──────────────────────────────────────────────────
-  - name: webhooks
-    rules:
-      - alert: WebhookProcessingErrors
-        expr: |
-          sum(rate(webhooks_received_total{job="nfc-api", status="FAILED"}[5m]))
-          > 0.5
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Webhook processing errors"
-          description: "More than 0.5 webhook failures per second over the last 5 minutes."
-
-  # ─── Node.js runtime ──────────────────────────────────────────────────────
+  # ============================================================================
+  # GROUP 3: Node.js Runtime Health
+  # ============================================================================
   - name: nodejs_runtime
     rules:
       - alert: HighHeapUsage
         expr: |
-          nodejs_heap_size_used_bytes{job="nfc-api"}
+          nodejs_heap_size_used_bytes{job="api"}
           /
-          nodejs_heap_size_total_bytes{job="nfc-api"}
+          nodejs_heap_size_total_bytes{job="api"}
           > 0.85
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "Node.js heap usage above 85%"
-          description: "The process heap is at {{ $value | humanizePercentage }} — consider scaling."
+          description: "The process heap on {{ $labels.instance }} is at {{ $value | humanizePercentage }}. Consider scaling or investigating memory leaks."
 
       - alert: EventLoopLagHigh
-        expr: nodejs_eventloop_lag_seconds{job="nfc-api"} > 0.5
+        expr: nodejs_eventloop_lag_seconds{job="api"} > 0.5
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "Event loop lag > 500ms"
-          description: "The Node.js event loop is lagging by {{ $value }}s — possible CPU-bound work blocking the loop."
+          summary: "Node.js event loop lag > 500ms"
+          description: "The Node.js event loop on {{ $labels.instance }} is lagging by {{ $value }}s. This indicates possible CPU-bound work blocking the loop."

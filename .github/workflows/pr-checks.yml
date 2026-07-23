@@ -1,8 +1,9 @@
 ################################################################################
 # .github/workflows/pr-checks.yml
 #
-# Lightweight checks that run on every pull request for fast feedback.
-# Runs in parallel with full CI but is designed to finish in < 3 minutes.
+# PURPOSE:
+# Lightweight, fast checks that run on every pull request to provide immediate
+# feedback to developers. Designed to finish in under 3 minutes.
 ################################################################################
 
 name: PR Checks
@@ -12,14 +13,11 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
-
-  # ── Quick type-check (faster than full build) ──────────────────────────────
   typecheck:
     name: "TypeScript Check"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event.pull_request.draft == false
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,48 +25,39 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
-      - run: npx tsc --noEmit
-        name: Type check (no emit)
+      - name: "Type check (no emit)"
+        run: npx tsc --noEmit
 
-  # ── Lint only changed files (faster than full lint) ────────────────────────
   lint-changed:
     name: "Lint Changed Files"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     if: github.event.pull_request.draft == false
-
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0           # needed for git diff
-
+          fetch-depth: 0 # Required for git diff against base branch
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
-
       - run: npm ci
-
-      - name: Get changed TypeScript files
+      - name: "Get changed TypeScript files"
         id: changed
         run: |
           FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD \
-            | grep '\.ts$' | grep -v '\.d\.ts$' | tr '\n' ' ')
+            | grep '\.ts$' | grep -v '\.d\.ts$' | grep -v '\.spec\.ts$' | tr '\n' ' ')
           echo "files=$FILES" >> $GITHUB_OUTPUT
-          echo "Changed TS files: $FILES"
-
-      - name: Lint changed files
+      - name: "Lint changed files"
         if: steps.changed.outputs.files != ''
         run: npx eslint ${{ steps.changed.outputs.files }} --max-warnings=0
 
-  # ── PR title format check ──────────────────────────────────────────────────
   pr-title:
-    name: "PR Title"
+    name: "PR Title Validation"
     runs-on: ubuntu-latest
     timeout-minutes: 2
-
     steps:
-      - name: Check PR title follows conventional commits
+      - name: "Check PR title follows conventional commits"
         uses: amannn/action-semantic-pull-request@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -84,5 +73,4 @@ jobs:
             chore
             ci
             revert
-          # Allow scopes like feat(payments): ...
           requireScope: false

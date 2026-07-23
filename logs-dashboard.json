@@ -1,16 +1,16 @@
 {
-  "title": "NFC API — Logs Explorer",
-  "uid": "nfc-logs-explorer",
+  "title": "Logs Explorer",
+  "uid": "logs-explorer",
   "schemaVersion": 38,
   "version": 1,
   "refresh": "30s",
   "time": { "from": "now-1h", "to": "now" },
-  "tags": ["nfc", "logs", "elk"],
+  "tags": ["logs", "elk"],
   "panels": [
     {
       "id": 1, "type": "stat", "title": "Total Log Lines (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "*",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -23,7 +23,7 @@
     {
       "id": 2, "type": "stat", "title": "ERROR Lines (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "log.level:error",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -36,7 +36,7 @@
     {
       "id": 3, "type": "stat", "title": "HTTP Errors 4xx/5xx (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "type:http_request AND http.response.status:>=400",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -49,7 +49,7 @@
     {
       "id": 4, "type": "stat", "title": "Auth Failures (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "type:auth_login AND result:failure",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -60,11 +60,11 @@
       "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 5 }, { "color": "red", "value": 25 }] } } }
     },
     {
-      "id": 5, "type": "stat", "title": "NFC Taps (1h)",
+      "id": 5, "type": "stat", "title": "Logs (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
-        "query": "type:nfc_tap",
+        "query": "type:log",
         "metrics": [{ "type": "count", "id": "1" }],
         "bucketAggs": [],
         "timeField": "@timestamp"
@@ -75,7 +75,7 @@
     {
       "id": 6, "type": "stat", "title": "Payment Events (1h)",
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "type:payment_event",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -88,7 +88,7 @@
     {
       "id": 7, "type": "timeseries", "title": "Log Volume by Level",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "*",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -109,7 +109,7 @@
     {
       "id": 8, "type": "timeseries", "title": "HTTP Requests by Status",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "type:http_request",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -124,7 +124,7 @@
     {
       "id": 9, "type": "logs", "title": "Recent Error Logs",
       "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
@@ -145,7 +145,7 @@
     {
       "id": 10, "type": "table", "title": "Top Error Messages",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "log.level:error",
         "metrics": [{ "type": "count", "id": "1" }],
@@ -159,7 +159,7 @@
     {
       "id": 11, "type": "table", "title": "Slowest Requests (avg durationMs)",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
-      "datasource": { "uid": "elasticsearch-nfc" },
+      "datasource": { "uid": "elasticsearch" },
       "targets": [{
         "query": "type:http_request",
         "metrics": [{ "type": "avg", "id": "1", "field": "durationMs" }],

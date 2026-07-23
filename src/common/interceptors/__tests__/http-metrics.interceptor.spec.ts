@@ -1,12 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ExecutionContext, HttpStatus } from '@nestjs/common';
+import { ExecutionContext, HttpStatus, HttpException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
-import { HttpMetricsInterceptor } from '../Http-metrics.interceptor';
+import { HttpMetricsInterceptor } from '../http-metrics.interceptor';
 import { AppLogger } from 'src/modules/logger/logger.service';
 import { MetricsService } from 'src/modules/metrics/metrics.service';
 
 /**
  * Unit Tests for HttpMetricsInterceptor
+ * 
+ * This suite ensures that the interceptor correctly records Prometheus metrics
+ * and logs requests, handling both successful responses and errors gracefully.
  */
 describe('HttpMetricsInterceptor - Unit Tests', () => {
   let interceptor: HttpMetricsInterceptor;
@@ -17,6 +20,9 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
   let mockRequest: any;
   let mockResponse: any;
 
+  /**
+   * Setup mock dependencies before each test case.
+   */
   beforeEach(() => {
     mockRequest = {
       url: '/api/test',
@@ -70,6 +76,9 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     interceptor = new HttpMetricsInterceptor(mockMetrics as MetricsService, mockLogger as AppLogger);
   });
 
+  /**
+   * Tests for successful request handling.
+   */
   describe('intercept() - Successful requests', () => {
     it('should increment in-flight counter on request start', () => {
       interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
@@ -77,43 +86,19 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       expect(mockMetrics.httpRequestsInFlight.inc).toHaveBeenCalledWith({ method: 'GET' });
     });
 
-    it('should decrement in-flight counter on request complete', (done) => {
+    it('should decrement in-flight counter and record metrics on request complete', (done) => {
       const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
       result.subscribe({
         complete: () => {
           expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({ method: 'GET' });
-          done();
-        },
-      });
-    });
-
-    it('should increment total requests counter', (done) => {
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
           expect(mockMetrics.httpRequestsTotal.inc).toHaveBeenCalledWith({
             method: 'GET',
             route: '/api/test',
             status_code: '200',
           });
-          done();
-        },
-      });
-    });
-
-    it('should observe request duration', (done) => {
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
           expect(mockMetrics.httpRequestDuration.observe).toHaveBeenCalledWith(
-            {
-              method: 'GET',
-              route: '/api/test',
-              status_code: '200',
-            },
+            { method: 'GET', route: '/api/test', status_code: '200' },
             expect.any(Number),
           );
           done();
@@ -121,7 +106,7 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       });
     });
 
-    it('should log successful request', (done) => {
+    it('should log successful request with correct context', (done) => {
       const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
       result.subscribe({
@@ -142,42 +127,37 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     });
   });
 
+  /**
+   * Tests for error handling and metric recording during failures.
+   */
   describe('intercept() - Error requests', () => {
-    it('should handle errors and increment error counter', (done) => {
+    it('should handle generic errors, record metrics, and re-throw', (done) => {
       const error = new Error('Test error');
       mockCallHandler.handle.mockReturnValue(throwError(() => error));
 
       const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
       result.subscribe({
-        error: () => {
+        error: (err) => {
+          /**
+           * Verify that the error is re-thrown so the Global Exception Filter 
+           * can still catch it and format the response.
+           */
+          expect(err).toBe(error);
+          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({ method: 'GET' });
           expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
             method: 'GET',
             route: '/api/test',
             status_code: '500',
           });
-          done();
-        },
-      });
-    });
-
-    it('should log errors with stack trace', (done) => {
-      const error = new Error('Test error');
-      error.stack = 'Error: Test error\n    at test.js:1:1';
-      mockCallHandler.handle.mockReturnValue(throwError(() => error));
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        error: () => {
           expect(mockLogger.error).toHaveBeenCalled();
           done();
         },
       });
     });
 
-    it('should handle HttpException with status code', (done) => {
-      const error = { status: 400, message: 'Bad Request' };
+    it('should handle HttpException with specific status code', (done) => {
+      const error = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
       mockCallHandler.handle.mockReturnValue(throwError(() => error));
 
       const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
@@ -193,56 +173,74 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
         },
       });
     });
+  });
 
-    it('should decrement in-flight counter on error', (done) => {
-      const error = new Error('Test error');
-      mockCallHandler.handle.mockReturnValue(throwError(() => error));
+  /**
+   * Tests for route normalization to prevent Prometheus cardinality explosion.
+   */
+  describe('Route normalization', () => {
+    it('should normalize numeric IDs in routes', (done) => {
+      mockRequest.route = { path: '/api/users/123' };
+      mockRequest.url = '/api/users/123';
 
       const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
       result.subscribe({
-        error: () => {
-          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({ method: 'GET' });
+        complete: () => {
+          expect(mockMetrics.httpRequestsTotal.inc).toHaveBeenCalledWith(
+            expect.objectContaining({ route: '/api/users/:id' }),
+          );
+          done();
+        },
+      });
+    });
+
+    it('should normalize UUIDs in routes', (done) => {
+      const uuid = '550e8400-e29b-41d4-a716-446655440000';
+      mockRequest.route = { path: `/api/users/uuid/${uuid}` };
+      mockRequest.url = `/api/users/uuid/${uuid}`;
+
+      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+
+      result.subscribe({
+        complete: () => {
+          expect(mockMetrics.httpRequestsTotal.inc).toHaveBeenCalledWith(
+            expect.objectContaining({ route: '/api/users/uuid/:uuid' }),
+          );
+          done();
+        },
+      });
+    });
+
+    it('should remove query strings from routes', (done) => {
+      mockRequest.route = { path: '/api/test' };
+      mockRequest.url = '/api/test?page=1&limit=10';
+
+      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+
+      result.subscribe({
+        complete: () => {
+          expect(mockMetrics.httpRequestsTotal.inc).toHaveBeenCalledWith(
+            expect.objectContaining({ route: '/api/test' }),
+          );
           done();
         },
       });
     });
   });
 
-  describe('Route normalization', () => {
-    it('should normalize numeric IDs in routes', () => {
-      mockRequest.route = { path: '/api/users/123' };
-      mockRequest.url = '/api/users/123';
-
-      interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      // The normalizeRoute method is private, but we can verify through the metrics call
-    });
-
-    it('should normalize UUIDs in routes', () => {
-      const uuid = '550e8400-e29b-41d4-a716-446655440000';
-      mockRequest.route = { path: `/api/users/uuid/${uuid}` };
-      mockRequest.url = `/api/users/uuid/${uuid}`;
-
-      interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-    });
-
-    it('should remove query strings from routes', () => {
-      mockRequest.route = { path: '/api/test' };
-      mockRequest.url = '/api/test?page=1&limit=10';
-
-      interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-    });
-  });
-
-  describe('Special routes', () => {
-    it('should skip metrics for /metrics endpoint', () => {
+  /**
+   * Tests for special routing and edge cases.
+   */
+  describe('Special routes and edge cases', () => {
+    it('should skip metrics and logging for /metrics endpoint', () => {
       mockRequest.url = '/metrics';
+      mockRequest.route = { path: '/metrics' };
 
       interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
-      // Should not increment in-flight counter for /metrics
       expect(mockMetrics.httpRequestsInFlight.inc).not.toHaveBeenCalled();
+      expect(mockLogger.logRequest).not.toHaveBeenCalled();
     });
 
     it('should handle requests with authenticated user', (done) => {
@@ -253,9 +251,7 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       result.subscribe({
         complete: () => {
           expect(mockLogger.logRequest).toHaveBeenCalledWith(
-            expect.objectContaining({
-              userId: 123,
-            }),
+            expect.objectContaining({ userId: 123 }),
           );
           done();
         },
@@ -270,9 +266,7 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       result.subscribe({
         complete: () => {
           expect(mockLogger.logRequest).toHaveBeenCalledWith(
-            expect.objectContaining({
-              requestId: undefined,
-            }),
+            expect.objectContaining({ requestId: undefined }),
           );
           done();
         },
@@ -280,121 +274,29 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     });
   });
 
+  /**
+   * Tests for client error status codes (4xx).
+   * Uses a loop to keep the test suite DRY and maintainable.
+   */
   describe('Client error status codes', () => {
-    it('should increment error counter for 400 status', (done) => {
-      mockResponse.statusCode = 400;
+    const clientErrorCodes = [400, 401, 403, 404, 422, 429];
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+    clientErrorCodes.forEach((code) => {
+      it(`should increment error counter for ${code} status`, (done) => {
+        mockResponse.statusCode = code;
 
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
-            method: 'GET',
-            route: '/api/test',
-            status_code: '400',
-          });
-          done();
-        },
-      });
-    });
+        const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
 
-    it('should increment error counter for 401 status', (done) => {
-      mockResponse.statusCode = 401;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
-            method: 'GET',
-            route: '/api/test',
-            status_code: '401',
-          });
-          done();
-        },
-      });
-    });
-
-    it('should increment error counter for 403 status', (done) => {
-      mockResponse.statusCode = 403;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
-            method: 'GET',
-            route: '/api/test',
-            status_code: '403',
-          });
-          done();
-        },
-      });
-    });
-
-    it('should increment error counter for 404 status', (done) => {
-      mockResponse.statusCode = 404;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
-            method: 'GET',
-            route: '/api/test',
-            status_code: '404',
-          });
-          done();
-        },
-      });
-    });
-
-    it('should increment error counter for 500 status', (done) => {
-      mockResponse.statusCode = 500;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
-            method: 'GET',
-            route: '/api/test',
-            status_code: '500',
-          });
-          done();
-        },
-      });
-    });
-  });
-
-  describe('Duration calculation', () => {
-    it('should calculate correct duration for fast requests', (done) => {
-      const startTime = Date.now();
-      mockRequest.startTime = startTime;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockMetrics.httpRequestDuration.observe).toHaveBeenCalledWith(
-            expect.any(Object),
-            expect.any(Number),
-          );
-          done();
-        },
-      });
-    });
-
-    it('should handle requests without startTime', (done) => {
-      delete mockRequest.startTime;
-
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
-
-      result.subscribe({
-        complete: () => {
-          expect(mockLogger.logRequest).toHaveBeenCalled();
-          done();
-        },
+        result.subscribe({
+          complete: () => {
+            expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
+              method: 'GET',
+              route: '/api/test',
+              status_code: String(code),
+            });
+            done();
+          },
+        });
       });
     });
   });

@@ -99,7 +99,7 @@ export async function runSimpleLoadTest(
   const metrics: PerformanceMetrics[] = [];
   const baseUrl = config.baseUrl || `http://localhost:3000`;
 
-  console.log(`\n🚀 Starting load test against ${baseUrl}`);
+  console.log(`\n[**] Starting load test against ${baseUrl}`);
   console.log(`Duration: ${config.duration}, VUs: ${config.vus}\n`);
 
   for (const endpoint of config.endpoints) {
@@ -254,7 +254,7 @@ function getThresholdForEndpoint(
  * Generate performance report
  */
 export function generatePerformanceReport(metrics: PerformanceMetrics[]): string {
-  let report = '\n📊 Performance Test Report\n';
+  let report = '\n[**] Performance Test Report\n';
   report += '='.repeat(60) + '\n\n';
 
   for (const metric of metrics) {

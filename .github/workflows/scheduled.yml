@@ -1,0 +1,84 @@
+################################################################################
+# .github/workflows/scheduled.yml
+#
+# PURPOSE:
+# Runs automated maintenance tasks on a schedule to keep the repository 
+# healthy, secure, and free of technical debt.
+#
+# NOTE: All jobs are generic and can be copied to any Node.js/NestJS project.
+################################################################################
+
+name: Scheduled Maintenance
+
+on:
+  schedule:
+    # Run every Monday at 02:00 UTC
+    - cron: "0 2 * * 1"
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  # ============================================================================
+  # JOB 1: Dependency Audit
+  # Checks for outdated packages and creates a summary.
+  # ============================================================================
+  dependency-audit:
+    name: "Check Outdated Dependencies"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: "List outdated packages"
+        run: npm outdated || true # '|| true' prevents the workflow from failing if packages are outdated
+      - name: "Run npm audit"
+        run: npm audit --audit-level=moderate || true
+
+  # ============================================================================
+  # JOB 2: Stale PR and Issue Cleanup
+  # Automatically labels and closes stale pull requests and issues.
+  # ============================================================================
+  stale-cleanup:
+    name: "Close Stale PRs and Issues"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # Stale PR settings
+          days-before-pr-stale: 30
+          days-before-pr-close: 7
+          stale-pr-message: "This PR has been automatically marked as stale because it has not had recent activity. It will be closed in 7 days if no further activity occurs."
+          close-pr-message: "This PR was closed because it has been stalled for 7 days with no activity."
+          # Stale Issue settings
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          stale-issue-message: "This issue is stale because it has been open for 60 days with no activity."
+          close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
+          exempt-issue-labels: "pinned,security,bug"
+          exempt-pr-labels: "pinned,security,work-in-progress"
+
+  # ============================================================================
+  # JOB 3: Weekly Deep Security Scan (Optional)
+  # Runs a deeper Snyk or CodeQL scan that might be too slow for regular CI.
+  # ============================================================================
+  deep-security-scan:
+    name: "Deep Security Scan"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ secrets.SNYK_TOKEN != '' }} # Only run if Snyk is configured
+    steps:
+      - uses: actions/checkout@v4
+      - name: "Run Snyk to check for vulnerabilities"
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
