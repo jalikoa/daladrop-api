@@ -1,29 +1,43 @@
 import { IConfig } from './interfaces/config.interface';
 
 /**
- * Configuration factory function.
- * Maps environment variables to the strict IConfig interface.
- * Provides sensible defaults for local development where appropriate.
+ * Configuration factory.
+ * Maps environment variables onto the strict {@link IConfig} interface and
+ * supplies safe local-development defaults where appropriate.
  */
 export default (): IConfig => ({
   app: {
     port: parseInt(process.env.PORT || '3000', 10),
     environment: process.env.NODE_ENV || 'development',
     apiUrl: process.env.PUBLIC_URL || 'http://localhost:3000',
-    name: process.env.APP_NAME || 'HMS API',
-    corsOrigins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
+    name: process.env.APP_NAME || 'api',
+    corsOrigins: process.env.CORS_ORIGINS?.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean) || ['http://localhost:3000'],
+    globalPrefix: process.env.API_GLOBAL_PREFIX || '',
   },
   database: {
-    type: process.env.DB_TYPE || 'postgres',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    username: process.env.DB_USERNAME || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    name: process.env.DB_NAME || 'hms_db',
+    type: process.env.DB_TYPE || process.env.DATABASE_TYPE || 'postgres',
+    host: process.env.DB_HOST || process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(
+      process.env.DB_PORT || process.env.DATABASE_PORT || '5432',
+      10,
+    ),
+    username:
+      process.env.DB_USERNAME ||
+      process.env.DATABASE_USER ||
+      process.env.DATABASE_USERNAME ||
+      process.env.DB_USER ||
+      'postgres',
+    password: process.env.DB_PASSWORD || process.env.DATABASE_PASSWORD || '',
+    name: process.env.DB_NAME || process.env.DATABASE_NAME || 'app_db',
+    url: process.env.DATABASE_URL || undefined,
     synchronize: process.env.DB_SYNC === 'true',
   },
   orm: {
-    type: (process.env.ORM_TYPE as 'prisma' | 'typeorm') || 'prisma',
+    type:
+      ((process.env.ORM_PROVIDER || process.env.ORM_TYPE) as
+        'prisma' | 'typeorm') || 'prisma',
   },
   redis: {
     host: process.env.REDIS_HOST || 'localhost',
@@ -35,26 +49,22 @@ export default (): IConfig => ({
     expiration: process.env.JWT_EXPIRATION || '1d',
   },
   encryption: {
-    secretKey: process.env.ENCRYPTION_SECRET_KEY || 'default-dev-encryption-key-32-chars!!',
+    secretKey:
+      process.env.ENCRYPTION_SECRET_KEY || 'default-dev-encryption-key-32ch!',
   },
-  daraja: {
-    consumerKey: process.env.DARAJA_CONSUMER_KEY || '',
-    consumerSecret: process.env.DARAJA_CONSUMER_SECRET || '',
-    paybill: process.env.DARAJA_PAYBILL || '',
-    passkey: process.env.DARAJA_PASSKEY || '',
-    callbackUrl: process.env.DARAJA_CALLBACK_URL || '',
+  externalService: {
+    apiKey: process.env.EXTERNAL_SERVICE_API_KEY || '',
+    apiSecret: process.env.EXTERNAL_SERVICE_API_SECRET || '',
+    baseUrl: process.env.EXTERNAL_SERVICE_BASE_URL || '',
+    callbackUrl: process.env.EXTERNAL_SERVICE_CALLBACK_URL || '',
   },
-  africastalking: {
-    username: process.env.AFRICASTALKING_USERNAME || 'sandbox',
-    apiKey: process.env.AFRICASTALKING_API_KEY || '',
-  },
-  firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID || '',
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || '',
-    /**
-     * Replace literal \n characters with actual newlines for Firebase private keys.
-     */
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
+  push: {
+    projectId: process.env.PUSH_PROVIDER_PROJECT_ID || '',
+    clientEmail: process.env.PUSH_PROVIDER_CLIENT_EMAIL || '',
+    privateKey: (process.env.PUSH_PROVIDER_PRIVATE_KEY || '').replace(
+      /\\n/g,
+      '\n',
+    ),
   },
   email: {
     host: process.env.SMTP_HOST || '',
@@ -62,17 +72,19 @@ export default (): IConfig => ({
     secure: process.env.SMTP_SECURE === 'true',
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
-    from: process.env.SMTP_FROM || 'noreply@hms.local',
+    from: process.env.SMTP_FROM || 'noreply@example.com',
   },
   storage: {
-    provider: process.env.STORAGE_PROVIDER || 'local',
-    bucket: process.env.STORAGE_BUCKET || 'hms-documents',
+    provider: process.env.STORAGE_PROVIDER || 's3',
+    bucket: process.env.STORAGE_BUCKET || 'app-documents',
     endpoint: process.env.STORAGE_ENDPOINT || undefined,
     accessKey: process.env.STORAGE_ACCESS_KEY || undefined,
     secretKey: process.env.STORAGE_SECRET_KEY || undefined,
   },
   observability: {
-    logLevel: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+    logLevel:
+      process.env.LOG_LEVEL ||
+      (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
     elasticsearch: {
       url: process.env.ELASTICSEARCH_URL || '',
       username: process.env.ELASTICSEARCH_USERNAME || 'elastic',

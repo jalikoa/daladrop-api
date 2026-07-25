@@ -1,10 +1,37 @@
+// ============================================================================
+// Prisma schema — generic API scaffold
+// ============================================================================
+// This file is used when ORM_TYPE=prisma.
+// When ORM_TYPE=typeorm, Prisma is inactive; keep this schema as a template.
+//
+// Workflow:
+//   1. Define models below
+//   2. npx prisma migrate dev --name <change>
+//   3. npx prisma generate
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// Your models go here...
+// ----------------------------------------------------------------------------
+// Minimal bootstrap model so `prisma generate` can emit a client.
+// Replace / extend with your domain models; keep at least one model until
+// Prisma supports empty schemas for client generation.
+// ----------------------------------------------------------------------------
+
+model ScaffoldMeta {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique @db.VarChar(128)
+  value     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("scaffold_meta")
+}

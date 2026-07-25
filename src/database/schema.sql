@@ -1,1 +1,6 @@
---- Database raw schema for the initial schema of the database. ---
+-- Optional raw SQL bootstrap (documentation / ops reference only).
+-- Prefer ORM migrations (Prisma migrate or TypeORM migrations) for schema changes.
+--
+-- Example:
+--   CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+--   CREATE EXTENSION IF NOT EXISTS "pgcrypto";

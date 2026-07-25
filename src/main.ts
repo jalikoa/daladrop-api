@@ -1,132 +1,116 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
-import { HttpMetricsInterceptor } from './common/interceptors/Http-metrics.interceptor';
-import { AuditLoggingInterceptor } from './modules/audit/interceptors/audit-logging.interceptor';
+import { HttpMetricsInterceptor } from './common/interceptors/http-metrics.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { AppLogger } from './modules/logger/logger.service';
 import { MetricsService } from './modules/metrics/metrics.service';
-import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { v4 as uuidv4 } from 'uuid';
 
-async function bootstrap() {
+type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
+
+/**
+ * HTTP bootstrap for the reusable NestJS API scaffold.
+ *
+ * Pipeline stages (mirrors FoundationModule documentation):
+ * 1. request correlation id
+ * 2. validation pipe
+ * 3. HTTP metrics + structured request logs
+ * 4. exception filter with production-safe error redaction
+ *
+ * Do not import FoundationModule here until AppModule drops the legacy
+ * `src/modules` stack — see AppModule JSDoc.
+ */
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
-    /**
-     * Hand off NestJS internal logs to Winston logger
-     * */
-
-    logger: false,
+    // Keep Nest's default logger until AppLogger is wired so DI / env
+    // validation failures are visible on stderr (logger:false hid them).
     bufferLogs: true,
   });
 
-  /**
-   * Structured logger
-   **/
-
+  const config = app.get(ConfigService);
   const logger = app.get(AppLogger);
   logger.setContext('Bootstrap');
   app.useLogger(logger);
 
-  /**
-   * Request ID middleware
-   * Attaches x-request-id to every request so logs, metrics, and traces
-   * can be correlated across services.  
-   * */
+  const requestIdMiddleware = new RequestIdMiddleware();
+  app.use((req: Request, res: Response, next: NextFunction) =>
+    requestIdMiddleware.use(req, res, next),
+  );
 
-  app.use((req: any, _res: any, next: () => void) => {
-    if (!req.headers['x-request-id']) {
-      req.headers['x-request-id'] = uuidv4();
-    }
-    next();
-  });
+  const globalPrefix = config.get<string>('app.globalPrefix', '');
+  if (globalPrefix) {
+    app.setGlobalPrefix(globalPrefix);
+  }
 
   app.useGlobalFilters(new HttpExceptionFilter(logger));
-
-  /**
-   * Global validation
-   */
 
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: false,
-      disableErrorMessages: process.env.NODE_ENV === 'production',
+      forbidNonWhitelisted: true,
+      transformOptions: { enableImplicitConversion: true },
+      disableErrorMessages:
+        config.get<string>('app.environment') === 'production',
     }),
   );
-
-  /**
-   * Global HTTP metrics + request logging interceptor
-   * */
 
   const metricsService = app.get(MetricsService);
   app.useGlobalInterceptors(new HttpMetricsInterceptor(metricsService, logger));
 
-  /**
-   * Global audit logging interceptor
-   * Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
-   */
-
-  const auditLoggingInterceptor = app.get(AuditLoggingInterceptor);
-  app.useGlobalInterceptors(auditLoggingInterceptor);
-
-  /**
-   * Global audit logging interceptor
-   * Logs all HTTP requests asynchronously via audit-queue (batched every 3s)
-   * SAFETY NET: If a future project doesn't use the AuditModule, this won't crash the app.
-   */
-  
-  try {
-    const auditLoggingInterceptor = app.get(AuditLoggingInterceptor);
-    app.useGlobalInterceptors(auditLoggingInterceptor);
-  } catch (error) {
-    logger.warn('AuditLoggingInterceptor not found. Skipping global audit logging.', {
-      context: 'Bootstrap',
-    });
-  }
-
-  /**
-   * CORS configuration
-   */
-
-  const allowedOrigins = process.env.CORS_ORIGINS
-    ? process.env.CORS_ORIGINS.split(',')
-    : ['http://localhost'];
+  const allowedOrigins = config.get<string[]>('app.corsOrigins', [
+    'http://localhost:3000',
+  ]);
 
   app.enableCors({
-    origin: (origin, callback) => {
-
-      /**
-       * allow requests with no origin (like Postman)
-       * */
-
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) {
+    origin: (origin: string | undefined, callback: CorsOriginCallback) => {
+      if (!origin) {
         callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        return;
       }
+      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`Origin ${origin} not allowed by CORS`), false);
     },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 
-  /**
-   * Graceful shutdown
-   * */
+  if (config.get<string>('app.environment') !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle(config.get<string>('app.name', 'API'))
+      .setDescription('Reusable NestJS API scaffold')
+      .setVersion(process.env.npm_package_version || '1.0.0')
+      .addBearerAuth()
+      .build();
+
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   app.enableShutdownHooks();
 
-  const port = process.env.PORT ?? 3000;
+  const port = config.get<number>('app.port', 3000);
   await app.listen(port);
 
-  logger.log(`API running on port ${port}`, {
+  logger.log(`API listening on port ${port}`, {
     port,
-    nodeEnv: process.env.NODE_ENV,
-    metricsUrl: `/metrics`,
+    environment: config.get<string>('app.environment'),
+    orm: config.get<string>('orm.type'),
+    docs:
+      config.get<string>('app.environment') !== 'production'
+        ? '/api/docs'
+        : undefined,
   });
 }
 
-bootstrap().catch((err) => {
+bootstrap().catch((err: unknown) => {
   console.error('Bootstrap failed:', err);
   process.exit(1);
 });

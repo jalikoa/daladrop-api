@@ -3,9 +3,9 @@ import { ConfigModule } from '../config.module';
 import { ConfigService } from '@nestjs/config';
 
 /**
- * Unit Tests for ConfigModule
- * 
- * Verifies that the NestJS module correctly initializes the 
+ * Unit Tests for ConfigModule.
+ *
+ * Verifies that the NestJS module correctly initialises the
  * underlying @nestjs/config module and exports it globally.
  */
 describe('ConfigModule', () => {
@@ -13,10 +13,6 @@ describe('ConfigModule', () => {
   let configService: ConfigService;
 
   beforeEach(async () => {
-    /**
-     * Mock environment variables before compiling the module 
-     * to ensure the validation factory receives valid data.
-     */
     process.env.NODE_ENV = 'test';
     process.env.PORT = '3000';
     process.env.DB_TYPE = 'postgres';
@@ -33,7 +29,7 @@ describe('ConfigModule', () => {
     process.env.ORM_TYPE = 'prisma';
 
     module = await Test.createTestingModule({
-      imports: [ConfigModule],
+      imports: [ConfigModule.forRoot({ isGlobal: true })],
     }).compile();
 
     configService = module.get<ConfigService>(ConfigService);
@@ -49,7 +45,7 @@ describe('ConfigModule', () => {
 
   it('should load custom configuration via ConfigService', () => {
     const appConfig = configService.get('app');
-    
+
     expect(appConfig).toBeDefined();
     expect(appConfig?.port).toBe(3000);
     expect(appConfig?.environment).toBe('test');

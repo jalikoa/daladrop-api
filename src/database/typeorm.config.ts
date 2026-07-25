@@ -1,52 +1,46 @@
-import { DataSource } from 'typeorm';
-import { config } from 'dotenv';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import { config as loadEnv } from 'dotenv';
 
 /**
- * Load environment variables from .env file.
- * This is required because TypeORM CLI runs this file directly,
- * bypassing NestJS's ConfigModule initialization.
+ * Load environment variables from .env.
+ * Required because the TypeORM CLI executes this file directly,
+ * bypassing NestJS ConfigModule initialisation.
  */
-config();
+loadEnv();
 
-export const AppDataSource = new DataSource({
-  /**
-   * Database type
-   * Supports 'postgres', 'mysql', 'sqlite', etc.
-   * Driven by environment variables for maximum flexibility.
-   */
-  type: (process.env.DB_TYPE as any) || 'postgres',
-
-  /**
-   * Database connection credentials
-   * Defaults provided for local dev, but always overridden by .env in real environments.
-   */
+/**
+ * Shared TypeORM DataSource options.
+ * Used by both the NestJS runtime (via DatabaseModule) and the TypeORM CLI
+ * (via `src/data-source.ts` re-export).
+ */
+export const typeOrmDataSourceOptions: DataSourceOptions = {
+  type: (process.env.DB_TYPE as 'postgres' | 'mysql' | 'sqlite') || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432', 10),
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'hms_db',
+  database: process.env.DB_NAME || 'app_db',
 
   /**
-   * Entity and Migration paths
-   * Using glob patterns ensures new modules and migrations are 
-   * automatically picked up by TypeORM without requiring manual file edits.
+   * Glob patterns so new module entities and migrations are picked up
+   * automatically without editing this file.
    */
   entities: [__dirname + '/../modules/**/entities/*{.js,.ts}'],
   migrations: [__dirname + '/migrations/**/*{.js,.ts}'],
 
   /**
-   * Migration and Sync settings
-   * synchronize MUST be false to prevent accidental schema destruction.
-   * migrationsRun is false to ensure migrations are executed explicitly 
-   * via CLI (e.g., npm run migration:run) for safe, version-controlled deployments.
+   * synchronize MUST stay false — schema changes go through migrations.
+   * migrationsRun is false so deploys run migrations explicitly via CLI.
    */
   synchronize: false,
   migrationsRun: false,
 
-  /**
-   * Logging configuration
-   * Enable SQL logging only in non-production environments to reduce 
-   * noise and prevent sensitive data exposure in production logs.
-   */
   logging: process.env.NODE_ENV !== 'production',
-});
+};
+
+/**
+ * CLI / programmatic DataSource instance.
+ * Referenced by package.json scripts:
+ *   npm run migration:run   → typeorm migration:run -d src/data-source.ts
+ */
+export const AppDataSource = new DataSource(typeOrmDataSourceOptions);

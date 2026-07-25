@@ -6,17 +6,13 @@ describe('AppController', () => {
   let appController: AppController;
   let appService: AppService;
 
-  /**
-   * Mock implementation of AppService to isolate the controller 
-   * from the actual service logic during unit testing.
-   */
   const mockAppService = {
     getApiInfo: jest.fn().mockReturnValue({
-      name: 'API',
+      name: 'api',
       version: '1.0.0',
       environment: 'test',
       status: 'operational',
-      timestamp: '2026-07-23T12:00:00.000Z',
+      timestamp: '2026-07-25T12:00:00.000Z',
     }),
   };
 
@@ -33,6 +29,7 @@ describe('AppController', () => {
 
     appController = app.get<AppController>(AppController);
     appService = app.get<AppService>(AppService);
+    jest.clearAllMocks();
   });
 
   describe('root', () => {
@@ -43,13 +40,13 @@ describe('AppController', () => {
 
     it('should return the API info object provided by AppService', () => {
       const result = appController.getApiInfo();
-      
+
       expect(result).toEqual({
-        name: 'HMS API',
+        name: 'api',
         version: '1.0.0',
         environment: 'test',
         status: 'operational',
-        timestamp: '2026-07-23T12:00:00.000Z',
+        timestamp: '2026-07-25T12:00:00.000Z',
       });
     });
   });

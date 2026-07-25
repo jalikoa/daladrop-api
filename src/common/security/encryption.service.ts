@@ -1,131 +1,178 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomBytes, createCipheriv, createDecipheriv, scryptSync } from 'crypto';
+import {
+  randomBytes,
+  createCipheriv,
+  createDecipheriv,
+  scryptSync,
+} from 'crypto';
 
 /**
- * Secure Encryption Service
- * 
- * Provides AES-256-CBC encryption and decryption for sensitive payloads.
- * Uses Node's native crypto module for optimal performance and security,
- * eliminating the need for third-party libraries like crypto-js.
+ * Secure Encryption Service.
+ *
+ * Provides versioned AES-256-GCM authenticated encryption for sensitive
+ * payloads using Node's native `crypto` module (no third-party crypto libs).
+ *
+ * Wire format (base64url, delimited):
+ *   v1.<iv>.<authTag>.<ciphertext>
+ * where IV is 12 bytes and authTag is 16 bytes.
+ *
+ * Decryption is authenticated by GCM: `setAuthTag` + `final()` reject
+ * tampered ciphertext/tag without returning partial plaintext.
  */
 @Injectable()
 export class EncryptionService {
   private readonly logger = new Logger(EncryptionService.name);
   private readonly key: Buffer;
-  private readonly algorithm = 'aes-256-cbc';
+  private readonly algorithm = 'aes-256-gcm' as const;
+
+  private static readonly VERSION = 'v1';
+  private static readonly IV_LENGTH = 12;
+  private static readonly AUTH_TAG_LENGTH = 16;
+  private static readonly PARTS = 4;
+
+  /** Static salt used only when deriving a 32-byte key from a shorter secret. */
+  private static readonly KEY_DERIVATION_SALT = 'api-encryption-salt-v1';
 
   constructor(private readonly configService: ConfigService) {
-    /**
-     * Retrieve the encryption key from environment variables.
-     * Checks multiple naming conventions for maximum compatibility.
-     */
-    const rawKey = 
+    const rawKey =
       this.configService.get<string>('ENCRYPTION_SECRET_KEY') ||
-      this.configService.get<string>('encryption.secretKey') ||
-      process.env.ENCRYPTION_SECRET_KEY;
+      this.configService.get<string>('encryption.secretKey');
 
     if (!rawKey) {
       this.logger.error('Encryption secret key not found in configuration');
-      throw new BadRequestException('Encryption key not configured');
+      throw new InternalServerErrorException('Encryption key not configured');
     }
 
     const trimmedKey = rawKey.trim();
 
     /**
-     * AES-256 strictly requires a 32-byte (256-bit) key.
-     * If the provided key is exactly 32 characters, we use it directly.
-     * Otherwise, we cryptographically derive a secure 32-byte key using scrypt.
-     * This prevents application crashes while maintaining strong security.
+     * AES-256 requires a 32-byte key. If the provided secret is exactly 32
+     * characters it is used directly; otherwise a secure key is derived via
+     * scrypt so the service still boots without crashing.
      */
     if (trimmedKey.length === 32) {
       this.key = Buffer.from(trimmedKey, 'utf8');
     } else {
-      this.logger.warn('Provided key is not 32 bytes. Deriving a secure 32-byte key using scrypt.');
-      this.key = scryptSync(trimmedKey, 'hms-encryption-salt-v1', 32);
+      this.logger.warn(
+        'Provided encryption key is not 32 bytes; deriving a secure key via scrypt',
+      );
+      this.key = scryptSync(
+        trimmedKey,
+        EncryptionService.KEY_DERIVATION_SALT,
+        32,
+      );
     }
 
-    this.logger.log('Encryption service initialized successfully');
+    this.logger.log('Encryption service initialised');
   }
 
   /**
-   * Encrypts a string payload and returns it as a hex-encoded string.
-   * 
-   * A random 16-byte Initialization Vector (IV) is generated for each 
-   * encryption to ensure semantic security (identical plaintexts yield 
-   * different ciphertexts). The IV is prepended to the ciphertext.
+   * Encrypts a UTF-8 string and returns a versioned GCM payload.
    */
   encryptPayload(data: string): string {
     try {
-      const iv = randomBytes(16);
+      const iv = randomBytes(EncryptionService.IV_LENGTH);
       const cipher = createCipheriv(this.algorithm, this.key, iv);
-      
-      let encrypted = cipher.update(data, 'utf8', 'hex');
-      encrypted += cipher.final('hex');
 
-      /**
-       * Prepend the IV to the ciphertext. The IV is not secret, but must 
-       * be unique per encryption. Storing it alongside the ciphertext is standard.
-       */
-      return iv.toString('hex') + encrypted;
-    } catch (error: any) {
-      this.logger.error('Encryption failed', { error: error.message });
+      const ciphertext = Buffer.concat([
+        cipher.update(data, 'utf8'),
+        cipher.final(),
+      ]);
+      const authTag = cipher.getAuthTag();
+
+      return [
+        EncryptionService.VERSION,
+        toBase64Url(iv),
+        toBase64Url(authTag),
+        toBase64Url(ciphertext),
+      ].join('.');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.error('Encryption failed', { error: message });
       throw new BadRequestException('Failed to encrypt payload');
     }
   }
 
   /**
-   * Decrypts a hex-encoded string payload back to its original string form.
-   * 
-   * Extracts the 16-byte IV from the beginning of the payload before 
-   * attempting decryption.
+   * Decrypts a versioned GCM payload back to its original UTF-8 string.
+   * Tampered, truncated, or unknown-version payloads are rejected uniformly.
    */
-  decryptPayload(encryptedHex: string): string {
-    if (!encryptedHex || typeof encryptedHex !== 'string') {
-      this.logger.warn('decryptPayload called with invalid token');
+  decryptPayload(encrypted: string): string {
+    if (!encrypted || typeof encrypted !== 'string') {
       throw new BadRequestException('Invalid encrypted token');
     }
 
     try {
-      /**
-       * Extract the 16-byte (32 hex characters) IV from the beginning.
-       */
-      const ivHex = encryptedHex.slice(0, 32);
-      const ciphertextHex = encryptedHex.slice(32);
-
-      if (ivHex.length !== 32) {
-        throw new Error('Invalid encrypted payload: missing or truncated IV');
+      const parts = encrypted.split('.');
+      if (parts.length !== EncryptionService.PARTS) {
+        throw new Error('invalid structure');
       }
 
-      const iv = Buffer.from(ivHex, 'hex');
+      const [version, ivPart, tagPart, ciphertextPart] = parts;
+      if (version !== EncryptionService.VERSION) {
+        throw new Error('unknown version');
+      }
+
+      const iv = fromBase64Url(ivPart);
+      const authTag = fromBase64Url(tagPart);
+      const ciphertext = fromBase64Url(ciphertextPart);
+
+      if (
+        iv.length !== EncryptionService.IV_LENGTH ||
+        authTag.length !== EncryptionService.AUTH_TAG_LENGTH
+      ) {
+        throw new Error('invalid lengths');
+      }
+
       const decipher = createDecipheriv(this.algorithm, this.key, iv);
+      decipher.setAuthTag(authTag);
 
-      let decrypted = decipher.update(ciphertextHex, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
+      const decrypted = Buffer.concat([
+        decipher.update(ciphertext),
+        decipher.final(),
+      ]);
 
-      return decrypted;
-    } catch (error: any) {
-      this.logger.error('Decryption failed', {
-        error: error.message,
-        tokenPreview: encryptedHex.slice(0, 30),
-      });
+      return decrypted.toString('utf8');
+    } catch {
       throw new BadRequestException('Invalid or corrupted encrypted token');
     }
   }
 
   /**
-   * Decrypts a hex-encoded payload and parses it as a JSON object.
-   * Useful for structured data like payment sessions, user claims, or configs.
+   * Decrypts a payload and parses it as JSON.
    */
-  parsePayload(encryptedHex: string): Record<string, unknown> {
+  parsePayload(encrypted: string): Record<string, unknown> {
     try {
-      const decryptedString = this.decryptPayload(encryptedHex);
-      return JSON.parse(decryptedString);
-    } catch (error: any) {
-      this.logger.error('Parsing decrypted payload failed', {
-        error: error.message,
-      });
+      const decryptedString = this.decryptPayload(encrypted);
+      return JSON.parse(decryptedString) as Record<string, unknown>;
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       throw new BadRequestException('Invalid payload format after decryption');
     }
   }
+}
+
+function toBase64Url(buffer: Buffer): string {
+  return buffer
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
+
+function fromBase64Url(value: string): Buffer {
+  if (!/^[A-Za-z0-9_-]*$/.test(value)) {
+    throw new Error('invalid encoding');
+  }
+  const padded = value + '='.repeat((4 - (value.length % 4)) % 4);
+  const base64 = padded.replace(/-/g, '+').replace(/_/g, '/');
+  return Buffer.from(base64, 'base64');
 }

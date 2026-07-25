@@ -1,19 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { HttpExceptionFilter } from '../http-exception.filter';
-import { AppLogger } from 'src/modules/logger/logger.service';
+import type { AppLoggerPort } from '../../logging/app-logger.port';
 
 /**
  * Unit Tests for HttpExceptionFilter
- * 
- * This suite ensures that all HTTP exceptions and unknown errors are 
- * correctly caught, logged with the appropriate severity, and returned 
+ *
+ * This suite ensures that all HTTP exceptions and unknown errors are
+ * correctly caught, logged with the appropriate severity, and returned
  * to the client in a standardized JSON format.
  */
 describe('HttpExceptionFilter - Unit Tests', () => {
   let filter: HttpExceptionFilter;
-  let mockLogger: Partial<AppLogger>;
+  let mockLogger: Partial<AppLoggerPort>;
   let mockResponse: Partial<Response>;
   let mockRequest: Partial<Request>;
   let mockHost: any;
@@ -64,7 +63,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
       }),
     };
 
-    filter = new HttpExceptionFilter(mockLogger as AppLogger);
+    filter = new HttpExceptionFilter(mockLogger as AppLoggerPort);
   });
 
   /**
@@ -72,13 +71,16 @@ describe('HttpExceptionFilter - Unit Tests', () => {
    */
   describe('catch() - HttpException handling', () => {
     /**
-     * Verifies that a 400 Bad Request is handled, logged as a warning, 
+     * Verifies that a 400 Bad Request is handled, logged as a warning,
      * and returned with the correct status and message.
      */
     it('should handle BadRequestException (400)', () => {
-      const exception = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
+      const exception = new HttpException(
+        'Bad Request',
+        HttpStatus.BAD_REQUEST,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(400);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -96,9 +98,12 @@ describe('HttpExceptionFilter - Unit Tests', () => {
      * Verifies that a 401 Unauthorized exception is processed correctly.
      */
     it('should handle UnauthorizedException (401)', () => {
-      const exception = new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      const exception = new HttpException(
+        'Unauthorized',
+        HttpStatus.UNAUTHORIZED,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(401);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -112,7 +117,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should handle ForbiddenException (403)', () => {
       const exception = new HttpException('Forbidden', HttpStatus.FORBIDDEN);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(403);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -126,7 +131,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should handle NotFoundException (404)', () => {
       const exception = new HttpException('Not Found', HttpStatus.NOT_FOUND);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(404);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -135,13 +140,16 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     });
 
     /**
-     * Verifies that a 500 Internal Server Error is logged as an error 
+     * Verifies that a 500 Internal Server Error is logged as an error
      * rather than a warning, and returned correctly.
      */
     it('should handle InternalServerErrorException (500)', () => {
-      const exception = new HttpException('Internal Error', HttpStatus.INTERNAL_SERVER_ERROR);
+      const exception = new HttpException(
+        'Internal Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -157,7 +165,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should handle ConflictException (409)', () => {
       const exception = new HttpException('Conflict', HttpStatus.CONFLICT);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(409);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -169,13 +177,19 @@ describe('HttpExceptionFilter - Unit Tests', () => {
      * Verifies that a 422 Unprocessable Entity exception is processed correctly.
      */
     it('should handle UnprocessableEntityException (422)', () => {
-      const exception = new HttpException('Unprocessable Entity', HttpStatus.UNPROCESSABLE_ENTITY);
+      const exception = new HttpException(
+        'Unprocessable Entity',
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(422);
       expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({ statusCode: 422, message: 'Unprocessable Entity' }),
+        expect.objectContaining({
+          statusCode: 422,
+          message: 'Unprocessable Entity',
+        }),
       );
     });
 
@@ -183,13 +197,19 @@ describe('HttpExceptionFilter - Unit Tests', () => {
      * Verifies that a 429 Too Many Requests exception is processed correctly.
      */
     it('should handle TooManyRequestsException (429)', () => {
-      const exception = new HttpException('Too Many Requests', HttpStatus.TOO_MANY_REQUESTS);
+      const exception = new HttpException(
+        'Too Many Requests',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(429);
       expect(mockResponse.json).toHaveBeenCalledWith(
-        expect.objectContaining({ statusCode: 429, message: 'Too Many Requests' }),
+        expect.objectContaining({
+          statusCode: 429,
+          message: 'Too Many Requests',
+        }),
       );
     });
   });
@@ -199,13 +219,13 @@ describe('HttpExceptionFilter - Unit Tests', () => {
    */
   describe('catch() - Non-HttpException errors', () => {
     /**
-     * Verifies that standard JavaScript Error objects are caught, 
+     * Verifies that standard JavaScript Error objects are caught,
      * defaulted to a 500 status, and logged as errors.
      */
     it('should handle generic Error objects', () => {
       const exception = new Error('Something went wrong');
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -218,13 +238,13 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     });
 
     /**
-     * Verifies that completely unknown objects (not Error, not HttpException) 
+     * Verifies that completely unknown objects (not Error, not HttpException)
      * fallback to a generic "Internal server error" message to prevent data leaks.
      */
     it('should handle non-Error objects with a fallback message', () => {
       const exception = { message: 'Unknown error' };
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).toHaveBeenCalledWith(500);
       expect(mockResponse.json).toHaveBeenCalledWith(
@@ -242,7 +262,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
       const exception = new Error('Test error');
       exception.stack = 'Error: Test error\n    at test.js:1:1';
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockLogger.error).toHaveBeenCalledWith(
         expect.any(String),
@@ -257,14 +277,14 @@ describe('HttpExceptionFilter - Unit Tests', () => {
    */
   describe('catch() - Response handling', () => {
     /**
-     * Verifies the critical safety check: if headers are already sent, 
+     * Verifies the critical safety check: if headers are already sent,
      * the filter must not attempt to send another response, preventing crashes.
      */
     it('should not send response if headers already sent', () => {
       (mockResponse as any).headersSent = true;
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.status).not.toHaveBeenCalled();
       expect(mockResponse.json).not.toHaveBeenCalled();
@@ -276,11 +296,13 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should include timestamp in response', () => {
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       const response = (mockResponse.json as jest.Mock).mock.calls[0][0];
       expect(response.timestamp).toBeDefined();
-      expect(new Date(response.timestamp).toISOString()).toBe(response.timestamp);
+      expect(new Date(response.timestamp).toISOString()).toBe(
+        response.timestamp,
+      );
     });
 
     /**
@@ -289,7 +311,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should include path in response', () => {
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       const response = (mockResponse.json as jest.Mock).mock.calls[0][0];
       expect(response.path).toBe('/api/test');
@@ -301,7 +323,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should include requestId in the JSON response', () => {
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       const response = (mockResponse.json as jest.Mock).mock.calls[0][0];
       expect(response.requestId).toBe('test-request-id-123');
@@ -313,13 +335,16 @@ describe('HttpExceptionFilter - Unit Tests', () => {
    */
   describe('Logging behavior', () => {
     /**
-     * Verifies that 4xx client errors are logged as warnings, 
+     * Verifies that 4xx client errors are logged as warnings,
      * keeping error monitoring tools clean from expected user mistakes.
      */
     it('should log client errors (4xx) as warnings', () => {
-      const exception = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
+      const exception = new HttpException(
+        'Bad Request',
+        HttpStatus.BAD_REQUEST,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockLogger.warn).toHaveBeenCalled();
       expect(mockLogger.error).not.toHaveBeenCalled();
@@ -329,9 +354,12 @@ describe('HttpExceptionFilter - Unit Tests', () => {
      * Verifies that 5xx server errors are logged as errors.
      */
     it('should log server errors (5xx) as errors', () => {
-      const exception = new HttpException('Internal Error', HttpStatus.INTERNAL_SERVER_ERROR);
+      const exception = new HttpException(
+        'Internal Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockLogger.error).toHaveBeenCalled();
     });
@@ -342,7 +370,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should include request method and route in log data', () => {
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.any(String),
@@ -359,7 +387,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     it('should include request ID in log data', () => {
       const exception = new HttpException('Test', HttpStatus.BAD_REQUEST);
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.any(String),
@@ -375,7 +403,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
    */
   describe('HttpException with object response', () => {
     /**
-     * Verifies that when an HttpException contains a custom object payload, 
+     * Verifies that when an HttpException contains a custom object payload,
      * the filter correctly extracts and returns the 'message' property.
      */
     it('should extract message from object response', () => {
@@ -384,7 +412,7 @@ describe('HttpExceptionFilter - Unit Tests', () => {
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -394,16 +422,19 @@ describe('HttpExceptionFilter - Unit Tests', () => {
     });
 
     /**
-     * Verifies that validation arrays (common in class-validator) are 
+     * Verifies that validation arrays (common in class-validator) are
      * correctly passed through to the client.
      */
     it('should handle nested message array from validation errors', () => {
       const exception = new HttpException(
-        { message: ['Field is required', 'Field must be a string'], code: 'VALIDATION_ERROR' },
+        {
+          message: ['Field is required', 'Field must be a string'],
+          code: 'VALIDATION_ERROR',
+        },
         HttpStatus.BAD_REQUEST,
       );
 
-      filter.catch(exception, mockHost as any);
+      filter.catch(exception, mockHost);
 
       expect(mockResponse.json).toHaveBeenCalledWith(
         expect.objectContaining({

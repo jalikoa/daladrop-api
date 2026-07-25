@@ -1,17 +1,19 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { AppService } from './app.service';
+import { Public } from './common/decorators/public.decorator';
 
+@ApiTags('Root')
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   /**
-   * Root endpoint handler.
-   * Returns basic API metadata and operational status.
-   * Useful for quick uptime checks, load balancer health probes,
-   * and verifying the active environment without deep inspection.
+   * Root endpoint — API metadata and operational status.
    */
+  @Public()
   @Get()
+  @ApiOperation({ summary: 'API root metadata' })
   getApiInfo() {
     return this.appService.getApiInfo();
   }

@@ -1,25 +1,20 @@
 /**
- * Global Application Configuration Interface
- * 
- * Defines the strict shape of the environment configuration.
- * This ensures type safety and prevents runtime crashes due to 
- * missing or malformed environment variables.
+ * Global Application Configuration Interface.
+ *
+ * Defines the typed shape of environment configuration so NestJS services
+ * receive compile-time safety instead of untyped `process.env` access.
+ * Domain-specific integrations belong in feature modules, not here.
  */
 export interface IConfig {
-  /**
-   * Application-level settings
-   */
   app: {
     port: number;
     environment: string;
     apiUrl: string;
     name: string;
     corsOrigins: string[];
+    globalPrefix: string;
   };
 
-  /**
-   * Database connection settings
-   */
   database: {
     type: string;
     host: string;
@@ -27,71 +22,50 @@ export interface IConfig {
     username: string;
     password: string;
     name: string;
+    /** Prisma connection string (required when ORM_TYPE=prisma). */
+    url?: string;
     synchronize: boolean;
   };
 
-  /**
-   * ORM selection (prisma or typeorm)
-   */
   orm: {
     type: 'prisma' | 'typeorm';
   };
 
-  /**
-   * Redis configuration for BullMQ queues and caching
-   */
   redis: {
     host: string;
     port: number;
     password?: string;
   };
 
-  /**
-   * JSON Web Token settings for authentication
-   */
   jwt: {
     secret: string;
     expiration: string;
   };
 
-  /**
-   * Cryptographic settings for sensitive data encryption
-   */
   encryption: {
     secretKey: string;
   };
 
   /**
-   * Safaricom Daraja (M-Pesa) API credentials
+   * Optional generic external API credentials.
+   * Add provider-specific blocks in feature modules as needed.
    */
-  daraja: {
-    consumerKey: string;
-    consumerSecret: string;
-    paybill: string;
-    passkey: string;
+  externalService: {
+    apiKey: string;
+    apiSecret: string;
+    baseUrl: string;
     callbackUrl: string;
   };
 
   /**
-   * Africa's Talking API credentials for SMS notifications
+   * Optional push-notification provider credentials (Firebase, OneSignal, etc.).
    */
-  africastalking: {
-    username: string;
-    apiKey: string;
-  };
-
-  /**
-   * Firebase Admin SDK credentials for Push Notifications
-   */
-  firebase: {
+  push: {
     projectId: string;
     clientEmail: string;
     privateKey: string;
   };
 
-  /**
-   * SMTP settings for Email notifications
-   */
   email: {
     host: string;
     port: number;
@@ -101,10 +75,6 @@ export interface IConfig {
     from: string;
   };
 
-  /**
-   * Object storage settings (e.g., Supabase Storage, AWS S3)
-   * Used for patient documents, radiology images, and profile pictures.
-   */
   storage: {
     provider: string;
     bucket: string;
@@ -113,9 +83,6 @@ export interface IConfig {
     secretKey?: string;
   };
 
-  /**
-   * Observability and logging settings
-   */
   observability: {
     logLevel: string;
     elasticsearch: {

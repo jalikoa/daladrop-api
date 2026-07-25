@@ -1,20 +1,19 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ExecutionContext, HttpStatus, HttpException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { HttpMetricsInterceptor } from '../http-metrics.interceptor';
-import { AppLogger } from 'src/modules/logger/logger.service';
-import { MetricsService } from 'src/modules/metrics/metrics.service';
+import type { AppLoggerPort } from '../../logging/app-logger.port';
+import type { HttpMetricsPort } from '../../metrics/http-metrics.port';
 
 /**
  * Unit Tests for HttpMetricsInterceptor
- * 
+ *
  * This suite ensures that the interceptor correctly records Prometheus metrics
  * and logs requests, handling both successful responses and errors gracefully.
  */
 describe('HttpMetricsInterceptor - Unit Tests', () => {
   let interceptor: HttpMetricsInterceptor;
-  let mockMetrics: Partial<MetricsService>;
-  let mockLogger: Partial<AppLogger>;
+  let mockMetrics: Partial<HttpMetricsPort>;
+  let mockLogger: Partial<AppLoggerPort>;
   let mockExecutionContext: Partial<ExecutionContext>;
   let mockCallHandler: any;
   let mockRequest: any;
@@ -65,15 +64,18 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       httpErrorsTotal: {
         inc: jest.fn(),
       },
-    } as any;
+    };
 
     mockLogger = {
       logRequest: jest.fn(),
       error: jest.fn(),
       setContext: jest.fn(),
-    } as any;
+    };
 
-    interceptor = new HttpMetricsInterceptor(mockMetrics as MetricsService, mockLogger as AppLogger);
+    interceptor = new HttpMetricsInterceptor(
+      mockMetrics as HttpMetricsPort,
+      mockLogger as AppLoggerPort,
+    );
   });
 
   /**
@@ -81,17 +83,27 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
    */
   describe('intercept() - Successful requests', () => {
     it('should increment in-flight counter on request start', () => {
-      interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
-      expect(mockMetrics.httpRequestsInFlight.inc).toHaveBeenCalledWith({ method: 'GET' });
+      expect(mockMetrics.httpRequestsInFlight.inc).toHaveBeenCalledWith({
+        method: 'GET',
+      });
     });
 
     it('should decrement in-flight counter and record metrics on request complete', (done) => {
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
-          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({ method: 'GET' });
+          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({
+            method: 'GET',
+          });
           expect(mockMetrics.httpRequestsTotal.inc).toHaveBeenCalledWith({
             method: 'GET',
             route: '/api/test',
@@ -107,7 +119,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     });
 
     it('should log successful request with correct context', (done) => {
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -135,16 +150,21 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       const error = new Error('Test error');
       mockCallHandler.handle.mockReturnValue(throwError(() => error));
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         error: (err) => {
           /**
-           * Verify that the error is re-thrown so the Global Exception Filter 
+           * Verify that the error is re-thrown so the Global Exception Filter
            * can still catch it and format the response.
            */
           expect(err).toBe(error);
-          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({ method: 'GET' });
+          expect(mockMetrics.httpRequestsInFlight.dec).toHaveBeenCalledWith({
+            method: 'GET',
+          });
           expect(mockMetrics.httpErrorsTotal.inc).toHaveBeenCalledWith({
             method: 'GET',
             route: '/api/test',
@@ -160,7 +180,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       const error = new HttpException('Bad Request', HttpStatus.BAD_REQUEST);
       mockCallHandler.handle.mockReturnValue(throwError(() => error));
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         error: () => {
@@ -183,7 +206,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       mockRequest.route = { path: '/api/users/123' };
       mockRequest.url = '/api/users/123';
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -200,7 +226,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       mockRequest.route = { path: `/api/users/uuid/${uuid}` };
       mockRequest.url = `/api/users/uuid/${uuid}`;
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -216,7 +245,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       mockRequest.route = { path: '/api/test' };
       mockRequest.url = '/api/test?page=1&limit=10';
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -237,7 +269,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       mockRequest.url = '/metrics';
       mockRequest.route = { path: '/metrics' };
 
-      interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       expect(mockMetrics.httpRequestsInFlight.inc).not.toHaveBeenCalled();
       expect(mockLogger.logRequest).not.toHaveBeenCalled();
@@ -246,7 +281,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     it('should handle requests with authenticated user', (done) => {
       mockRequest.user = { id: 123, email: 'user@example.com' };
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -261,7 +299,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
     it('should handle requests without x-request-id header', (done) => {
       mockRequest.headers = { 'user-agent': 'Mozilla/5.0' };
 
-      const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+      const result = interceptor.intercept(
+        mockExecutionContext as ExecutionContext,
+        mockCallHandler,
+      );
 
       result.subscribe({
         complete: () => {
@@ -285,7 +326,10 @@ describe('HttpMetricsInterceptor - Unit Tests', () => {
       it(`should increment error counter for ${code} status`, (done) => {
         mockResponse.statusCode = code;
 
-        const result = interceptor.intercept(mockExecutionContext as ExecutionContext, mockCallHandler);
+        const result = interceptor.intercept(
+          mockExecutionContext as ExecutionContext,
+          mockCallHandler,
+        );
 
         result.subscribe({
           complete: () => {

@@ -7,19 +7,16 @@ export class AppService {
 
   /**
    * Returns basic API metadata and operational status.
-   * Useful for quick uptime checks, load balancer health probes, 
-   * and verifying the active environment without deep inspection.
+   * Useful for quick uptime checks and verifying the active environment.
    */
   getApiInfo() {
     return {
-
-      /**
-       * Replace API with your actual project name and version with your current version.
-       * */
-
-      name: 'API',
-      version: '1.0.0',
-      environment: this.configService.get('NODE_ENV', 'development'),
+      name: this.configService.get<string>('app.name', 'api'),
+      version: process.env.npm_package_version || '1.0.0',
+      environment: this.configService.get<string>(
+        'app.environment',
+        'development',
+      ),
       status: 'operational',
       timestamp: new Date().toISOString(),
     };

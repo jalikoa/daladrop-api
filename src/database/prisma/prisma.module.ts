@@ -2,23 +2,17 @@ import { Global, Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
 /**
- * Prisma Module
- * 
- * Global module that provides PrismaService across the entire application.
- * This module is only imported when ORM_TYPE=prisma is set in the environment.
- * 
- * The @Global() decorator ensures that PrismaService can be injected into 
- * any provider without needing to import PrismaModule in every feature module.
- * 
- * Usage in feature modules:
+ * Prisma Module.
+ *
+ * Global provider for {@link PrismaService}. Imported automatically by
+ * {@link DatabaseModule} when `ORM_TYPE=prisma`.
+ *
+ * Feature modules can inject PrismaService without re-importing this module:
+ *
  * ```typescript
  * @Injectable()
- * export class PatientService {
- *   constructor(private prisma: PrismaService) {}
- *   
- *   async findAll() {
- *     return this.prisma.patient.findMany();
- *   }
+ * export class ResourcesService {
+ *   constructor(private readonly prisma: PrismaService) {}
  * }
  * ```
  */
