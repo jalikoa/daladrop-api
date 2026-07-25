@@ -8,7 +8,7 @@
 #   bash scripts/test-local.sh           # unit + coverage
 #   bash scripts/test-local.sh --e2e     # unit + e2e (needs Docker)
 #   bash scripts/test-local.sh --watch   # unit in watch mode
-#   bash scripts/test-local.sh --module payments  # single module
+#   bash scripts/test-local.sh --module users    # single module
 #   bash scripts/test-local.sh --help
 ################################################################################
 
@@ -39,10 +39,10 @@ while [[ $# -gt 0 ]]; do
     --help)
       echo "Usage: bash scripts/test-local.sh [--e2e] [--watch] [--no-cov] [--module <name>]"
       echo ""
-      echo "  --e2e           Also run E2E tests (requires Docker with MySQL + Redis)"
+      echo "  --e2e           Also run E2E tests (requires Docker with PostgreSQL + Redis)"
       echo "  --watch         Run unit tests in watch mode"
       echo "  --no-cov        Skip coverage report"
-      echo "  --module NAME   Run tests for a single module (e.g. payments, auth, nfc)"
+      echo "  --module NAME   Run tests for a single module (e.g. auth, users)"
       exit 0
       ;;
     *) fail "Unknown argument: $1" ;;
@@ -54,29 +54,24 @@ command -v node &>/dev/null || fail "node is not installed"
 command -v npm  &>/dev/null || fail "npm is not installed"
 [[ -f package.json ]]       || fail "Run from the project root (no package.json found)"
 
-# ── Test environment variables ────────────────────────────────────────────────
+# ── Test environment variables (mirror .github/workflows/ci.yml) ─────────────
 export NODE_ENV=test
 export PORT=3000
+export DB_TYPE=postgres
 export DB_HOST=localhost
-export DB_PORT=3306
-export DB_USERNAME=nfc_user
-export DB_PASSWORD=nfc_test_pass
-export DB_NAME=nfc_test_db
+export DB_PORT=5432
+export DB_USERNAME=app_user
+export DB_PASSWORD=app_test_pass
+export DB_NAME=app_test_db
+export DATABASE_URL="postgresql://app_user:app_test_pass@localhost:5432/app_test_db?schema=public"
 export REDIS_HOST=localhost
 export REDIS_PORT=6379
 export JWT_SECRET="test-jwt-secret-32-chars-minimum!"
 export JWT_EXPIRATION=1d
-export NFC_SECRET_KEY="testkey1234567890123456789012AB"
-export DARAJA_CONSUMER_KEY=test_key
-export DARAJA_CONSUMER_SECRET=test_secret
-export DARAJA_PAYBILL="123456"
-export DARAJA_PASSKEY=test_passkey
-export DARAJA_ENV=sandbox
-export AFRICASTALKING_USERNAME=sandbox
-export AFRICASTALKING_API_KEY=test_key
-export FIREBASE_PROJECT_ID=test-project
-export FIREBASE_CLIENT_EMAIL=test@test.iam.gserviceaccount.com
-export FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIItest\n-----END PRIVATE KEY-----\n"
+export ENCRYPTION_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456"
+# Generic placeholders for any third-party integrations your modules require.
+export EXTERNAL_SERVICE_API_KEY=test_key
+export EXTERNAL_SERVICE_API_SECRET=test_secret
 export PUBLIC_URL="http://localhost:3000"
 # Leave these blank so no real ES/Logstash connections are attempted during tests
 export ELASTICSEARCH_URL=""
@@ -137,15 +132,15 @@ if [[ "$RUN_E2E" == "true" ]]; then
 
   command -v docker &>/dev/null || fail "Docker is not installed — needed for E2E tests"
 
-  # Start MySQL + Redis if not running
-  if ! docker compose ps mysql 2>/dev/null | grep -q "running"; then
-    log "Starting MySQL and Redis containers..."
-    docker compose up mysql redis -d
+  # Start PostgreSQL + Redis if not running
+  if ! docker compose ps postgres 2>/dev/null | grep -q "running"; then
+    log "Starting PostgreSQL and Redis containers..."
+    docker compose up postgres redis -d
 
-    log "Waiting for MySQL to be healthy..."
+    log "Waiting for PostgreSQL to be healthy..."
     for i in $(seq 1 30); do
-      if docker compose exec -T mysql healthcheck.sh --connect --innodb_initialized &>/dev/null 2>&1; then
-        echo "  MySQL ready."
+      if docker compose exec -T postgres pg_isready -U "$DB_USERNAME" -d "$DB_NAME" &>/dev/null; then
+        echo "  PostgreSQL ready."
         break
       fi
       echo "  Waiting... ($i/30)"
@@ -153,9 +148,9 @@ if [[ "$RUN_E2E" == "true" ]]; then
     done
 
     log "Running database migrations..."
-    npm run migration:run
+    npx prisma migrate deploy
   else
-    log "MySQL and Redis already running ✓"
+    log "PostgreSQL and Redis already running ✓"
   fi
 
   echo ""

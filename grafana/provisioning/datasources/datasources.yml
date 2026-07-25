@@ -41,7 +41,8 @@ datasources:
       # Enable Grafana Alerting on this datasource
       manageAlerts: true
       prometheusType: Prometheus
-      prometheusVersion: "2.40.0"
+      # Keep in sync with the image tag in docker-compose.observability.yml
+      prometheusVersion: "2.51.2"
     
     # Placeholder for basic auth if Prometheus is secured in production
     # basicAuth: true

@@ -1,1 +1,0 @@
--- Db schema here for the database. This file is executed when the container is first created. It will not be executed on subsequent runs of the container.

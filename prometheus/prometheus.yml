@@ -3,7 +3,13 @@
 #
 # PURPOSE:
 # Core Prometheus configuration. Defines global settings, alerting rule files,
-# and scrape targets for the application and supporting infrastructure.
+# the Alertmanager connection, and scrape targets for the application and
+# supporting infrastructure.
+#
+# NOTE: Prometheus does NOT substitute environment variables inside this file.
+# Values such as external_labels must be literal. Manage per-environment
+# variations with separate config files or a templating step in your deploy
+# pipeline (e.g., envsubst, Helm, Kustomize).
 ################################################################################
 
 global:
@@ -16,15 +22,22 @@ global:
 
   # Attach these labels to any time series or alerts when communicating with
   # external systems (federation, remote storage, Alertmanager).
+  # Set 'environment' per deployment (development/staging/production).
   external_labels:
-    environment: "${PROMETHEUS_ENV:-development}"
-    app: "api"
+    environment: development
+    app: api
 
 # ============================================================================
-# ALERTING RULES
+# ALERTING
 # ============================================================================
 rule_files:
   - "alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
 
 # ============================================================================
 # SCRAPE CONFIGURATIONS
@@ -32,17 +45,20 @@ rule_files:
 scrape_configs:
 
   # --------------------------------------------------------------------------
-  # TARGET 1: The NestJS API
+  # TARGET 1: The API service
   # Exposes metrics via GET /metrics (using prom-client)
   # --------------------------------------------------------------------------
   - job_name: "api"
     static_configs:
-      # Use docker service name (e.g., 'api:3000') in compose, 
+      # Use the docker service name (e.g., 'api:3000') in compose,
       # or 'localhost:3000' if running locally outside docker.
       - targets:
           - "api:3000"
     metrics_path: /metrics
     scrape_interval: 10s
+    # If the application protects /metrics with a bearer token, configure:
+    # authorization:
+    #   credentials_file: /etc/prometheus/secrets/metrics-token
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
@@ -55,7 +71,14 @@ scrape_configs:
       - targets: ["localhost:9090"]
 
   # --------------------------------------------------------------------------
-  # TARGET 3: Grafana Self-Monitoring (Optional)
+  # TARGET 3: Alertmanager Self-Monitoring
+  # --------------------------------------------------------------------------
+  - job_name: "alertmanager"
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  # --------------------------------------------------------------------------
+  # TARGET 4: Grafana Self-Monitoring (Optional)
   # --------------------------------------------------------------------------
   - job_name: "grafana"
     static_configs:
@@ -63,8 +86,8 @@ scrape_configs:
     metrics_path: /metrics
 
   # --------------------------------------------------------------------------
-  # TARGET 4: Node Exporter (Optional but Recommended for Production)
-  # Uncomment and configure if you are running node_exporter to monitor 
+  # TARGET 5: Node Exporter (Optional but Recommended for Production)
+  # Uncomment and configure if you are running node_exporter to monitor
   # host-level metrics (CPU, Memory, Disk I/O, Network).
   # --------------------------------------------------------------------------
   # - job_name: "node"

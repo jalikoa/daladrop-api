@@ -5,9 +5,9 @@
 # Defines Prometheus alerting rules to detect infrastructure issues,
 # application degradation, and runtime anomalies.
 #
-# NOTE: The 'business_logic' group contains generic examples. You should
-# adapt the metric names (e.g., job_failures_total) to match your specific
-# application's custom domain metrics.
+# NOTE: The 'business_logic' group contains generic examples. Adapt the
+# metric names (e.g., job_failures_total) to match your application's
+# custom domain metrics.
 ################################################################################
 
 groups:
@@ -24,6 +24,15 @@ groups:
         annotations:
           summary: "API instance is down"
           description: "The API instance {{ $labels.instance }} has been unreachable for more than 1 minute."
+
+      - alert: MonitoringTargetDown
+        expr: up{job!="api"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Monitoring target is down"
+          description: "The scrape target {{ $labels.job }} ({{ $labels.instance }}) has been unreachable for more than 5 minutes. Observability coverage is degraded."
 
       - alert: HighErrorRate
         expr: |

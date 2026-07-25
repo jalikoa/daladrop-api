@@ -2,54 +2,54 @@
 # filebeat/filebeat.yml
 #
 # PURPOSE:
-# Reads application logs (Winston JSON) and Docker container stdout/stderr,
-# then ships them to Logstash for parsing, enrichment, and forwarding to 
+# Reads application logs (structured JSON) and Docker container stdout/stderr,
+# then ships them to Logstash for parsing, enrichment, and forwarding to
 # Elasticsearch or other observability backends.
 #
 # REQUIREMENTS:
-# - The NestJS application must be configured to write JSON logs to /app/logs/
+# - The application must write newline-delimited JSON logs to /app/logs/
 # - Docker containers must be labeled with 'logging=true' to be captured.
+# - Mount a persistent volume at /usr/share/filebeat/data so the registry
+#   survives restarts (prevents re-shipping and duplicating old logs).
 ################################################################################
 
 filebeat.inputs:
 
   # ============================================================================
-  # INPUT 1: Winston JSON Log Files
+  # INPUT 1: Application JSON Log Files
   # ============================================================================
-  # Reads structured JSON logs written directly by the NestJS Winston logger.
-  - type: log
-    id: api-file-logs
+  # 'filestream' replaces the deprecated 'log' input in Filebeat 8.x.
+  # Parses JSON at the Filebeat level for better performance than doing it
+  # downstream in Logstash.
+  - type: filestream
+    id: service-file-logs
     enabled: true
     paths:
-      # Adjust this path if your Dockerfile mounts logs elsewhere
+      # Adjust this path if your container mounts logs elsewhere
       - /app/logs/combined.log
       - /app/logs/error.log
-    
-    # Parse JSON directly at the Filebeat level for better performance
-    json.keys_under_root: true
-    json.add_error_key: true
-    json.message_key: message
-    
-    # Handle multi-line JSON objects (e.g., stack traces)
-    multiline.type: pattern
-    multiline.pattern: '^\{'
-    multiline.negate: true
-    multiline.match: after
-    
+
+    parsers:
+      # Each line is one JSON document (Winston/pino style ndjson).
+      - ndjson:
+          target: ""
+          add_error_key: true
+          message_key: message
+
     # Add custom metadata to identify the source
     fields:
       log_source: file
-      app: hms-api
+      app: api
     fields_under_root: true
-    
+
     # Resource management
-    close_inactive: 5m
-    scan_frequency: 5s
+    close.on_state_change.inactive: 5m
+    prospector.scanner.check_interval: 5s
 
   # ============================================================================
   # INPUT 2: Docker Container stdout/stderr
   # ============================================================================
-  # Captures logs from the Docker daemon. Acts as a fallback or complement 
+  # Captures logs from the Docker daemon. Acts as a fallback or complement
   # to file-based logging, capturing anything written to console.
   - type: container
     id: docker-container-logs
@@ -57,19 +57,19 @@ filebeat.inputs:
     paths:
       - /var/lib/docker/containers/*/*.log
     stream: all
-    
+
     processors:
       # Enrich with Docker metadata (container name, image, etc.)
       - add_docker_metadata:
           host: unix:///var/run/docker.sock
-      
+
       # Filter: Only collect logs from containers explicitly opted-in
       - drop_event:
           when:
             not:
               equals:
                 docker.container.labels.logging: "true"
-      
+
       # Attempt to parse JSON if the container outputs structured logs
       - decode_json_fields:
           fields: ["message", "log"]
@@ -79,20 +79,23 @@ filebeat.inputs:
 
     fields:
       log_source: docker
-      app: hms-api
+      app: api
     fields_under_root: true
 
 # ============================================================================
 # OUTPUT: Logstash
 # ============================================================================
-# Shipping to Logstash is preferred over direct Elasticsearch output because 
-# Logstash can parse, filter, and enrich logs (e.g., adding geo-ip, masking PII)
-# before they are indexed.
+# Shipping to Logstash is preferred over direct Elasticsearch output because
+# Logstash can parse, filter, and enrich logs (e.g., adding geo-ip, masking
+# sensitive data) before they are indexed.
 output.logstash:
-  hosts: ["${LOGSTASH_URL:-logstash:5044}"]
+  hosts: ["${LOGSTASH_HOSTS:logstash:5044}"]
   bulk_max_size: 2048
   worker: 2
-  
+  # Back-pressure resilience: retry with backoff instead of dropping events.
+  backoff.init: 1s
+  backoff.max: 60s
+
   # Optional: Enable SSL/TLS if Logstash is on a different network/host
   # ssl.enabled: true
   # ssl.certificate_authorities: ["/etc/filebeat/certs/ca.crt"]
@@ -120,14 +123,14 @@ logging.to_syslog: false
 # ============================================================================
 # INTERNAL METRICS
 # ============================================================================
-# Disable internal monitoring to reduce overhead. 
+# Disable internal monitoring to reduce overhead.
 # (Enable only if you are actively debugging Filebeat performance)
 monitoring.enabled: false
 
 # ============================================================================
 # INDEX MANAGEMENT
 # ============================================================================
-# Disable Filebeat's automatic setup. Logstash is responsible for creating 
+# Disable Filebeat's automatic setup. Logstash is responsible for creating
 # the index templates and managing Index Lifecycle Management (ILM).
 setup.ilm.enabled: false
 setup.template.enabled: false
