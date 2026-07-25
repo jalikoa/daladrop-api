@@ -2,113 +2,80 @@
 
 ## Stack overview
 
-| Tool | Role | Port |
+| Tool | Role | Port (localhost) |
 |---|---|---|
 | **Prometheus** | Scrapes `/metrics` every 15 s, evaluates alert rules | 9090 |
+| **Alertmanager** | Routes fired alerts to notification channels | 9093 |
 | **Grafana** | Dashboards for metrics + logs | 3100 |
 | **Elasticsearch** | Stores structured log documents | 9200 |
-| **Logstash** | Receives JSON logs from app, enriches, indexes to ES | 5044 |
+| **Logstash** | Receives JSON logs via Filebeat, enriches, indexes to ES | 5044 (Beats) |
 | **Kibana** | Log explorer, saved searches, Discover | 5601 |
+| **Filebeat** | Ships app log files + container stdout to Logstash | — |
 
----
+All ports bind to `127.0.0.1` only. Put a TLS-terminating reverse proxy with
+authentication in front of anything that must be reachable externally.
 
-## 1. Install npm packages
+## Log flow
+
+```
+Application (port 3000)
+  │
+  ├── GET /metrics ──────────────────► Prometheus (9090)
+  │       (prom-client text format)         │
+  │                                    alert rules
+  │                                         ├──► Alertmanager (9093) ──► Slack/PagerDuty/...
+  │                                         ▼
+  │                                   Grafana (3100)
+  │                                   dashboards + panels
+  │
+  └── JSON log files (/app/logs) ───► Filebeat ──beats──► Logstash (5044)
+                                                             │ parse / ECS-map / redact / geoip
+                                                             ▼
+                                                      Elasticsearch (9200)
+                                                      index: api-logs-YYYY.MM.dd
+                                                             │
+                                                             ▼
+                                                      Kibana (5601) + Grafana logs panels
+```
+
+Direct TCP ingestion into Logstash is disabled (unauthenticated injection risk).
+Ship application logs only via Filebeat on the Beats port (5044).
+
+## 1. Configure the application
+
+The application must write newline-delimited JSON logs to `/app/logs/combined.log`
+and `/app/logs/error.log` (picked up by Filebeat).
+
+Expose Prometheus metrics at `GET /metrics` using `prom-client`. Protect the
+endpoint with a bearer token (`METRICS_TOKEN`) in production.
+
+## 2. Set environment variables
 
 ```bash
-npm install prom-client winston winston-elasticsearch nest-winston @elastic/elasticsearch
-npm install --save-dev @types/winston
+cp .env.observability .env.observability.local   # or edit in place
 ```
 
----
+Required before first start:
 
-## 2. Copy source files into your project
+- `GRAFANA_ADMIN_PASSWORD` — Grafana admin login
+- `KIBANA_ENCRYPTION_KEY` — exactly 32+ random chars (`openssl rand -hex 32`)
+- `ENVIRONMENT` — attached to every log event (development/staging/production)
 
-| File | Destination in your src/ |
-|---|---|
-| `src/common/logger/logger.service.ts` | `src/common/logger/logger.service.ts` |
-| `src/common/logger/logger.module.ts` | `src/common/logger/logger.module.ts` |
-| `src/modules/metrics/metrics.service.ts` | `src/modules/metrics/metrics.service.ts` |
-| `src/modules/metrics/metrics.controller.ts` | `src/modules/metrics/metrics.controller.ts` |
-| `src/modules/metrics/metrics.module.ts` | `src/modules/metrics/metrics.module.ts` |
-| `src/modules/metrics/guards/metrics-auth.guard.ts` | `src/modules/metrics/guards/metrics-auth.guard.ts` |
-| `src/modules/metrics/interceptors/http-metrics.interceptor.ts` | `src/modules/metrics/interceptors/http-metrics.interceptor.ts` |
-| `src/modules/metrics/listeners/payment-metrics.listener.ts` | `src/modules/metrics/listeners/payment-metrics.listener.ts` |
-| `src/modules/metrics/listeners/domain-metrics.listeners.ts` | `src/modules/metrics/listeners/domain-metrics.listeners.ts` |
-| `src/modules/metrics/listeners/auth-metrics.listener.ts` | `src/modules/metrics/listeners/auth-metrics.listener.ts` |
-| `src/main.ts` | Replace `src/main.ts` |
-| `src/app.module.ts` | Replace `src/app.module.ts` |
-
----
-
-## 3. Emit auth events from AuthService
-
-In `src/modules/auth/services/auth.service.ts`, inject `EventEmitter2` and emit after login:
-
-```typescript
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { AUTH_EVENTS } from '../../metrics/listeners/auth-metrics.listener';
-
-// in constructor: private readonly eventEmitter: EventEmitter2
-
-async login(dto: LoginDto) {
-  try {
-    const user = await this.validateUserData(dto.email, dto.password);
-    // ... build tokens ...
-    this.eventEmitter.emit(AUTH_EVENTS.LOGIN_SUCCESS, { userId: user.id, email: user.email });
-    return response;
-  } catch (err) {
-    this.eventEmitter.emit(AUTH_EVENTS.LOGIN_FAILURE, { email: dto.email, reason: err.message });
-    throw err;
-  }
-}
-```
-
----
-
-## 4. Add domain listeners to their modules
-
-Add `PaymentMetricsListener` to `PaymentsModule.providers[]`:
-```typescript
-import { PaymentMetricsListener } from '../metrics/listeners/payment-metrics.listener';
-providers: [...existing, PaymentMetricsListener],
-```
-
-Add `NfcMetricsListener` to `NfcModule.providers[]`, `WebhookMetricsListener` to `WebhooksModule.providers[]`,
-`NotificationMetricsListener` to `NotificationsModule.providers[]`, `AuthMetricsListener` to `AuthModule.providers[]`.
-
----
-
-## 5. Append env vars
-
-Copy `.env.observability` into your `.env`:
-```bash
-cat .env.observability >> .env
-```
-
-Edit the values — especially:
-- `METRICS_TOKEN` — any random 32+ char string
-- `GRAFANA_ADMIN_PASSWORD`
-- `KIBANA_ENCRYPTION_KEY` — exactly 32 chars
-- Set `ELASTICSEARCH_URL=` or `LOGSTASH_HOST=` but not both (use one transport)
-
----
-
-## 6. Start the stack
+## 3. Start the stack
 
 ```bash
-# From the project root (where your main docker-compose.yml lives):
-docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
+docker compose --env-file .env.observability \
+  -f docker-compose.yml -f docker-compose.observability.yml up -d
 
 # Check health:
 docker compose ps
-curl http://localhost:9090/-/ready      # Prometheus
-curl http://localhost:9200/_cluster/health  # Elasticsearch
-curl http://localhost:5601/api/status   # Kibana
+curl http://localhost:9090/-/ready           # Prometheus
+curl http://localhost:9093/-/ready           # Alertmanager
+curl http://localhost:9200/_cluster/health   # Elasticsearch
+curl http://localhost:5601/api/status        # Kibana
 ```
 
----
-
-## 7. Import Kibana saved objects
+## 4. Import Kibana saved objects
 
 ```bash
 curl -X POST "http://localhost:5601/api/saved_objects/_import?overwrite=true" \
@@ -116,93 +83,64 @@ curl -X POST "http://localhost:5601/api/saved_objects/_import?overwrite=true" \
   -F "file=@kibana/kibana-setup.ndjson"
 ```
 
-Then visit http://localhost:5601 → Discover → select `nfc-api-logs-*`.
+Then visit http://localhost:5601 → Discover → select `api-logs-*`.
 
----
-
-## 8. Verify metrics are being scraped
+## 5. Verify metrics are being scraped
 
 ```bash
 # Manually scrape (requires METRICS_TOKEN if set):
 curl -H "Authorization: Bearer <METRICS_TOKEN>" http://localhost:3000/metrics
 
-# Check Prometheus targets:
+# Check Prometheus targets — the 'api' target should show State=UP:
 open http://localhost:9090/targets
-# nfc-api target should show State=UP
 ```
 
-Open Grafana at http://localhost:3100 → Dashboards → NFC Payment API.
+Open Grafana at http://localhost:3100 → Dashboards → Services → **API Overview**
+and **Logs Explorer** (auto-provisioned from `grafana/dashboards/`).
 
----
+## 6. Wire up alert notifications
 
-## 9. Prometheus scrape config for production
+Alert rules live in `prometheus/alerts.yml`; routing lives in
+`alertmanager/alertmanager.yml`. The shipped receivers are placeholders —
+connect at least one real channel (Slack, PagerDuty, email, webhook) before
+relying on alerts in production.
 
-If `METRICS_TOKEN` is set, configure Prometheus to send it:
+## Repository layout
 
-```yaml
-# prometheus/prometheus.yml
-scrape_configs:
-  - job_name: "nfc-api"
-    static_configs:
-      - targets: ["nfc_api:3000"]
-    authorization:
-      credentials: "your-32-char-metrics-scrape-token"
-```
-
-Reload Prometheus after changing: `curl -X POST http://localhost:9090/-/reload`
-
----
-
-## Architecture diagram
-
-```
-NestJS App (port 3000)
-  │
-  ├── GET /metrics ──────────────────► Prometheus (9090)
-  │       (prom-client text format)         │
-  │                                         ▼
-  │                                   Grafana (3100)
-  │                                   dashboards + alerts
-  │
-  └── TCP JSON ────────────────────► Logstash (5044)
-        (Winston → Logstash transport)    │
-                                          ▼
-                                   Elasticsearch (9200)
-                                   index: nfc-api-logs-YYYY.MM.DD
-                                          │
-                                          ▼
-                                   Kibana (5601)
-                                   Discover + saved searches
-```
-
----
+| Path | Purpose |
+|---|---|
+| `prometheus/prometheus.yml` | Scrape targets, rule files, Alertmanager link |
+| `prometheus/alerts.yml` | Alerting rules (availability, latency, runtime) |
+| `alertmanager/alertmanager.yml` | Alert grouping, routing, receivers |
+| `grafana/provisioning/` | Datasource + dashboard provider provisioning |
+| `grafana/dashboards/` | Version-controlled dashboard JSON |
+| `logstash/config/logstash.yml` | Workers, batching, persistent queue |
+| `logstash/pipeline/api.conf` | Ingest pipeline: parse → ECS map → redact → index |
+| `filebeat/filebeat.yml` | File + container inputs, Logstash output |
+| `kibana/kibana-setup.ndjson` | Index pattern + saved searches |
 
 ## Log fields reference
 
-Every log line emitted by `AppLogger` contains:
+Every log line ingested through the pipeline is mapped to Elastic Common
+Schema (ECS) style fields:
 
 | Field | Example | Notes |
 |---|---|---|
-| `@timestamp` | `2026-03-15T12:00:00.000+03:00` | ISO8601 |
-| `log.level` | `info` | normalised from Winston |
-| `context` | `PaymentsService` | NestJS class name |
-| `message` | `Payment completed: session=abc` | |
-| `service` | `nfc-payment-api` | from APP_NAME |
-| `environment` | `production` | from NODE_ENV |
-| `type` | `payment_event` | custom field for filtering |
+| `@timestamp` | `2026-07-25T12:00:00.000Z` | ISO8601, normalized by Logstash |
+| `log.level` | `info` | normalized (verbose → debug) |
+| `service.name` | `UsersService` | class/context name |
+| `message` | `Resource created: id=abc` | |
+| `app` | `api` | added by pipeline |
+| `environment` | `production` | from `ENVIRONMENT` |
 | `http.request.method` | `POST` | HTTP requests only |
-| `http.response.status` | `200` | HTTP requests only |
-| `url.path` | `/payments/stk` | HTTP requests only |
-| `durationMs` | `142` | HTTP requests only |
-| `userId` | `2` | when authenticated |
+| `http.response.status_code` | `200` | HTTP requests only |
+| `url.path` | `/v1/resources` | HTTP requests only |
+| `http.duration_ms` | `142` | HTTP requests only |
 | `requestId` | `uuid` | from x-request-id header |
-| `payment.sessionUuid` | `uuid` | payment events |
-| `payment.merchantId` | `1` | payment events |
+| `tags` | `business_event` | added when a transaction/audit field is present |
 | `geo.country_name` | `Kenya` | GeoIP via Logstash |
 
----
-
-## Metrics reference
+## Metrics reference (generic conventions)
 
 | Metric | Type | Labels | What it tracks |
 |---|---|---|---|
@@ -210,14 +148,15 @@ Every log line emitted by `AppLogger` contains:
 | `http_request_duration_seconds` | Histogram | method, route, status_code | Request latency |
 | `http_requests_in_flight` | Gauge | method | Active requests |
 | `http_errors_total` | Counter | method, route, status_code | 4xx + 5xx |
-| `payments_initiated_total` | Counter | merchant_id | STK push calls |
-| `payments_completed_total` | Counter | merchant_id | Successful M-Pesa |
-| `payments_failed_total` | Counter | merchant_id, reason | Failed payments |
-| `payment_amount_kes_total` | Counter | merchant_id | KES volume |
-| `nfc_taps_total` | Counter | merchant_id | GET /pay hits |
-| `nfc_decode_errors_total` | Counter | reason | Bad tokens |
-| `webhooks_received_total` | Counter | source, status | Daraja/AT callbacks |
-| `notifications_queued_total` | Counter | channel | SMS/email/push |
+| `business_transactions_initiated_total` | Counter | (domain-specific) | Domain transactions started |
+| `business_transactions_completed_total` | Counter | (domain-specific) | Domain transactions succeeded |
+| `business_transactions_failed_total` | Counter | reason | Domain transactions failed |
+| `integration_events_total` | Counter | source, status | External callbacks/webhooks |
+| `background_jobs_queued_total` | Counter | job_type | Queued async work |
 | `auth_attempts_total` | Counter | result | Login success/fail |
 | `nodejs_heap_size_used_bytes` | Gauge | — | Node.js heap |
 | `nodejs_eventloop_lag_seconds` | Gauge | — | Event loop lag |
+
+Rename the `business_*` examples to your domain's terminology when you build
+on this scaffold, and update `prometheus/alerts.yml` + the Grafana dashboards
+to match.
