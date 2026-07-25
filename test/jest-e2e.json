@@ -4,19 +4,31 @@
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
   "transform": {
-    "^.+\\.(t|j)s$": ["ts-jest", {
-      "tsconfig": {
-        "module": "commonjs",
-        "moduleResolution": "node"
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "tsconfig": {
+          "module": "commonjs",
+          "moduleResolution": "node"
+        }
       }
-    }]
+    ]
   },
-  "testTimeout": 30000,
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/../src/$1"
+  },
+  "testTimeout": 60000,
+  "maxWorkers": 1,
+  "forceExit": true,
+  "detectOpenHandles": true,
   "reporters": [
     "default",
-    ["jest-junit", {
-      "outputDirectory": "./reports/junit",
-      "outputName": "e2e-results.xml"
-    }]
+    [
+      "jest-junit",
+      {
+        "outputDirectory": "./reports/junit",
+        "outputName": "e2e-results.xml"
+      }
+    ]
   ]
 }

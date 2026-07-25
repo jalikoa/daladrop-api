@@ -1,13 +1,9 @@
 /**
- * Performance/Load Testing Utilities
- * 
- * Utilities for stress testing API endpoints, measuring response times,
- * and testing throughput. Uses k6 or Artillery for actual load testing.
- * 
- * Usage:
- *   npm run test:perf
- *   npm run test:load
- *   npm run test:stress
+ * Performance / load-testing utilities.
+ *
+ * Use these helpers to measure response-time distributions in Nest e2e
+ * contexts. For production-grade load tests prefer k6 (`test/load-test.k6.js`)
+ * or Artillery against a deployed environment.
  */
 
 import { INestApplication } from '@nestjs/common';
@@ -32,32 +28,26 @@ export interface PerformanceMetrics {
 
 export interface LoadTestConfig {
   baseUrl: string;
-  duration: string; // e.g., '30s', '1m'
-  vus: number; // Virtual users
-  rampUp: string; // e.g., '10s'
+  duration: string;
+  vus: number;
+  rampUp: string;
   endpoints: LoadTestEndpoint[];
 }
 
 export interface LoadTestEndpoint {
   path: string;
   method: string;
-  weight?: number; // Request weight for weighted load testing
+  weight?: number;
   headers?: Record<string, string>;
-  body?: any;
+  body?: unknown;
 }
 
-/**
- * Calculate percentile from sorted array
- */
 export function percentile(sortedArray: number[], p: number): number {
   if (sortedArray.length === 0) return 0;
   const index = Math.ceil((p / 100) * sortedArray.length) - 1;
   return sortedArray[Math.max(0, index)];
 }
 
-/**
- * Calculate performance metrics from response times
- */
 export function calculateMetrics(
   endpoint: string,
   method: string,
@@ -73,55 +63,53 @@ export function calculateMetrics(
     endpoint,
     method,
     totalRequests: total,
-    successfulRequests: total - failed,
+    successfulRequests: Math.max(total - failed, 0),
     failedRequests: failed,
     responseTimes: {
       min: sorted[0] || 0,
       max: sorted[sorted.length - 1] || 0,
-      avg: sorted.length > 0 ? sorted.reduce((a, b) => a + b, 0) / sorted.length : 0,
+      avg:
+        sorted.length > 0
+          ? sorted.reduce((a, b) => a + b, 0) / sorted.length
+          : 0,
       median: percentile(sorted, 50),
       p95: percentile(sorted, 95),
       p99: percentile(sorted, 99),
     },
-    requestsPerSecond: total / durationSeconds,
+    requestsPerSecond: durationSeconds > 0 ? total / durationSeconds : 0,
     errors,
   };
 }
 
 /**
- * Simple load test runner (for basic testing)
- * For production load testing, use k6 or Artillery
+ * Lightweight in-process load simulation for CI smoke checks.
+ * Does not issue real HTTP — use k6 for accurate network load.
  */
 export async function runSimpleLoadTest(
-  app: INestApplication,
+  _app: INestApplication,
   config: LoadTestConfig,
 ): Promise<PerformanceMetrics[]> {
   const metrics: PerformanceMetrics[] = [];
-  const baseUrl = config.baseUrl || `http://localhost:3000`;
+  const baseUrl = config.baseUrl || 'http://localhost:3000';
 
-  console.log(`\n[**] Starting load test against ${baseUrl}`);
+  console.log(`\nStarting load simulation against ${baseUrl}`);
   console.log(`Duration: ${config.duration}, VUs: ${config.vus}\n`);
 
   for (const endpoint of config.endpoints) {
     const responseTimes: number[] = [];
     const errors: string[] = [];
-    const requests = config.vus * 10; // 10 requests per virtual user
+    const requests = config.vus * 10;
 
     console.log(`Testing ${endpoint.method} ${endpoint.path}...`);
-
     const startTime = Date.now();
 
     for (let i = 0; i < requests; i++) {
       try {
         const requestStart = Date.now();
-        
-        // Simulate request (in real scenario, use actual HTTP client)
-        await simulateRequest(app, endpoint);
-        
-        const responseTime = Date.now() - requestStart;
-        responseTimes.push(responseTime);
-      } catch (error: any) {
-        errors.push(error.message);
+        await simulateRequest(endpoint);
+        responseTimes.push(Date.now() - requestStart);
+      } catch (error: unknown) {
+        errors.push(error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -133,68 +121,49 @@ export async function runSimpleLoadTest(
       errors,
       duration,
     );
-
     metrics.push(endpointMetrics);
 
-    console.log(`  ✓ Completed ${requests} requests in ${duration.toFixed(2)}s`);
-    console.log(`  ✓ Avg response time: ${endpointMetrics.responseTimes.avg.toFixed(2)}ms`);
-    console.log(`  ✓ P95 response time: ${endpointMetrics.responseTimes.p95.toFixed(2)}ms`);
-    console.log(`  ✓ Requests/sec: ${endpointMetrics.requestsPerSecond.toFixed(2)}\n`);
+    console.log(`  Completed ${requests} requests in ${duration.toFixed(2)}s`);
+    console.log(
+      `  Avg: ${endpointMetrics.responseTimes.avg.toFixed(2)}ms | P95: ${endpointMetrics.responseTimes.p95.toFixed(2)}ms | RPS: ${endpointMetrics.requestsPerSecond.toFixed(2)}\n`,
+    );
   }
 
   return metrics;
 }
 
-/**
- * Simulate a request to the application
- */
-async function simulateRequest(
-  app: INestApplication,
-  endpoint: LoadTestEndpoint,
-): Promise<void> {
-  const httpAdapter = app.getHttpAdapter();
-  const instance = httpAdapter.getInstance();
-
-  // This is a simplified simulation - in production, use actual HTTP requests
-  return new Promise((resolve, reject) => {
-    // Simulate network delay
-    const delay = Math.random() * 100 + 10; // 10-110ms
-    setTimeout(resolve, delay);
-  });
+async function simulateRequest(endpoint: LoadTestEndpoint): Promise<void> {
+  void endpoint;
+  const delay = Math.random() * 100 + 10;
+  await new Promise((resolve) => setTimeout(resolve, delay));
 }
 
-/**
- * Performance thresholds for CI/CD
- */
 export const PERFORMANCE_THRESHOLDS = {
   health: {
-    maxResponseTime: 100, // ms
+    maxResponseTime: 100,
     minRequestsPerSecond: 100,
-    maxErrorRate: 0.01, // 1%
+    maxErrorRate: 0.01,
   },
   auth: {
-    maxResponseTime: 500, // ms
+    maxResponseTime: 500,
     minRequestsPerSecond: 50,
     maxErrorRate: 0.01,
   },
-  payments: {
-    maxResponseTime: 1000, // ms
+  transactions: {
+    maxResponseTime: 1000,
     minRequestsPerSecond: 20,
-    maxErrorRate: 0.001, // 0.1%
+    maxErrorRate: 0.001,
   },
   webhooks: {
-    maxResponseTime: 200, // ms
+    maxResponseTime: 200,
     minRequestsPerSecond: 100,
     maxErrorRate: 0.001,
   },
 };
 
-/**
- * Check if metrics meet performance thresholds
- */
 export function checkThresholds(
   metrics: PerformanceMetrics[],
-  thresholds: typeof PERFORMANCE_THRESHOLDS,
+  thresholds: typeof PERFORMANCE_THRESHOLDS = PERFORMANCE_THRESHOLDS,
 ): { passed: boolean; failures: string[] } {
   const failures: string[] = [];
 
@@ -204,57 +173,57 @@ export function checkThresholds(
 
     if (metric.responseTimes.avg > threshold.maxResponseTime) {
       failures.push(
-        `${metric.endpoint}: Avg response time ${metric.responseTimes.avg.toFixed(2)}ms ` +
-        `exceeds threshold ${threshold.maxResponseTime}ms`,
+        `${metric.endpoint}: Avg response time ${metric.responseTimes.avg.toFixed(2)}ms exceeds ${threshold.maxResponseTime}ms`,
       );
     }
 
     if (metric.requestsPerSecond < threshold.minRequestsPerSecond) {
       failures.push(
-        `${metric.endpoint}: Requests/sec ${metric.requestsPerSecond.toFixed(2)} ` +
-        `below threshold ${threshold.minRequestsPerSecond}`,
+        `${metric.endpoint}: RPS ${metric.requestsPerSecond.toFixed(2)} below ${threshold.minRequestsPerSecond}`,
       );
     }
 
-    const errorRate = metric.failedRequests / metric.totalRequests;
+    const errorRate =
+      metric.totalRequests > 0
+        ? metric.failedRequests / metric.totalRequests
+        : 0;
     if (errorRate > threshold.maxErrorRate) {
       failures.push(
-        `${metric.endpoint}: Error rate ${(errorRate * 100).toFixed(2)}% ` +
-        `exceeds threshold ${(threshold.maxErrorRate * 100).toFixed(2)}%`,
+        `${metric.endpoint}: Error rate ${(errorRate * 100).toFixed(2)}% exceeds ${(threshold.maxErrorRate * 100).toFixed(2)}%`,
       );
     }
   }
 
-  return {
-    passed: failures.length === 0,
-    failures,
-  };
+  return { passed: failures.length === 0, failures };
 }
 
 function getThresholdForEndpoint(
   endpoint: string,
   thresholds: typeof PERFORMANCE_THRESHOLDS,
-): typeof PERFORMANCE_THRESHOLDS.health | null {
+): (typeof PERFORMANCE_THRESHOLDS)[keyof typeof PERFORMANCE_THRESHOLDS] {
   if (endpoint.includes('health') || endpoint.includes('metrics')) {
     return thresholds.health;
   }
   if (endpoint.includes('auth') || endpoint.includes('login')) {
     return thresholds.auth;
   }
-  if (endpoint.includes('payment') || endpoint.includes('stk')) {
-    return thresholds.payments;
-  }
   if (endpoint.includes('webhook')) {
     return thresholds.webhooks;
   }
-  return thresholds.health; // Default
+  if (
+    endpoint.includes('transaction') ||
+    endpoint.includes('resource') ||
+    endpoint.includes('order')
+  ) {
+    return thresholds.transactions;
+  }
+  return thresholds.health;
 }
 
-/**
- * Generate performance report
- */
-export function generatePerformanceReport(metrics: PerformanceMetrics[]): string {
-  let report = '\n[**] Performance Test Report\n';
+export function generatePerformanceReport(
+  metrics: PerformanceMetrics[],
+): string {
+  let report = '\nPerformance Test Report\n';
   report += '='.repeat(60) + '\n\n';
 
   for (const metric of metrics) {
@@ -263,7 +232,6 @@ export function generatePerformanceReport(metrics: PerformanceMetrics[]): string
     report += `  Total Requests:     ${metric.totalRequests}\n`;
     report += `  Successful:         ${metric.successfulRequests}\n`;
     report += `  Failed:             ${metric.failedRequests}\n`;
-    report += `  Duration:           ${(metric.totalRequests / metric.requestsPerSecond).toFixed(2)}s\n`;
     report += `  Requests/sec:       ${metric.requestsPerSecond.toFixed(2)}\n`;
     report += `  Response Times:\n`;
     report += `    Min:              ${metric.responseTimes.min.toFixed(2)}ms\n`;
@@ -272,7 +240,7 @@ export function generatePerformanceReport(metrics: PerformanceMetrics[]): string
     report += `    Median:           ${metric.responseTimes.median.toFixed(2)}ms\n`;
     report += `    P95:              ${metric.responseTimes.p95.toFixed(2)}ms\n`;
     report += `    P99:              ${metric.responseTimes.p99.toFixed(2)}ms\n`;
-    
+
     if (metric.errors.length > 0) {
       report += `  Errors:\n`;
       metric.errors.slice(0, 5).forEach((err) => {
