@@ -2,7 +2,7 @@
 # .github/workflows/scheduled.yml
 #
 # PURPOSE:
-# Runs automated maintenance tasks on a schedule to keep the repository 
+# Runs automated maintenance tasks on a schedule to keep the repository
 # healthy, secure, and free of technical debt.
 #
 # NOTE: All jobs are generic and can be copied to any Node.js/NestJS project.
@@ -15,6 +15,9 @@ on:
     # Run every Monday at 02:00 UTC
     - cron: "0 2 * * 1"
   workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: read
 
 jobs:
   # ============================================================================
@@ -30,12 +33,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-      - run: npm ci
+          cache: yarn
+      - run: yarn install --frozen-lockfile
       - name: "List outdated packages"
-        run: npm outdated || true # '|| true' prevents the workflow from failing if packages are outdated
-      - name: "Run npm audit"
-        run: npm audit --audit-level=moderate || true
+        run: yarn outdated || true # '|| true' prevents the workflow from failing if packages are outdated
+      - name: "Run yarn audit"
+        run: yarn audit --level moderate || true
 
   # ============================================================================
   # JOB 2: Stale PR and Issue Cleanup
@@ -67,17 +70,34 @@ jobs:
 
   # ============================================================================
   # JOB 3: Weekly Deep Security Scan (Optional)
-  # Runs a deeper Snyk or CodeQL scan that might be too slow for regular CI.
+  # Runs a deeper Snyk scan that might be too slow for regular CI.
+  #
+  # NOTE: The 'secrets' context is NOT available in job-level 'if' conditions,
+  # so the token presence check must happen in a step. If SNYK_TOKEN is not
+  # configured, the scan is skipped gracefully.
   # ============================================================================
   deep-security-scan:
     name: "Deep Security Scan"
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: ${{ secrets.SNYK_TOKEN != '' }} # Only run if Snyk is configured
     steps:
+      - name: "Check whether Snyk is configured"
+        id: snyk-check
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -n "$SNYK_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SNYK_TOKEN not configured; skipping deep scan."
+          fi
       - uses: actions/checkout@v4
+        if: steps.snyk-check.outputs.enabled == 'true'
       - name: "Run Snyk to check for vulnerabilities"
-        uses: snyk/actions/node@master
+        if: steps.snyk-check.outputs.enabled == 'true'
+        # Pin to immutable commit SHA (snyk/actions master @ 2024-era verified tip)
+        uses: snyk/actions/node@8e119fbb6c251787721d34ba683ed48eba792766
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:

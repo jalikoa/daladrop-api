@@ -12,6 +12,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   typecheck:
     name: "TypeScript Check"
@@ -23,10 +30,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-      - run: npm ci
+          cache: yarn
+      - run: yarn install --frozen-lockfile
       - name: "Type check (no emit)"
-        run: npx tsc --noEmit
+        run: yarn tsc --noEmit
 
   lint-changed:
     name: "Lint Changed Files"
@@ -40,22 +47,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-      - run: npm ci
-      - name: "Get changed TypeScript files"
-        id: changed
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - name: "Lint changed TypeScript files"
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          FILES=$(git diff --name-only --diff-filter=ACMRT origin/${{ github.base_ref }}...HEAD \
-            | grep '\.ts$' | grep -v '\.d\.ts$' | grep -v '\.spec\.ts$' | tr '\n' ' ')
-          echo "files=$FILES" >> $GITHUB_OUTPUT
-      - name: "Lint changed files"
-        if: steps.changed.outputs.files != ''
-        run: npx eslint ${{ steps.changed.outputs.files }} --max-warnings=0
+          set -euo pipefail
+          git diff --name-only -z --diff-filter=ACMRT "origin/${BASE_REF}...HEAD" \
+            | grep -zE '\.ts$' \
+            | grep -vzE '\.d\.ts$' \
+            | grep -vzE '\.spec\.ts$' \
+            > changed.ts.list || true
+          if [ ! -s changed.ts.list ]; then
+            echo "No changed TypeScript source files to lint."
+            exit 0
+          fi
+          # NUL-delimited list + xargs -0 avoids shell injection from filenames
+          xargs -0 -r yarn eslint --max-warnings=0 < changed.ts.list
 
   pr-title:
     name: "PR Title Validation"
     runs-on: ubuntu-latest
     timeout-minutes: 2
+    permissions:
+      pull-requests: read
     steps:
       - name: "Check PR title follows conventional commits"
         uses: amannn/action-semantic-pull-request@v5
@@ -74,3 +90,15 @@ jobs:
             ci
             revert
           requireScope: false
+
+  # Blocks PRs that introduce dependencies with known vulnerabilities or
+  # disallowed licenses. Uses the GitHub Advisory Database.
+  dependency-review:
+    name: "Dependency Review"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
