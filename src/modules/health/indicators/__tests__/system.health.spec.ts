@@ -57,7 +57,7 @@ describe('SystemHealthIndicator - Unit Tests', () => {
       // Message should contain percentage
       const percentageMatch = result.message?.match(/(\d+\.\d+)%/);
       expect(percentageMatch).toBeDefined();
-      
+
       if (percentageMatch) {
         const percentage = parseFloat(percentageMatch[1]);
         expect(percentage).toBeGreaterThanOrEqual(0);
@@ -113,7 +113,7 @@ describe('SystemHealthIndicator - Unit Tests', () => {
       const results = await Promise.all(promises);
 
       expect(results).toHaveLength(5);
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result.status).toBeDefined();
       });
     });

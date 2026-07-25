@@ -55,9 +55,18 @@ describe('HealthService', () => {
 
     it('runs all checks in parallel', async () => {
       const calls: string[] = [];
-      mockDbHealth.check.mockImplementation(async () => { calls.push('db'); return upResult; });
-      mockRedisHealth.check.mockImplementation(async () => { calls.push('redis'); return upResult; });
-      mockSystemHealth.check.mockImplementation(async () => { calls.push('system'); return upResult; });
+      mockDbHealth.check.mockImplementation(async () => {
+        calls.push('db');
+        return upResult;
+      });
+      mockRedisHealth.check.mockImplementation(async () => {
+        calls.push('redis');
+        return upResult;
+      });
+      mockSystemHealth.check.mockImplementation(async () => {
+        calls.push('system');
+        return upResult;
+      });
 
       await service.checkAll();
       // All three should have been called regardless of order

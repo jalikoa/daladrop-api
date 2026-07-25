@@ -1,20 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DatabaseHealthIndicator } from './indicators/database.health';
 import { RedisHealthIndicator } from './indicators/redis.health';
 import { SystemHealthIndicator } from './indicators/system.health';
-import { HealthIndicatorResult } from './interfaces/health-check.interface';
-import { ConfigService } from '@nestjs/config';
+import type { HealthIndicatorResult } from './interfaces/health-check.interface';
 
 @Injectable()
 export class HealthService {
-  constructor(
+  public constructor(
     private readonly dbHealth: DatabaseHealthIndicator,
     private readonly redisHealth: RedisHealthIndicator,
     private readonly systemHealth: SystemHealthIndicator,
     private readonly configService: ConfigService,
   ) {}
 
-  async checkAll(): Promise<Record<string, HealthIndicatorResult>> {
+  public async checkAll(): Promise<Record<string, HealthIndicatorResult>> {
     const [db, redis, system] = await Promise.all([
       this.dbHealth.check(),
       this.redisHealth.check(),
@@ -28,24 +28,29 @@ export class HealthService {
     };
   }
 
-  async checkReady(): Promise<boolean> {
-    const db = await this.dbHealth.check();
-    const redis = await this.redisHealth.check();
+  public async checkReady(): Promise<boolean> {
+    const [db, redis] = await Promise.all([
+      this.dbHealth.check(),
+      this.redisHealth.check(),
+    ]);
     return db.status === 'up' && redis.status === 'up';
   }
 
-  getMetrics() {
+  public getMetrics(): {
+    uptime: number;
+    memory_usage: NodeJS.MemoryUsage;
+    cpu_usage: number;
+    version: string;
+  } {
     const usage = process.memoryUsage();
     return {
       uptime: process.uptime(),
-      memory_usage: {
-        rss: usage.rss,
-        heapTotal: usage.heapTotal,
-        heapUsed: usage.heapUsed,
-        external: usage.external,
-      },
+      memory_usage: usage,
       cpu_usage: 0,
-      version: this.configService.get('npm_package_version') || '1.0.0',
+      version:
+        this.configService.get<string>('app.version') ||
+        process.env.npm_package_version ||
+        '1.0.0',
     };
   }
 }

@@ -13,7 +13,7 @@ describe('AppLogger - Unit Tests', () => {
     mockConfigService = {
       get: jest.fn((key: string) => {
         if (key === 'NODE_ENV') return 'test';
-        if (key === 'APP_NAME') return 'nfc-api-test';
+        if (key === 'APP_NAME') return 'api-test';
         if (key === 'ELASTICSEARCH_URL') return undefined;
         return undefined;
       }),
@@ -34,7 +34,7 @@ describe('AppLogger - Unit Tests', () => {
     it('should create logger with development config', () => {
       mockConfigService.get = jest.fn((key: string) => {
         if (key === 'NODE_ENV') return 'development';
-        if (key === 'APP_NAME') return 'nfc-api-dev';
+        if (key === 'APP_NAME') return 'api-dev';
         return undefined;
       });
 
@@ -45,7 +45,7 @@ describe('AppLogger - Unit Tests', () => {
     it('should create logger with production config', () => {
       mockConfigService.get = jest.fn((key: string) => {
         if (key === 'NODE_ENV') return 'production';
-        if (key === 'APP_NAME') return 'nfc-api-prod';
+        if (key === 'APP_NAME') return 'api-prod';
         return undefined;
       });
 
@@ -56,7 +56,7 @@ describe('AppLogger - Unit Tests', () => {
     it('should create logger with Elasticsearch URL', () => {
       mockConfigService.get = jest.fn((key: string) => {
         if (key === 'NODE_ENV') return 'production';
-        if (key === 'APP_NAME') return 'nfc-api';
+        if (key === 'APP_NAME') return 'api';
         if (key === 'ELASTICSEARCH_URL') return 'http://localhost:9200';
         return undefined;
       });
@@ -102,7 +102,10 @@ describe('AppLogger - Unit Tests', () => {
     });
 
     it('should log message with context and metadata', () => {
-      expect(() => logger.log('Test message', 'TestContext', { userId: 123 })).not.toThrow();
+      expect(() => {
+        logger.setContext('TestContext');
+        logger.log('Test message', { userId: 123 });
+      }).not.toThrow();
     });
 
     it('should log empty message', () => {
@@ -138,11 +141,15 @@ describe('AppLogger - Unit Tests', () => {
     });
 
     it('should log error with metadata', () => {
-      expect(() => logger.error('Error occurred', undefined, { userId: 123 })).not.toThrow();
+      expect(() =>
+        logger.error('Error occurred', undefined, { userId: 123 }),
+      ).not.toThrow();
     });
 
     it('should log error with context and metadata', () => {
-      expect(() => logger.error('Error occurred', 'stack', { userId: 123 })).not.toThrow();
+      expect(() =>
+        logger.error('Error occurred', 'stack', { userId: 123 }),
+      ).not.toThrow();
     });
 
     it('should log error without stack trace', () => {
@@ -164,7 +171,9 @@ describe('AppLogger - Unit Tests', () => {
     });
 
     it('should log warning with metadata', () => {
-      expect(() => logger.warn('Warning message', { userId: 123 })).not.toThrow();
+      expect(() =>
+        logger.warn('Warning message', { userId: 123 }),
+      ).not.toThrow();
     });
   });
 
@@ -192,7 +201,9 @@ describe('AppLogger - Unit Tests', () => {
     });
 
     it('should log verbose with context', () => {
-      expect(() => logger.verbose('Verbose message', 'TestContext')).not.toThrow();
+      expect(() =>
+        logger.verbose('Verbose message', 'TestContext'),
+      ).not.toThrow();
     });
   });
 
@@ -202,51 +213,59 @@ describe('AppLogger - Unit Tests', () => {
     });
 
     it('should log HTTP request', () => {
-      expect(() => logger.logRequest({
-        method: 'GET',
-        url: '/api/test',
-        statusCode: 200,
-        durationMs: 100,
-        ip: '127.0.0.1',
-        userAgent: 'Mozilla/5.0',
-      })).not.toThrow();
+      expect(() =>
+        logger.logRequest({
+          method: 'GET',
+          url: '/api/test',
+          statusCode: 200,
+          durationMs: 100,
+          ip: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
+        }),
+      ).not.toThrow();
     });
 
     it('should log HTTP request with userId', () => {
-      expect(() => logger.logRequest({
-        method: 'POST',
-        url: '/api/payments',
-        statusCode: 201,
-        durationMs: 250,
-        ip: '127.0.0.1',
-        userAgent: 'Mozilla/5.0',
-        userId: 123,
-      })).not.toThrow();
+      expect(() =>
+        logger.logRequest({
+          method: 'POST',
+          url: '/api/payments',
+          statusCode: 201,
+          durationMs: 250,
+          ip: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
+          userId: 123,
+        }),
+      ).not.toThrow();
     });
 
     it('should log HTTP request with requestId', () => {
-      expect(() => logger.logRequest({
-        method: 'GET',
-        url: '/api/users',
-        statusCode: 200,
-        durationMs: 50,
-        ip: '127.0.0.1',
-        userAgent: 'Mozilla/5.0',
-        requestId: 'req-123',
-      })).not.toThrow();
+      expect(() =>
+        logger.logRequest({
+          method: 'GET',
+          url: '/api/users',
+          statusCode: 200,
+          durationMs: 50,
+          ip: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
+          requestId: 'req-123',
+        }),
+      ).not.toThrow();
     });
 
     it('should log HTTP request with all metadata', () => {
-      expect(() => logger.logRequest({
-        method: 'PUT',
-        url: '/api/users/123',
-        statusCode: 200,
-        durationMs: 150,
-        ip: '192.168.1.1',
-        userAgent: 'PostmanRuntime/7.28.0',
-        userId: 456,
-        requestId: 'req-456',
-      })).not.toThrow();
+      expect(() =>
+        logger.logRequest({
+          method: 'PUT',
+          url: '/api/users/123',
+          statusCode: 200,
+          durationMs: 150,
+          ip: '192.168.1.1',
+          userAgent: 'PostmanRuntime/7.28.0',
+          userId: 456,
+          requestId: 'req-456',
+        }),
+      ).not.toThrow();
     });
   });
 

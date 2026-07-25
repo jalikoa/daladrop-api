@@ -1,20 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { IHealthIndicator, HealthIndicatorResult } from '../interfaces/health-check.interface';
-import * as os from 'os';
+import {
+  IHealthIndicator,
+  HealthIndicatorResult,
+} from '../interfaces/health-check.interface';
+import * as os from 'node:os';
 
 @Injectable()
 export class SystemHealthIndicator implements IHealthIndicator {
-  name = 'system';
+  public readonly name = 'system';
 
-  async check(): Promise<HealthIndicatorResult> {
+  public check(): Promise<HealthIndicatorResult> {
     const freeMemory = os.freemem();
     const totalMemory = os.totalmem();
     const usagePercent = ((totalMemory - freeMemory) / totalMemory) * 100;
 
-    if (usagePercent > 90) {
-      return { status: 'down', message: `Memory usage critical: ${usagePercent.toFixed(2)}%` };
+    if (usagePercent > 95) {
+      return Promise.resolve({
+        status: 'down',
+        message: `Memory usage critical: ${usagePercent.toFixed(2)}%`,
+      });
     }
 
-    return { status: 'up', message: `Memory usage: ${usagePercent.toFixed(2)}%` };
+    return Promise.resolve({
+      status: 'up',
+      latency: 0,
+      message: `Memory usage: ${usagePercent.toFixed(2)}%`,
+    });
   }
 }

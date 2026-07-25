@@ -20,12 +20,7 @@ export class SystemMetricsDto {
   uptime: number;
 
   @Expose()
-  memory_usage: {
-    rss: number;
-    heapTotal: number;
-    heapUsed: number;
-    external: number;
-  };
+  memory_usage: NodeJS.MemoryUsage;
 
   @Expose()
   cpu_usage: number;

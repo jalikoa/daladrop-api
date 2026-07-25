@@ -77,7 +77,9 @@ export function createWinstonLogger(): Logger {
             format.colorize({ all: true }),
             format.printf(({ timestamp, level, context, message, ...meta }) => {
               const ctx = context ? ` [${context}]` : '';
-              const extra = Object.keys(meta).length ? ' ' + JSON.stringify(meta) : '';
+              const extra = Object.keys(meta).length
+                ? ' ' + JSON.stringify(meta)
+                : '';
               return `${timestamp} ${level}${ctx}: ${message}${extra}`;
             }),
           )

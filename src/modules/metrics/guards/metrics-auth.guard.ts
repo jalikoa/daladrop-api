@@ -1,32 +1,54 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Request } from 'express';
+import { timingSafeEqual } from 'node:crypto';
+import type { Request } from 'express';
 
 /**
- * Checks Authorization: Bearer <METRICS_TOKEN> header on /metrics.
- * Prometheus scraper is configured with bearer_token in prometheus.yml.
- * Falls through (allows) when METRICS_TOKEN is not configured — safe for
- * local development, but METRICS_TOKEN must be set in production.
+ * Bearer-token guard for `/metrics`.
+ *
+ * - Production: METRICS_TOKEN is required (fail closed when missing).
+ * - Non-production: missing token allows local scrapers.
  */
 @Injectable()
 export class MetricsAuthGuard implements CanActivate {
   private readonly token: string | undefined;
+  private readonly isProduction: boolean;
 
-  constructor(private readonly configService: ConfigService) {
-    this.token = configService.get<string>('METRICS_TOKEN');
+  public constructor(private readonly configService: ConfigService) {
+    this.token =
+      configService.get<string>('METRICS_TOKEN') ??
+      configService.get<string>('metrics.token');
+    this.isProduction =
+      (configService.get<string>('app.environment') ??
+        configService.get<string>('NODE_ENV') ??
+        process.env.NODE_ENV) === 'production';
   }
 
-  canActivate(context: ExecutionContext): boolean {
-    if (!this.token) return true;   // dev: no token required
-
-    const req = context.switchToHttp().getRequest<Request>();
-    const authHeader = req.headers['authorization'] || '';
-    const provided = authHeader.replace(/^Bearer\s+/i, '').trim();
-
-    if (!provided || provided !== this.token) {
-      throw new UnauthorizedException('Invalid metrics token');
+  public canActivate(context: ExecutionContext): boolean {
+    if (!this.token) {
+      if (this.isProduction) {
+        throw new UnauthorizedException('Metrics token is not configured');
+      }
+      return true;
     }
 
+    const req = context.switchToHttp().getRequest<Request>();
+    const authHeader = req.headers.authorization ?? '';
+    const provided = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!provided || !this.areTokensEqual(provided, this.token)) {
+      throw new UnauthorizedException('Invalid metrics token');
+    }
     return true;
+  }
+
+  private areTokensEqual(left: string, right: string): boolean {
+    const a = Buffer.from(left);
+    const b = Buffer.from(right);
+    return a.length === b.length && timingSafeEqual(a, b);
   }
 }

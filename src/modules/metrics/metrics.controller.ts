@@ -1,21 +1,23 @@
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { MetricsService } from './metrics.service';
 import { MetricsAuthGuard } from './guards/metrics-auth.guard';
-import { UserRole } from '../users/enums/user-role.enum';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 
+@ApiTags('Metrics')
 @Controller('metrics')
 @UseGuards(MetricsAuthGuard)
+@ApiBearerAuth()
 export class MetricsController {
-  constructor(private readonly metricsService: MetricsService) {}
+  public constructor(private readonly metricsService: MetricsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
   @Header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8')
-  async scrape(): Promise<string> {
+  @ApiOperation({
+    summary: 'Prometheus scrape endpoint',
+    description:
+      'Protected by METRICS_TOKEN bearer auth when configured. Open in local development when METRICS_TOKEN is unset.',
+  })
+  public scrape(): Promise<string> {
     return this.metricsService.getMetrics();
   }
 }

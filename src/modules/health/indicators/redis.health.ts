@@ -1,24 +1,71 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import type { Queue } from 'bull';
-import { IHealthIndicator, HealthIndicatorResult } from '../interfaces/health-check.interface';
+import {
+  Inject,
+  Injectable,
+  Optional,
+  type OnModuleDestroy,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import Redis from 'ioredis';
+import {
+  IHealthIndicator,
+  HealthIndicatorResult,
+} from '../interfaces/health-check.interface';
 
+/**
+ * Redis readiness check using a dedicated short-lived ping client.
+ *
+ * Prefer injecting a shared Redis client from infrastructure when available;
+ * this fallback keeps HealthModule usable without business queue bindings.
+ */
 @Injectable()
-export class RedisHealthIndicator implements IHealthIndicator {
-  name = 'redis';
+export class RedisHealthIndicator
+  implements IHealthIndicator, OnModuleDestroy
+{
+  public readonly name = 'redis';
+  private readonly client: Redis;
 
-  constructor(@InjectQueue('payment-events') private readonly queue: Queue) {}
+  public constructor(
+    private readonly configService: ConfigService,
+    @Optional()
+    @Inject('REDIS_PING_CLIENT')
+    injectedClient?: Redis,
+  ) {
+    this.client =
+      injectedClient ??
+      new Redis({
+        host: this.configService.get<string>('redis.host') ?? 'localhost',
+        port: this.configService.get<number>('redis.port') ?? 6379,
+        password: this.configService.get<string>('redis.password') || undefined,
+        lazyConnect: true,
+        maxRetriesPerRequest: 1,
+        enableReadyCheck: true,
+      });
+  }
 
-  async check(): Promise<HealthIndicatorResult> {
+  public async check(): Promise<HealthIndicatorResult> {
     const start = Date.now();
     try {
-      const client: any = await (this.queue as any).client;
-      if (!client) throw new Error('Redis client not available');
-      if (typeof client.ping === 'function') await client.ping();
-      const latency = Date.now() - start;
-      return { status: 'up', latency };
-    } catch (error: any) {
-      return { status: 'down', message: error?.message || String(error) };
+      if (this.client.status === 'wait') {
+        await this.client.connect();
+      }
+      const pong = await this.client.ping();
+      if (pong !== 'PONG') {
+        throw new Error(`Unexpected Redis ping response: ${String(pong)}`);
+      }
+      return { status: 'up', latency: Date.now() - start };
+    } catch (error: unknown) {
+      return {
+        status: 'down',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  public async onModuleDestroy(): Promise<void> {
+    try {
+      await this.client.quit();
+    } catch {
+      this.client.disconnect();
     }
   }
 }
