@@ -1,0 +1,19 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["jest", "node"],
+    "noEmit": true
+  },
+  "include": [
+    "../identity/**/*.ts",
+    "../authorization/**/*.ts",
+    "../notifications/**/*.ts",
+    "../../platform/**/*.ts",
+    "../../infrastructure/**/*.ts",
+    "../../common/**/*.ts",
+    "../../database/**/*.ts"
+  ]
+}
+
