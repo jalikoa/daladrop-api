@@ -79,9 +79,7 @@ export class RuntimeConfigService {
     }
     const out: Record<string, unknown> = {};
     for (const [key, nested] of Object.entries(value)) {
-      out[key] = SECRET_KEY.test(key)
-        ? '[REDACTED]'
-        : this.maskSecrets(nested);
+      out[key] = SECRET_KEY.test(key) ? '[REDACTED]' : this.maskSecrets(nested);
     }
     return out;
   }

@@ -18,9 +18,7 @@ import {
  * this fallback keeps HealthModule usable without business queue bindings.
  */
 @Injectable()
-export class RedisHealthIndicator
-  implements IHealthIndicator, OnModuleDestroy
-{
+export class RedisHealthIndicator implements IHealthIndicator, OnModuleDestroy {
   public readonly name = 'redis';
   private readonly client: Redis;
 

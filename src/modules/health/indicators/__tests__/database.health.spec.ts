@@ -6,7 +6,9 @@ import {
 } from '../database.health';
 
 describe('DatabaseHealthIndicator', () => {
-  const config = { get: jest.fn().mockReturnValue('prisma') } as unknown as ConfigService;
+  const config = {
+    get: jest.fn().mockReturnValue('prisma'),
+  } as unknown as ConfigService;
 
   const create = (client?: DatabasePingClient): DatabaseHealthIndicator =>
     new DatabaseHealthIndicator(config, client);
