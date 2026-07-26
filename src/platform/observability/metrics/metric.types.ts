@@ -32,3 +32,17 @@ export interface MetricsSnapshot {
   readonly gauges: Readonly<Record<string, readonly MetricPoint[]>>;
   readonly histograms: Readonly<Record<string, readonly HistogramPoint[]>>;
 }
+
+/**
+ * Structural (duck-typed) shape of {@link MetricsCollector}'s public API.
+ * Alternate backends (Prometheus, OpenTelemetry) compose a `MetricsCollector`
+ * internally and expose this same surface rather than extending the class,
+ * so callers can depend on this interface instead of a concrete backend.
+ */
+export interface MetricsCollectorLike {
+  counter(name: string): Counter;
+  gauge(name: string): Gauge;
+  histogram(name: string): Histogram;
+  snapshot(): MetricsSnapshot;
+  reset(): void;
+}
