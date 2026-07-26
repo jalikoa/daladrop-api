@@ -1,4 +1,14 @@
 import { Money } from '../money';
+import {
+  isKesMoney,
+  kes,
+  KES_CURRENCY,
+  KES_MINOR_UNIT_DIGITS,
+  kesFromBigInt,
+  kesFromDecimalString,
+  kesToBigInt,
+  kesZero,
+} from '../kes';
 
 describe('Money', () => {
   it('creates values from minor units and validates invariants', () => {
@@ -98,5 +108,40 @@ describe('Money', () => {
       amount: 1999,
       currency: 'USD',
     });
+  });
+});
+
+describe('KES money helpers', () => {
+  it('uses whole-shilling scale 0 without changing Money defaults', () => {
+    expect(KES_CURRENCY).toBe('KES');
+    expect(KES_MINOR_UNIT_DIGITS).toBe(0);
+    expect(Money.of(100, 'KES').toDecimalString()).toBe('1.00');
+
+    const amount = kes(250);
+    expect(amount.amount).toBe(250);
+    expect(amount.currency).toBe('KES');
+    expect(amount.toDecimalString()).toBe('250');
+    expect(amount.toString()).toBe('KES 250');
+    expect(isKesMoney(amount)).toBe(true);
+    expect(isKesMoney(Money.of(1, 'USD'))).toBe(false);
+
+    expect(kesZero().isZero()).toBe(true);
+    expect(kesFromDecimalString('1000').amount).toBe(1000);
+    expect(() => kesFromDecimalString('10.5')).toThrow(RangeError);
+  });
+
+  it('converts BigInt ↔ Money only at persistence boundaries', () => {
+    expect(kesFromBigInt(1500n).amount).toBe(1500);
+    expect(kesFromBigInt(0n).isZero()).toBe(true);
+    expect(kesToBigInt(kes(250))).toBe(250n);
+    expect(kesToBigInt(kesFromBigInt(99n))).toBe(99n);
+
+    expect(() => kesToBigInt(Money.of(100, 'USD'))).toThrow(TypeError);
+    expect(() =>
+      kesFromBigInt(BigInt(Number.MAX_SAFE_INTEGER) + 1n),
+    ).toThrow(RangeError);
+    expect(() =>
+      kesFromBigInt(BigInt(Number.MIN_SAFE_INTEGER) - 1n),
+    ).toThrow(RangeError);
   });
 });
