@@ -147,11 +147,27 @@ export class SecurityModule {
       {
         provide: BcryptPasswordHasher,
         useFactory: (): BcryptPasswordHasher =>
-          new BcryptPasswordHasher(options.passwordRounds ?? 12),
+          new BcryptPasswordHasher(
+            options.passwordRounds ??
+              Number(process.env.AUTH_PASSWORD_BCRYPT_ROUNDS ?? 12),
+          ),
       },
       {
         provide: PasswordPolicy,
-        useFactory: (): PasswordPolicy => new PasswordPolicy(),
+        useFactory: (): PasswordPolicy =>
+          new PasswordPolicy({
+            minLength: Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 6),
+            requireUppercase:
+              (process.env.AUTH_PASSWORD_REQUIRE_UPPERCASE ?? 'true') !==
+              'false',
+            requireLowercase:
+              (process.env.AUTH_PASSWORD_REQUIRE_LOWERCASE ?? 'true') !==
+              'false',
+            requireNumber:
+              (process.env.AUTH_PASSWORD_REQUIRE_NUMBER ?? 'true') !== 'false',
+            requireSymbol:
+              (process.env.AUTH_PASSWORD_REQUIRE_SYMBOL ?? 'true') !== 'false',
+          }),
       },
       {
         provide: PasswordService,

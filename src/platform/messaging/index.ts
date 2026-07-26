@@ -9,6 +9,7 @@ export * from './email/template-renderer';
 export * from './messaging.module';
 export * from './push/apns.provider';
 export * from './push/fcm.provider';
+export * from './push/firebase-admin-fcm.provider';
 export * from './push/push-provider.interface';
 export * from './push/push.service';
 export * from './sms/africastalking.provider';

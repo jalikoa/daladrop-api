@@ -15,7 +15,7 @@ export class PasswordPolicy {
 
   public validate(password: string): void {
     const errors: Array<{ field: string; message: string }> = [];
-    const min = this.options.minLength ?? 12;
+    const min = this.options.minLength ?? 6;
     if (password.length < min)
       errors.push({
         field: 'password',

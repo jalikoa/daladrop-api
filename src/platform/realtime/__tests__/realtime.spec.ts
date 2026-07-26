@@ -95,7 +95,8 @@ describe('realtime platform', () => {
 
   describe('configuration', () => {
     it('resolves defaults and forces noop when disabled', () => {
-      expect(DEFAULT_REALTIME_CONFIG.provider).toBe('noop');
+      expect(DEFAULT_REALTIME_CONFIG.provider).toBe('socketio');
+      expect(DEFAULT_REALTIME_CONFIG.transport).toBe('socketio');
       const disabled = resolveRealtimeConfig({ REALTIME_ENABLED: 'false' });
       expect(disabled.enabled).toBe(false);
       expect(disabled.provider).toBe('noop');

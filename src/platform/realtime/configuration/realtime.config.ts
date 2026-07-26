@@ -23,8 +23,10 @@ export interface RealtimeConfig {
 
 export const DEFAULT_REALTIME_CONFIG: RealtimeConfig = {
   enabled: false,
-  provider: 'noop',
-  transport: 'none',
+  /** Preferred primary transport when realtime is enabled. */
+  provider: 'socketio',
+  /** WebSocket-first Socket.IO; polling remains transport fallback only. */
+  transport: 'socketio',
   port: 3001,
   heartbeatMs: 30_000,
   auth: 'jwt',

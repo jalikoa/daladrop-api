@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from '@nestjs/common';
+import { DynamicModule, Logger, Module } from '@nestjs/common';
 import {
   allowInMemoryDefaults,
   type ProductionAwareOptions,
@@ -12,6 +12,7 @@ import { createRealtimeProvider } from './providers/create-realtime.provider';
 import { PresenceService } from './presence/presence.service';
 import { JsonRealtimeSerializer } from './events/json-realtime.serializer';
 import { RealtimeGatewayHandler } from './gateways/realtime.gateway';
+import { PlatformSocketIoGateway } from './gateways/platform-socketio.gateway';
 import { RealtimeHealthIndicator } from './health/realtime-health.indicator';
 import {
   InMemoryRealtimeMetrics,
@@ -39,6 +40,8 @@ export interface RealtimeModuleOptions extends ProductionAwareOptions {
 
 @Module({})
 export class RealtimeModule {
+  private static readonly logger = new Logger(RealtimeModule.name);
+
   public static register(options: RealtimeModuleOptions = {}): DynamicModule {
     allowInMemoryDefaults(options);
     const env = options.env ?? process.env;
@@ -63,8 +66,23 @@ export class RealtimeModule {
     );
     const health = new RealtimeHealthIndicator(provider, config, metrics);
 
+    if (!config.enabled || provider.name === 'noop') {
+      this.logger.warn(
+        'Realtime is disabled or noop — Socket.IO clients will not receive live events. Set REALTIME_ENABLED=true and REALTIME_PROVIDER=socketio.',
+      );
+    } else {
+      this.logger.log(
+        `Realtime enabled provider=${provider.name} transport=${config.transport}`,
+      );
+    }
+
+    const socketGatewayEnabled =
+      config.enabled &&
+      (config.provider === 'socketio' || config.provider === 'nest-ws');
+
     return {
       module: RealtimeModule,
+      global: true,
       providers: [
         { provide: REALTIME_CONFIG, useValue: config },
         { provide: REALTIME_PROVIDER, useValue: provider },
@@ -75,6 +93,7 @@ export class RealtimeModule {
         { provide: RealtimeService, useValue: service },
         { provide: RealtimeGatewayHandler, useValue: gateway },
         { provide: RealtimeHealthIndicator, useValue: health },
+        ...(socketGatewayEnabled ? [PlatformSocketIoGateway] : []),
       ],
       exports: [
         REALTIME_CONFIG,

@@ -18,18 +18,16 @@ export interface RateLimitStore {
 export interface InMemoryRateLimitStoreOptions {
   /**
    * Maximum distinct rate-limit keys retained after expired cleanup.
-   * New keys are rejected (fail closed) when capacity is exhausted.
+   * When capacity is exhausted the oldest entry is evicted (fail-open) so
+   * key-rotation attacks cannot take the API offline.
    * @default 10_000
    */
   readonly maxEntries?: number;
 }
 
 /**
- * Bounded in-memory rate-limit store with lazy expired-entry cleanup.
- *
- * **API change:** accepts optional `{ maxEntries }` and throws
- * {@link DomainException} with code `RATE_LIMIT_STORE_FULL` when a new key
- * cannot be admitted after cleanup.
+ * Bounded in-memory rate-limit store with lazy expired-entry cleanup and
+ * LRU-style eviction when capacity is exhausted.
  */
 @Injectable()
 export class InMemoryRateLimitStore implements RateLimitStore {
@@ -63,13 +61,13 @@ export class InMemoryRateLimitStore implements RateLimitStore {
         ? { count: 1, resetAt: now + windowMs }
         : { count: current.count + 1, resetAt: current.resetAt };
     if (!this.states.has(key) && this.states.size >= this.maxEntries) {
-      return Promise.reject(
-        new DomainException(
-          'Rate limit store capacity exhausted',
-          'RATE_LIMIT_STORE_FULL',
-        ),
-      );
+      // Evict the oldest entry rather than failing closed — a capacity-exhaustion
+      // DoS must not take the whole API offline for legitimate clients.
+      const oldest = this.states.keys().next().value!;
+      this.states.delete(oldest);
     }
+    // Re-insert so the key becomes the most-recent Map entry (LRU-ish).
+    if (this.states.has(key)) this.states.delete(key);
     this.states.set(key, next);
     return Promise.resolve(next);
   }

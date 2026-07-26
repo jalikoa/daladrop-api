@@ -275,13 +275,15 @@ describe('security platform primitives', () => {
     await expect(store.increment('a', 1_000, 0)).resolves.toMatchObject({
       count: 1,
     });
-    await expect(store.increment('b', 1_000, 0)).rejects.toThrow(
-      DomainException,
-    );
-    await expect(store.increment('a', 1_000, 0)).resolves.toMatchObject({
+    // Capacity full: oldest key is evicted so new keys are still admitted.
+    await expect(store.increment('b', 1_000, 0)).resolves.toMatchObject({
+      count: 1,
+    });
+    expect(store.size()).toBe(1);
+    await expect(store.increment('b', 1_000, 0)).resolves.toMatchObject({
       count: 2,
     });
-    await expect(store.increment('b', 1_000, 1_001)).resolves.toMatchObject({
+    await expect(store.increment('c', 1_000, 1_001)).resolves.toMatchObject({
       count: 1,
     });
     expect(store.size()).toBe(1);

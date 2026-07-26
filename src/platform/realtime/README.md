@@ -39,15 +39,18 @@ Supporting capabilities:
 
 ```env
 REALTIME_ENABLED=false
-REALTIME_PROVIDER=noop
-REALTIME_TRANSPORT=none
+REALTIME_PROVIDER=socketio
+REALTIME_TRANSPORT=socketio
 REALTIME_PORT=3001
 REALTIME_HEARTBEAT=30000
 REALTIME_AUTH=jwt
 ```
 
 When `REALTIME_ENABLED=false`, the factory **always** selects `NoopRealtimeProvider`
-so the application compiles and boots with no controllers failing.
+so the application compiles and boots with no controllers failing. When enabled,
+defaults prefer **Socket.IO** as the primary transport (polling remains a client
+fallback only). Business modules must inject `RealtimeService` from
+`src/platform/realtime` — never raw Socket.IO.
 
 ## Nest wiring
 

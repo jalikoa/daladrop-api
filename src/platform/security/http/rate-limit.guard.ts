@@ -22,10 +22,11 @@ export class RateLimitGuard implements CanActivate {
 
   public async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    // Never key on client-supplied X-Api-Key — unauthenticated callers can
+    // rotate it to mint unlimited buckets. Prefer authenticated user, else IP.
     const result = await this.limiter.consume(
       this.limiter.key({
         userId: request.user?.id,
-        apiKey: this.single(request.headers['x-api-key']),
         ip: request.ip,
       }),
       this.limit,
@@ -38,11 +39,5 @@ export class RateLimitGuard implements CanActivate {
       );
     }
     return true;
-  }
-
-  private single(
-    value: string | readonly string[] | undefined,
-  ): string | undefined {
-    return typeof value === 'string' ? value : value?.[0];
   }
 }

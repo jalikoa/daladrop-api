@@ -5,9 +5,12 @@ import {
 import type { RealtimeSerializer } from '../contracts/realtime-serializer.interface';
 
 /**
- * Socket.IO-compatible provider.
- * Uses the same in-process transport; wire socket.io Server instances through
- * {@link RealtimeGatewayHandler}. Socket.IO itself remains an optional peer.
+ * Socket.IO provider for the platform realtime layer (`src/platform/realtime`).
+ *
+ * Business modules must never import Socket.IO directly — they inject
+ * {@link RealtimeService} and publish via rooms/users. This provider is the
+ * in-process Socket.IO-compatible transport; clients connect through
+ * {@link RealtimeGatewayHandler} with websocket primary and polling fallback.
  */
 export class SocketIOProvider extends InMemoryTransportAdapter {
   public constructor(
