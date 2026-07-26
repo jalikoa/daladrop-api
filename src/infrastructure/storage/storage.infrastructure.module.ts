@@ -21,19 +21,20 @@ export class StorageInfrastructureModule {
   public static register(
     options: StorageInfrastructureOptions = {},
   ): DynamicModule {
-    const environment = options.environment ?? process.env;
-    const provider =
-      options.provider ??
-      environment.STORAGE_PROVIDER ??
-      environment.STORAGE_ENGINE ??
-      'local';
     return {
       module: StorageInfrastructureModule,
       providers: [
         {
           provide: STORAGE_PROVIDER,
-          useFactory: (): StorageProvider =>
-            createProvider(provider, environment),
+          useFactory: (): StorageProvider => {
+            const environment = options.environment ?? process.env;
+            const provider =
+              options.provider ??
+              environment.STORAGE_PROVIDER ??
+              environment.STORAGE_ENGINE ??
+              'local';
+            return createProvider(provider, environment);
+          },
         },
       ],
       exports: [STORAGE_PROVIDER],
