@@ -19,7 +19,10 @@ describe('Configuration Factory', () => {
   });
 
   it('should return default values when no environment variables are set', () => {
-    process.env = {};
+    process.env = {
+      JWT_SECRET: 'test-jwt-secret-key-1234567890123456789012',
+      ENCRYPTION_SECRET_KEY: 'test-encryption-key-32chars!!',
+    };
 
     const config = configuration();
 
@@ -35,6 +38,8 @@ describe('Configuration Factory', () => {
 
   it('should correctly parse and map provided environment variables', () => {
     process.env = {
+      JWT_SECRET: 'test-jwt-secret-key-1234567890123456789012',
+      ENCRYPTION_SECRET_KEY: 'test-encryption-key-32chars!!',
       PORT: '8080',
       NODE_ENV: 'production',
       APP_NAME: 'orders-api',
@@ -62,6 +67,8 @@ describe('Configuration Factory', () => {
   });
 
   it('should correctly split CORS_ORIGINS into an array', () => {
+    process.env.JWT_SECRET = 'test-jwt-secret-key-1234567890123456789012';
+    process.env.ENCRYPTION_SECRET_KEY = 'test-encryption-key-32chars!!';
     process.env.CORS_ORIGINS = 'http://localhost:3000, https://app.example.com';
 
     const config = configuration();
@@ -73,6 +80,8 @@ describe('Configuration Factory', () => {
   });
 
   it('should replace literal \\n with actual newlines in PUSH_PROVIDER_PRIVATE_KEY', () => {
+    process.env.JWT_SECRET = 'test-jwt-secret-key-1234567890123456789012';
+    process.env.ENCRYPTION_SECRET_KEY = 'test-encryption-key-32chars!!';
     process.env.PUSH_PROVIDER_PRIVATE_KEY =
       '-----BEGIN PRIVATE KEY-----\\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC\\n-----END PRIVATE KEY-----\\n';
 
@@ -83,11 +92,20 @@ describe('Configuration Factory', () => {
   });
 
   it('should set production log level by default if NODE_ENV is production', () => {
+    process.env.JWT_SECRET = 'test-jwt-secret-key-1234567890123456789012';
+    process.env.ENCRYPTION_SECRET_KEY = 'test-encryption-key-32chars!!';
     process.env.NODE_ENV = 'production';
     delete process.env.LOG_LEVEL;
 
     const config = configuration();
 
     expect(config.observability.logLevel).toBe('info');
+  });
+
+  it('should fail closed when JWT or encryption secrets are missing', () => {
+    process.env = { ENCRYPTION_SECRET_KEY: 'test-encryption-key-32chars!!' };
+    expect(() => configuration()).toThrow(/JWT_SECRET/);
+    process.env = { JWT_SECRET: 'test-jwt-secret-key-1234567890123456789012' };
+    expect(() => configuration()).toThrow(/ENCRYPTION_SECRET_KEY/);
   });
 });

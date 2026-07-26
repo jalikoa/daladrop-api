@@ -4,6 +4,7 @@ import {
   HttpCode,
   HttpStatus,
   Optional,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
@@ -16,7 +17,7 @@ import { Public } from '../../common/decorators/public.decorator';
  * and clients that need basic API metadata without credentials.
  */
 @ApiTags('Public')
-@Controller('public')
+@Controller({ path: 'public', version: VERSION_NEUTRAL })
 export class PublicController {
   constructor(@Optional() private readonly configService?: ConfigService) {}
 

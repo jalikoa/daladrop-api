@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { IdentityModule } from '../identity/identity.module';
 import { RuntimeConfigController } from './config.controller';
 import { RuntimeConfigService } from './config.service';
 
@@ -10,7 +11,7 @@ import { RuntimeConfigService } from './config.service';
  * safe/non-secret snapshots for clients and operators.
  */
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, IdentityModule],
   controllers: [RuntimeConfigController],
   providers: [RuntimeConfigService],
   exports: [RuntimeConfigService],

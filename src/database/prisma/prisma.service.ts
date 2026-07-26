@@ -7,27 +7,6 @@ import {
 import { PrismaClient } from '@prisma/client';
 
 /**
- * PrismaClient is generated as `any` when the schema has no models yet.
- * Narrow the constructor and lifecycle API so Nest wiring stays type-safe.
- */
-type PrismaLogLevel = 'query' | 'info' | 'warn' | 'error';
-
-type PrismaClientOptions = {
-  log?: PrismaLogLevel[];
-};
-
-type PrismaLifecycleClient = {
-  $connect(): Promise<void>;
-  $disconnect(): Promise<void>;
-};
-
-type PrismaClientConstructor = new (
-  options?: PrismaClientOptions,
-) => PrismaLifecycleClient;
-
-const BasePrismaClient = PrismaClient as unknown as PrismaClientConstructor;
-
-/**
  * Prisma Service.
  *
  * Extends PrismaClient and hooks into NestJS lifecycle events so the
@@ -43,7 +22,7 @@ const BasePrismaClient = PrismaClient as unknown as PrismaClientConstructor;
  */
 @Injectable()
 export class PrismaService
-  extends BasePrismaClient
+  extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger(PrismaService.name);

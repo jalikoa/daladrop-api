@@ -37,6 +37,10 @@ pids
 *.seed
 *.pid.lock
 
+# Local object storage (STORAGE_PROVIDER=local)
+/storage
+!/storage/.gitkeep
+
 # Node.js diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
@@ -69,3 +73,6 @@ Thumbs.db
 dist-infrastructure/
 dist-*/
 tsconfig.tsbuildinfo
+Uidocs/
+# Local-only commit helper — never push to GitHub
+scripts/commit-rc1-batches.sh

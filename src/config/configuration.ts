@@ -4,8 +4,19 @@ import { IConfig } from './interfaces/config.interface';
  * Configuration factory.
  * Maps environment variables onto the strict {@link IConfig} interface and
  * supplies safe local-development defaults where appropriate.
+ * JWT / encryption secrets have no fallbacks — boot must fail closed.
  */
-export default (): IConfig => ({
+export default (): IConfig => {
+  const jwtSecret = process.env.JWT_SECRET?.trim();
+  const encryptionSecret = process.env.ENCRYPTION_SECRET_KEY?.trim();
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET is required');
+  }
+  if (!encryptionSecret) {
+    throw new Error('ENCRYPTION_SECRET_KEY is required');
+  }
+
+  return {
   app: {
     port: parseInt(process.env.PORT || '3000', 10),
     environment: process.env.NODE_ENV || 'development',
@@ -45,12 +56,11 @@ export default (): IConfig => ({
     password: process.env.REDIS_PASSWORD || undefined,
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'default-dev-secret-change-in-production',
+    secret: jwtSecret,
     expiration: process.env.JWT_EXPIRATION || '1d',
   },
   encryption: {
-    secretKey:
-      process.env.ENCRYPTION_SECRET_KEY || 'default-dev-encryption-key-32ch!',
+    secretKey: encryptionSecret,
   },
   externalService: {
     apiKey: process.env.EXTERNAL_SERVICE_API_KEY || '',
@@ -97,4 +107,5 @@ export default (): IConfig => ({
     metricsToken: process.env.METRICS_TOKEN || '',
     sentryDsn: process.env.SENTRY_DSN || undefined,
   },
-});
+};
+};

@@ -108,10 +108,29 @@ export class HttpExceptionFilter
     }
 
     if (!response.headersSent) {
+      // Uidocs 20/21: clients expect success:false + human message; keep Nest
+      // statusCode/error/path for tooling. Prefer domain `code` when present on
+      // HttpException response bodies (e.g. AGE_VERIFICATION_REQUIRED).
+      const payload =
+        exception instanceof HttpException ? exception.getResponse() : null;
+      const body =
+        typeof payload === 'object' && payload !== null
+          ? (payload as Record<string, unknown>)
+          : null;
+      const domainCode =
+        typeof body?.code === 'string'
+          ? body.code
+          : typeof body?.error === 'string' &&
+              /^[A-Z][A-Z0-9_]+$/.test(body.error)
+            ? body.error
+            : undefined;
+
       response.status(status).json({
+        success: false,
         statusCode: status,
         message,
-        ...(errorCode ? { error: errorCode } : {}),
+        error: errorCode ?? (typeof message === 'string' ? message : messageText),
+        ...(domainCode ? { code: domainCode } : {}),
         timestamp: new Date().toISOString(),
         path: request.url,
         requestId,

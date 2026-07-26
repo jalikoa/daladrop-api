@@ -1,6 +1,16 @@
-import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  HttpStatus,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
+import { AuthTokenGuard } from '../identity/guards/auth-token.guard';
+import { CurrentAuth } from '../identity/decorators/current-auth.decorator';
+import type { AuthPrincipalView } from '../identity/domain/auth.contracts';
 import {
   RuntimeConfigService,
   type RuntimeConfigSnapshot,
@@ -21,15 +31,22 @@ export class RuntimeConfigController {
     return this.configService.getPublicSnapshot();
   }
 
-  @Public()
+  @ApiBearerAuth()
+  @UseGuards(AuthTokenGuard)
   @Get('masked')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Operator snapshot with secrets masked',
-    description:
-      'Useful for local diagnostics. Prefer restricting this route behind auth in production deployments.',
+    summary: 'Operator snapshot with secrets masked (admin/support only)',
   })
-  public getMasked(): Readonly<Record<string, unknown>> {
+  public getMasked(
+    @CurrentAuth() principal: AuthPrincipalView,
+  ): Readonly<Record<string, unknown>> {
+    const allowed = principal.roles.some((role) =>
+      ['ADMIN', 'SUPPORT', 'FINANCE', 'SYSTEM'].includes(role),
+    );
+    if (!allowed) {
+      throw new ForbiddenException('Operator role required');
+    }
     return this.configService.getMaskedInternalSnapshot();
   }
 }

@@ -1,8 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import type { NextFunction, Request, Response } from 'express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpMetricsInterceptor } from './common/interceptors/http-metrics.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -29,12 +31,23 @@ async function bootstrap(): Promise<void> {
     // Keep Nest's default logger until AppLogger is wired so DI / env
     // validation failures are visible on stderr (logger:false hid them).
     bufferLogs: true,
+    rawBody: true,
   });
+
+  // Socket.IO primary transport (polling fallback) via platform realtime gateway.
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   const config = app.get(ConfigService);
   const logger = app.get(AppLogger);
   logger.setContext('Bootstrap');
   app.useLogger(logger);
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   const requestIdMiddleware = new RequestIdMiddleware();
   app.use((req: Request, res: Response, next: NextFunction) =>
@@ -45,6 +58,13 @@ async function bootstrap(): Promise<void> {
   if (globalPrefix) {
     app.setGlobalPrefix(globalPrefix);
   }
+
+  // URI versioning: controllers resolve under /v1/... by default.
+  // Health/public probes stay version-neutral for load balancers.
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
 
   app.useGlobalFilters(new HttpExceptionFilter(logger));
 
@@ -72,7 +92,20 @@ async function bootstrap(): Promise<void> {
         callback(null, true);
         return;
       }
-      if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      const isProduction =
+        config.get<string>('app.environment') === 'production';
+      if (allowedOrigins.includes('*')) {
+        if (isProduction) {
+          callback(
+            new Error('CORS wildcard is not allowed in production'),
+            false,
+          );
+          return;
+        }
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -82,10 +115,13 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  if (config.get<string>('app.environment') !== 'production') {
+  const swaggerEnabled =
+    config.get<string>('app.environment') !== 'production' ||
+    process.env.SWAGGER_ENABLED === 'true';
+  if (swaggerEnabled) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle(config.get<string>('app.name', 'API'))
-      .setDescription('Reusable NestJS API scaffold')
+      .setDescription('DalaDrop Enterprise API')
       .setVersion(process.env.npm_package_version || '1.0.0')
       .addBearerAuth()
       .build();
@@ -103,10 +139,8 @@ async function bootstrap(): Promise<void> {
     port,
     environment: config.get<string>('app.environment'),
     orm: config.get<string>('orm.type'),
-    docs:
-      config.get<string>('app.environment') !== 'production'
-        ? '/api/docs'
-        : undefined,
+    realtime: process.env.REALTIME_ENABLED === 'true' ? 'on' : 'off',
+    docs: swaggerEnabled ? '/api/docs' : undefined,
   });
 }
 
