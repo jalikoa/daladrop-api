@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="15" failures="8" errors="0" time="20.482">
-  <testsuite name="Smoke Tests — Critical Flows" errors="0" failures="5" skipped="0" timestamp="2026-07-25T21:50:32" time="13.431" tests="8">
-    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /public/health should return 200" name="Smoke Tests — Critical Flows Health &amp; Observability GET /public/health should return 200" time="0.158">
+<testsuites name="jest tests" tests="15" failures="8" errors="0" time="25.009">
+  <testsuite name="Smoke Tests — Critical Flows" errors="0" failures="5" skipped="0" timestamp="2026-07-26T05:36:56" time="15.787" tests="8">
+    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /public/health should return 200" name="Smoke Tests — Critical Flows Health &amp; Observability GET /public/health should return 200" time="0.105">
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /health should return 200 when HealthModule is mounted" name="Smoke Tests — Critical Flows Health &amp; Observability GET /health should return 200 when HealthModule is mounted" time="0.069">
+    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /health should return 200 when HealthModule is mounted" name="Smoke Tests — Critical Flows Health &amp; Observability GET /health should return 200 when HealthModule is mounted" time="0.084">
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /metrics should return Prometheus text" name="Smoke Tests — Critical Flows Health &amp; Observability GET /metrics should return Prometheus text" time="0.043">
+    <testcase classname="Smoke Tests — Critical Flows Health &amp; Observability GET /metrics should return Prometheus text" name="Smoke Tests — Critical Flows Health &amp; Observability GET /metrics should return Prometheus text" time="0.034">
       <failure>Error: expected 200 &quot;OK&quot;, got 401 &quot;Unauthorized&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/smoke.e2e-spec.ts:59:57)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -35,7 +35,7 @@
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Authentication Flow POST /auth/login with invalid credentials should return 401" name="Smoke Tests — Critical Flows Authentication Flow POST /auth/login with invalid credentials should return 401" time="0.069">
+    <testcase classname="Smoke Tests — Critical Flows Authentication Flow POST /auth/login with invalid credentials should return 401" name="Smoke Tests — Critical Flows Authentication Flow POST /auth/login with invalid credentials should return 401" time="0.071">
       <failure>Error: expected 401 &quot;Unauthorized&quot;, got 404 &quot;Not Found&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/smoke.e2e-spec.ts:69:10)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -65,7 +65,7 @@
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Authentication Flow POST /auth/refresh with invalid token should return 401" name="Smoke Tests — Critical Flows Authentication Flow POST /auth/refresh with invalid token should return 401" time="0.044">
+    <testcase classname="Smoke Tests — Critical Flows Authentication Flow POST /auth/refresh with invalid token should return 401" name="Smoke Tests — Critical Flows Authentication Flow POST /auth/refresh with invalid token should return 401" time="0.035">
       <failure>Error: expected 401 &quot;Unauthorized&quot;, got 404 &quot;Not Found&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/smoke.e2e-spec.ts:76:10)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -95,7 +95,7 @@
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /users without auth should return 401" name="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /users without auth should return 401" time="0.02">
+    <testcase classname="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /users without auth should return 401" name="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /users without auth should return 401" time="0.031">
       <failure>Error: expected 401 &quot;Unauthorized&quot;, got 404 &quot;Not Found&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/smoke.e2e-spec.ts:82:43)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -125,7 +125,7 @@
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /audit/logs without auth should return 401" name="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /audit/logs without auth should return 401" time="0.015">
+    <testcase classname="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /audit/logs without auth should return 401" name="Smoke Tests — Critical Flows Protected Endpoints Require Auth GET /audit/logs without auth should return 401" time="0.056">
       <failure>Error: expected 401 &quot;Unauthorized&quot;, got 404 &quot;Not Found&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/smoke.e2e-spec.ts:86:48)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -155,27 +155,11 @@
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Smoke Tests — Critical Flows Validation should reject unknown body fields when forbidNonWhitelisted is enabled at the app layer" name="Smoke Tests — Critical Flows Validation should reject unknown body fields when forbidNonWhitelisted is enabled at the app layer" time="0.017">
+    <testcase classname="Smoke Tests — Critical Flows Validation should reject unknown body fields when forbidNonWhitelisted is enabled at the app layer" name="Smoke Tests — Critical Flows Validation should reject unknown body fields when forbidNonWhitelisted is enabled at the app layer" time="0.036">
     </testcase>
   </testsuite>
-  <testsuite name="API (e2e)" errors="0" failures="1" skipped="0" timestamp="2026-07-25T21:50:45" time="3.07" tests="4">
-    <testcase classname="API (e2e) Root &amp; public metadata GET / should return API metadata" name="API (e2e) Root &amp; public metadata GET / should return API metadata" time="0.049">
-    </testcase>
-    <testcase classname="API (e2e) Root &amp; public metadata GET /public/health should return healthy" name="API (e2e) Root &amp; public metadata GET /public/health should return healthy" time="0.015">
-    </testcase>
-    <testcase classname="API (e2e) Root &amp; public metadata GET /public/info should return non-sensitive metadata" name="API (e2e) Root &amp; public metadata GET /public/info should return non-sensitive metadata" time="0.014">
-    </testcase>
-    <testcase classname="API (e2e) Request correlation should echo x-request-id on responses" name="API (e2e) Request correlation should echo x-request-id on responses" time="0.023">
-      <failure>Error: expect(received).toBe(expected) // Object.is equality
-
-Expected: &quot;e2e-correlation-id&quot;
-Received: undefined
-    at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/app.e2e-spec.ts:95:43)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
-    </testcase>
-  </testsuite>
-  <testsuite name="Regression Tests" errors="0" failures="2" skipped="0" timestamp="2026-07-25T21:50:48" time="3.524" tests="3">
-    <testcase classname="Regression Tests Bug #003 — JWT Token Validation rejects malformed Bearer tokens on protected routes" name="Regression Tests Bug #003 — JWT Token Validation rejects malformed Bearer tokens on protected routes" time="0.043">
+  <testsuite name="Regression Tests" errors="0" failures="2" skipped="0" timestamp="2026-07-26T05:37:12" time="4.116" tests="3">
+    <testcase classname="Regression Tests Bug #003 — JWT Token Validation rejects malformed Bearer tokens on protected routes" name="Regression Tests Bug #003 — JWT Token Validation rejects malformed Bearer tokens on protected routes" time="0.06">
       <failure>Error: expected 401 &quot;Unauthorized&quot;, got 404 &quot;Not Found&quot;
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/regression.e2e-spec.ts:50:10)
     at Promise.finally.completed (/home/jalikoa/nyalifeapi/node_modules/jest-circus/build/jestAdapterInit.js:1561:28)
@@ -204,14 +188,30 @@ Received: undefined
     at emitCloseNT (node:net:2344:8)
     at processTicksAndRejections (node:internal/process/task_queues:81:21)</failure>
     </testcase>
-    <testcase classname="Regression Tests Bug #010 — Health Check Endpoints keeps /public/health available without authentication" name="Regression Tests Bug #010 — Health Check Endpoints keeps /public/health available without authentication" time="0.024">
+    <testcase classname="Regression Tests Bug #010 — Health Check Endpoints keeps /public/health available without authentication" name="Regression Tests Bug #010 — Health Check Endpoints keeps /public/health available without authentication" time="0.059">
     </testcase>
-    <testcase classname="Regression Tests Bug #011 — Request ID Correlation preserves client-supplied x-request-id" name="Regression Tests Bug #011 — Request ID Correlation preserves client-supplied x-request-id" time="0.027">
+    <testcase classname="Regression Tests Bug #011 — Request ID Correlation preserves client-supplied x-request-id" name="Regression Tests Bug #011 — Request ID Correlation preserves client-supplied x-request-id" time="0.04">
       <failure>Error: expect(received).toBe(expected) // Object.is equality
 
 Expected: &quot;regression-req-id&quot;
 Received: undefined
     at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/regression.e2e-spec.ts:70:43)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="API (e2e)" errors="0" failures="1" skipped="0" timestamp="2026-07-26T05:37:16" time="4.366" tests="4">
+    <testcase classname="API (e2e) Root &amp; public metadata GET / should return API metadata" name="API (e2e) Root &amp; public metadata GET / should return API metadata" time="0.055">
+    </testcase>
+    <testcase classname="API (e2e) Root &amp; public metadata GET /public/health should return healthy" name="API (e2e) Root &amp; public metadata GET /public/health should return healthy" time="0.036">
+    </testcase>
+    <testcase classname="API (e2e) Root &amp; public metadata GET /public/info should return non-sensitive metadata" name="API (e2e) Root &amp; public metadata GET /public/info should return non-sensitive metadata" time="0.032">
+    </testcase>
+    <testcase classname="API (e2e) Request correlation should echo x-request-id on responses" name="API (e2e) Request correlation should echo x-request-id on responses" time="0.039">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: &quot;e2e-correlation-id&quot;
+Received: undefined
+    at Object.&lt;anonymous&gt; (/home/jalikoa/nyalifeapi/test/app.e2e-spec.ts:95:43)
     at processTicksAndRejections (node:internal/process/task_queues:95:5)</failure>
     </testcase>
   </testsuite>
