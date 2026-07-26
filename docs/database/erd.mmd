@@ -1,0 +1,38 @@
+%% DalaDrop production ERD (logical)
+%% Render with Mermaid. Full physical schema: prisma/schema.prisma
+
+erDiagram
+  USER ||--o| USER_CREDENTIAL : has
+  USER ||--o{ USER_ROLE : assigned
+  ROLE ||--o{ USER_ROLE : includes
+  ROLE ||--o{ ROLE_PERMISSION : grants
+  PERMISSION ||--o{ ROLE_PERMISSION : granted_by
+  USER ||--o{ SESSION : opens
+  USER ||--o{ DEVICE : owns
+  USER ||--o{ MERCHANT : owns
+  MERCHANT ||--o{ STORE : operates
+  STORE ||--o{ PRODUCT : sells
+  STORE ||--o{ MENU_CATEGORY : menus
+  MENU_CATEGORY ||--o{ MENU_ITEM : contains
+  MENU_ITEM ||--o{ MODIFIER_GROUP : configures
+  MODIFIER_GROUP ||--o{ MODIFIER_OPTION : offers
+  USER ||--o{ ORDER : places
+  STORE ||--o{ ORDER : fulfils
+  ORDER ||--o{ ORDER_ITEM : lines
+  ORDER ||--o{ PAYMENT : collects
+  RIDE ||--o{ PAYMENT : collects
+  EVENT_BOOKING ||--o{ PAYMENT : collects
+  PAYMENT ||--o{ PAYMENT_ALLOCATION : splits
+  PAYMENT ||--o| JOURNAL_ENTRY : posts
+  JOURNAL_ENTRY ||--|{ JOURNAL_LINE : balanced
+  ACCOUNT ||--o{ JOURNAL_LINE : booked
+  USER ||--o{ WALLET : holds
+  WALLET ||--o{ WALLET_TRANSACTION : mirrors
+  PAYMENT ||--o{ ESCROW_HOLD : escrows
+  SETTLEMENT_BATCH ||--o{ SETTLEMENT_ITEM : pays_out
+  USER ||--o{ RIDE : requests
+  RIDER ||--o{ RIDE : drives
+  EVENT_ORGANIZER ||--o{ EVENT : hosts
+  EVENT ||--o{ EVENT_TICKET_TYPE : prices
+  EVENT_BOOKING ||--o{ EVENT_TICKET : issues
+  USER ||--o{ ENTITY_AUDIT_LOG : acts
