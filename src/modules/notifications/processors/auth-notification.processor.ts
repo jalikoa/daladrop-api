@@ -46,6 +46,26 @@ export class AuthNotificationProcessor extends WorkerHost {
     job: Extract<AuthBackgroundJob, { kind: 'deliver-otp' }>,
   ): Promise<void> {
     const body = `Your DalaDrop ${this.purpose(job.purpose)} code is ${job.code}. It expires shortly. Never share this code.`;
+
+    if (
+      process.env.NODE_ENV !== 'production' ||
+      process.env.AUTH_OTP_CONSOLE_LOG === 'true'
+    ) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[DEV OTP DELIVERY] purpose=${job.purpose} channel=${job.channel} to=${job.identifier} code=${job.code}`,
+      );
+    }
+
+    // Skip real provider delivery when none is configured (typical local/dev).
+    const skipSend =
+      process.env.AUTH_OTP_SKIP_SEND === 'true' ||
+      (process.env.NODE_ENV !== 'production' &&
+        process.env.AUTH_OTP_FORCE_SEND !== 'true');
+    if (skipSend) {
+      return;
+    }
+
     if (job.channel === 'EMAIL') {
       await this.email.send(this.config.emailProvider, {
         to: [job.identifier],

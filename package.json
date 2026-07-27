@@ -44,6 +44,8 @@
     "test:all": "yarn test && yarn test:e2e",
     "module:generate": "bash src/modules/module.sh",
     "postinstall": "node scripts/patch-brace-expansion.cjs",
+    "seed:production-dump": "node scripts/seed-production-dump.mjs",
+    "seed:production-dump:lite": "SEED_LITE=1 node scripts/seed-production-dump.mjs",
     "migration:run": "typeorm migration:run -d src/data-source.ts",
     "migration:revert": "typeorm migration:revert -d src/data-source.ts",
     "migration:generate": "typeorm migration:generate -d src/data-source.ts src/migrations/NewMigration"

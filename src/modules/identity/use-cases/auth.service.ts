@@ -777,6 +777,19 @@ export class AuthService {
       maxAttempts: this.config.otpMaxAttempts,
       resendCount,
     });
+
+    // Dev/local convenience: always print the plaintext OTP so engineers can
+    // complete flows without a live SMS/email provider. Never enable in prod.
+    if (
+      process.env.NODE_ENV !== 'production' ||
+      process.env.AUTH_OTP_CONSOLE_LOG === 'true'
+    ) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[DEV OTP] purpose=${purpose} channel=${channel} to=${identifier} code=${code} challengeId=${challenge.id}`,
+      );
+    }
+
     const jobId = await this.jobs.dispatch({
       kind: 'deliver-otp',
       challengeId: challenge.id,

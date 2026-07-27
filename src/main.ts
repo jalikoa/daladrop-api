@@ -1,8 +1,11 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -27,7 +30,7 @@ type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
  * `src/modules` stack — see AppModule JSDoc.
  */
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Keep Nest's default logger until AppLogger is wired so DI / env
     // validation failures are visible on stderr (logger:false hid them).
     bufferLogs: true,
@@ -85,34 +88,62 @@ async function bootstrap(): Promise<void> {
   const allowedOrigins = config.get<string[]>('app.corsOrigins', [
     'http://localhost:3000',
   ]);
+  const isProduction =
+    config.get<string>('app.environment') === 'production';
 
   app.enableCors({
     origin: (origin: string | undefined, callback: CorsOriginCallback) => {
+      // No Origin header (curl/server-to-server) — allow.
       if (!origin) {
         callback(null, true);
         return;
       }
-      const isProduction =
-        config.get<string>('app.environment') === 'production';
+      // Browsers send the literal string "null" for file:// pages.
+      // Allow only outside production so local admin.html can be opened
+      // directly; prefer http://localhost:<port>/admin.html instead.
+      if (origin === 'null') {
+        callback(null, !isProduction);
+        return;
+      }
       if (allowedOrigins.includes('*')) {
-        if (isProduction) {
-          callback(
-            new Error('CORS wildcard is not allowed in production'),
-            false,
-          );
-          return;
-        }
-        callback(null, true);
+        callback(null, !isProduction);
         return;
       }
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
-      callback(new Error(`Origin ${origin} not allowed by CORS`), false);
+      // Deny without throwing — throwing omits ACAO and looks like a
+      // generic CORS failure in the browser.
+      callback(null, false);
     },
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Device-Id',
+      'X-Session-Id',
+      'X-Request-Id',
+      'Idempotency-Key',
+    ],
     credentials: true,
+  });
+
+  // Internal ops console — same-origin avoids file:// CORS issues.
+  const adminHtmlPath = join(process.cwd(), 'admin.html');
+  const http = app.getHttpAdapter().getInstance() as {
+    get: (path: string, handler: (req: Request, res: Response) => void) => void;
+  };
+  http.get('/admin.html', (_req: Request, res: Response) => {
+    if (!existsSync(adminHtmlPath)) {
+      res.status(404).type('text').send('admin.html not found in process.cwd()');
+      return;
+    }
+    res.sendFile(adminHtmlPath);
+  });
+  http.get('/admin', (_req: Request, res: Response) => {
+    res.redirect(302, '/admin.html');
   });
 
   const swaggerEnabled =
@@ -141,6 +172,7 @@ async function bootstrap(): Promise<void> {
     orm: config.get<string>('orm.type'),
     realtime: process.env.REALTIME_ENABLED === 'true' ? 'on' : 'off',
     docs: swaggerEnabled ? '/api/docs' : undefined,
+    adminConsole: existsSync(adminHtmlPath) ? '/admin.html' : undefined,
   });
 }
 

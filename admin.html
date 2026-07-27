@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Daladrop Admin Console</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<style>
+:root {
+  --bg: #fff;
+  --fg: #111;
+  --muted: #6c757d;
+  --border: #d0d0d0;
+  --panel: #f7f7f7;
+  --sidebar-w: 280px;
+  --header-h: 56px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+}
+a { color: var(--fg); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+#login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #fafafa, #eee);
+}
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  background: #fff;
+  padding: 2rem;
+}
+.login-card .logo {
+  width: 48px; height: 48px; border: 2px solid #111; display:inline-flex;
+  align-items:center; justify-content:center; font-weight:700; margin-bottom:1rem;
+}
+#app-shell { display: none; height: 100vh; overflow: hidden; }
+#app-shell.active { display: grid; grid-template-columns: var(--sidebar-w) 1fr; grid-template-rows: var(--header-h) 1fr; }
+#app-shell.sidebar-collapsed { grid-template-columns: 64px 1fr; }
+.app-header {
+  grid-column: 1 / -1;
+  height: var(--header-h);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .75rem;
+  padding: 0 1rem; background: #fff; z-index: 30;
+}
+.brand-mark {
+  width: 28px; height: 28px; border: 2px solid #111;
+  display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:12px;
+}
+.badge-env {
+  border: 1px solid #111; background: #fff; color: #111; font-weight: 600;
+}
+.api-chip {
+  max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: 1px solid var(--border); padding: .15rem .5rem; background: var(--panel);
+}
+.app-sidebar {
+  border-right: 1px solid var(--border);
+  background: #fafafa;
+  overflow: auto;
+  height: calc(100vh - var(--header-h));
+}
+.sidebar-search { position: sticky; top: 0; background: #fafafa; z-index: 2; padding: .75rem; border-bottom: 1px solid var(--border); }
+.nav-section-title {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); padding: .75rem 1rem .25rem; font-weight: 700;
+}
+.nav-link-item {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .45rem .9rem; color: #222; text-decoration: none;
+  border-left: 3px solid transparent; cursor: pointer;
+}
+.nav-link-item:hover { background: #eee; }
+.nav-link-item.active { background: #e9e9e9; border-left-color: #111; font-weight: 600; }
+.nav-link-item .bi { width: 1.1rem; text-align: center; }
+.nav-group > .nav-group-toggle {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: .5rem .9rem; cursor:pointer; font-weight:600;
+}
+.nav-group > .nav-group-toggle:hover { background:#eee; }
+.nav-group .nav-children { display:none; padding-left: .5rem; }
+.nav-group.open .nav-children { display:block; }
+#app-shell.sidebar-collapsed .nav-label,
+#app-shell.sidebar-collapsed .nav-section-title,
+#app-shell.sidebar-collapsed .sidebar-search,
+#app-shell.sidebar-collapsed .nav-group-toggle .chev,
+#app-shell.sidebar-collapsed .nav-children { display:none !important; }
+#app-shell.sidebar-collapsed .nav-link-item { justify-content:center; padding:.7rem 0; border-left:0; }
+.main-wrap { display:flex; flex-direction:column; height: calc(100vh - var(--header-h)); overflow:hidden; background:#fff; }
+.tab-bar {
+  display:flex; align-items:center; gap:.25rem; padding:.35rem .5rem;
+  border-bottom:1px solid var(--border); background: var(--panel); overflow-x:auto;
+}
+.tab-pill {
+  border:1px solid var(--border); background:#fff; padding:.25rem .6rem;
+  display:inline-flex; align-items:center; gap:.35rem; cursor:pointer; white-space:nowrap;
+}
+.tab-pill.active { background:#111; color:#fff; border-color:#111; }
+.tab-pill .close-tab { opacity:.7; }
+.breadcrumb-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: .5rem 1rem; border-bottom:1px solid var(--border);
+}
+.content-scroll { flex:1; overflow:auto; padding:1rem; position:relative; }
+.panel {
+  border:1px solid var(--border); background:#fff; box-shadow: var(--shadow);
+}
+.panel-h {
+  padding:.65rem .9rem; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between; gap:.5rem; background:#fafafa;
+}
+.panel-b { padding: .9rem; }
+.stat-card {
+  border:1px solid var(--border); padding:1rem; background:#fff; height:100%;
+}
+.stat-card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+.stat-card .value { font-size:1.6rem; font-weight:700; margin-top:.25rem; }
+.table-sticky thead th {
+  position: sticky; top: 0; background:#f3f3f3; z-index:1; border-bottom:1px solid #111;
+}
+.table td, .table th { vertical-align: middle; }
+.json-view {
+  background:#111; color:#f5f5f5; padding:1rem; border-radius:0;
+  max-height: 420px; overflow:auto; white-space:pre-wrap; word-break:break-word;
+}
+.json-key { color:#ddd; }
+.json-str { color:#bbb; }
+.json-num { color:#fff; font-weight:600; }
+.json-bool { color:#ccc; font-style:italic; }
+.inspector {
+  border-top:1px solid var(--border); background:#fafafa; padding:.75rem 1rem;
+}
+.loading-overlay {
+  position:absolute; inset:0; background:rgba(255,255,255,.7);
+  display:none; align-items:center; justify-content:center; z-index:20;
+}
+.loading-overlay.show { display:flex; }
+.toast-stack {
+  position: fixed; top: 70px; right: 16px; z-index: 1080; width: min(360px, 92vw);
+}
+.toast-item {
+  border:1px solid #111; background:#fff; padding:.75rem .9rem; margin-bottom:.5rem;
+  box-shadow: var(--shadow);
+}
+.kbd {
+  border:1px solid var(--border); padding:0 .35rem; font-size:11px; background:#fff;
+}
+.skeleton {
+  background: linear-gradient(90deg, #eee, #f7f7f7, #eee);
+  background-size: 200% 100%; animation: sk 1.2s infinite linear; height: 14px; margin-bottom:8px;
+}
+@keyframes sk { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+#command-palette .modal-content { border:1px solid #111; }
+.fullscreen-panel { position:fixed; inset:0; z-index:1040; background:#fff; overflow:auto; padding:1rem; }
+.form-label .req { color:#111; }
+.row-actions .btn { padding: .15rem .4rem; }
+@media (max-width: 992px) {
+  #app-shell.active { grid-template-columns: 1fr; }
+  .app-sidebar {
+    position: fixed; left:0; top: var(--header-h); bottom:0; width: var(--sidebar-w);
+    z-index: 40; transform: translateX(-100%); transition: transform .2s;
+  }
+  #app-shell.sidebar-open .app-sidebar { transform: translateX(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-view">
+  <div class="login-card">
+    <div class="logo">DD</div>
+    <h1 class="h4 mb-1">Daladrop Admin Console</h1>
+    <p class="text-muted mb-3">Internal API administration &amp; operations</p>
+    <div class="alert border d-none mb-3" id="file-origin-warning" role="alert">
+      <strong>Opened as a local file.</strong> Prefer
+      <a id="same-origin-admin-link" href="http://localhost:3000/admin.html">http://localhost:3000/admin.html</a>
+      (same origin as the API). Restart the API after pulling CORS fixes if you stay on <code>file://</code>.
+    </div>
+    <form id="login-form" autocomplete="on">
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" id="login-email" required placeholder="admin@daladrop.test" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="login-password" required placeholder="••••••••" />
+      </div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="login-remember" checked />
+        <label class="form-check-label" for="login-remember">Remember token</label>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">API Base URL</label>
+        <input type="url" class="form-control mono" id="login-api-url" />
+        <div class="form-text">Persisted locally. Defaults from CONFIG.</div>
+      </div>
+      <button type="submit" class="btn btn-dark w-100" id="login-btn">
+        <span class="label">Sign in</span>
+      </button>
+      <div class="text-danger small mt-2 d-none" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell">
+  <header class="app-header">
+    <button class="btn btn-sm btn-outline-dark" id="btn-toggle-sidebar" title="Toggle sidebar"><i class="bi bi-list"></i></button>
+    <span class="brand-mark">DD</span>
+    <strong>Daladrop Admin</strong>
+    <span class="badge badge-env" id="env-badge">LOCAL</span>
+    <span class="api-chip mono" id="header-api-url" title="API URL"></span>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button class="btn btn-sm btn-outline-dark" id="btn-command" title="Ctrl+K"><i class="bi bi-search"></i></button>
+      <button class="btn btn-sm btn-outline-dark" id="btn-notifications" title="Notifications"><i class="bi bi-bell"></i></button>
+      <div class="text-end d-none d-md-block">
+        <div class="fw-semibold" id="header-user">—</div>
+        <div class="small text-muted" id="header-role">—</div>
+      </div>
+      <button class="btn btn-sm btn-dark" id="btn-logout" title="Ctrl+Shift+L">Logout</button>
+    </div>
+  </header>
+
+  <aside class="app-sidebar" id="sidebar">
+    <div class="sidebar-search">
+      <input type="search" class="form-control form-control-sm" id="nav-search" placeholder="Filter navigation…" />
+    </div>
+    <div id="nav-tree"></div>
+  </aside>
+
+  <div class="main-wrap">
+    <div class="tab-bar" id="tab-bar"></div>
+    <div class="breadcrumb-bar">
+      <nav aria-label="breadcrumb" class="mb-0">
+        <ol class="breadcrumb mb-0" id="breadcrumbs"><li class="breadcrumb-item active">Dashboard</li></ol>
+      </nav>
+      <div class="btn-group btn-group-sm">
+        <button class="btn btn-outline-dark" id="btn-refresh-module" title="Ctrl+R"><i class="bi bi-arrow-clockwise"></i></button>
+        <button class="btn btn-outline-dark" id="btn-fullscreen" title="Fullscreen"><i class="bi bi-fullscreen"></i></button>
+      </div>
+    </div>
+    <div class="content-scroll" id="content-root">
+      <div class="loading-overlay" id="global-loading"><div class="spinner-border" role="status"></div></div>
+      <div id="page-host"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<!-- Generic modal -->
+<div class="modal fade" id="app-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="app-modal-title">Dialog</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="app-modal-body"></div>
+      <div class="modal-footer" id="app-modal-footer">
+        <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-dark" id="app-modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Command palette -->
+<div class="modal fade" id="command-palette" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body p-2">
+        <input type="search" class="form-control form-control-lg border-0" id="cmd-input" placeholder="Jump to module… (Ctrl+K)" />
+        <div id="cmd-results" class="list-group list-group-flush mt-2" style="max-height:320px;overflow:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+ * CONFIG — edit only this object to point at your API
+ * ============================================================================ */
+const CONFIG = {
+  API_BASE_URL: "http://localhost:3000/v1",
+  API_ORIGIN: "http://localhost:3000",
+  REQUEST_TIMEOUT: 30000,
+  ENABLE_LOGGING: true,
+  AUTO_REFRESH_INTERVAL: 30000,
+  MAX_GET_RETRIES: 2,
+  STORAGE_PREFIX: "daladrop.admin.",
+  SWAGGER_PATH: "/api/docs",
+  HEALTH_PATH: "/health",
+  OPENAPI_JSON: "/api/docs-json"
+};
+
+(function (window, $) {
+  "use strict";
+
+  /* ========================================================================
+   * Storage
+   * ======================================================================== */
+  const Storage = (function () {
+    function key(k) { return CONFIG.STORAGE_PREFIX + k; }
+    function get(k, fallback) {
+      try {
+        const raw = localStorage.getItem(key(k));
+        return raw == null ? fallback : JSON.parse(raw);
+      } catch (e) { return fallback; }
+    }
+    function set(k, v) {
+      localStorage.setItem(key(k), JSON.stringify(v));
+    }
+    function del(k) { localStorage.removeItem(key(k)); }
+    return { get, set, del, key };
+  })();
+
+  /* ========================================================================
+   * Utils
+   * ======================================================================== */
+  const Util = (function () {
+    function uid() {
+      return "t" + Math.random().toString(36).slice(2, 10);
+    }
+    function escapeHtml(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function fmtMs(n) { return (n == null ? "—" : n + " ms"); }
+    function nowIso() { return new Date().toISOString(); }
+    function normalizeApiBase(url) {
+      let u = String(url || "").trim().replace(/\/+$/, "");
+      if (!u) u = CONFIG.API_BASE_URL;
+      // Login was hitting /auth/login when base lacked /v1.
+      if (!/\/v\d+$/i.test(u)) {
+        u = u + "/v1";
+      }
+      return u;
+    }
+    function joinUrl(base, path) {
+      if (!path) return base;
+      if (/^https?:\/\//i.test(path)) return path;
+      const b = normalizeApiBase(base);
+      const p = String(path).replace(/^\/+/, "");
+      // If path is absolute from origin (e.g. /health) use API_ORIGIN
+      if (String(path).startsWith("/") && !String(path).startsWith("/v1")) {
+        return String(CONFIG.API_ORIGIN || b.replace(/\/v\d+$/i, "")).replace(/\/+$/, "") + "/" + p.replace(/^\/+/, "");
+      }
+      return b + "/" + p;
+    }
+    function pickArray(data) {
+      if (Array.isArray(data)) return data;
+      if (!data || typeof data !== "object") return [];
+      const keys = ["items", "data", "results", "users", "merchants", "stores", "orders",
+        "payments", "wallets", "transactions", "events", "tickets", "accounts", "journals",
+        "batches", "policies", "rides", "flags", "announcements", "categories", "products",
+        "refunds", "rows", "records"];
+      for (let i = 0; i < keys.length; i++) {
+        if (Array.isArray(data[keys[i]])) return data[keys[i]];
+      }
+      for (const k of Object.keys(data)) {
+        if (Array.isArray(data[k])) return data[k];
+      }
+      return [];
+    }
+    function flattenObject(obj, prefix) {
+      const out = {};
+      prefix = prefix || "";
+      if (obj == null || typeof obj !== "object") return out;
+      Object.keys(obj).forEach(function (k) {
+        const v = obj[k];
+        const key = prefix ? prefix + "." + k : k;
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+          Object.assign(out, flattenObject(v, key));
+        } else {
+          out[key] = v;
+        }
+      });
+      return out;
+    }
+    function decodeJwt(token) {
+      try {
+        const part = String(token).split(".")[1];
+        if (!part) return null;
+        const json = atob(part.replace(/-/g, "+").replace(/_/g, "/"));
+        return JSON.parse(json);
+      } catch (e) { return null; }
+    }
+    function toCsv(rows) {
+      if (!rows.length) return "";
+      const cols = Object.keys(flattenObject(rows[0]));
+      const esc = function (v) {
+        const s = v == null ? "" : String(v);
+        return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+      };
+      return [cols.join(",")].concat(rows.map(function (r) {
+        const f = flattenObject(r);
+        return cols.map(function (c) { return esc(f[c]); }).join(",");
+      })).join("\n");
+    }
+    function download(filename, text, mime) {
+      const blob = new Blob([text], { type: mime || "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    function copy(text) {
+      return navigator.clipboard.writeText(text);
+    }
+    function deviceId() {
+      let id = Storage.get("deviceId");
+      if (!id) {
+        id = "admin-console-" + uid() + "-" + uid();
+        Storage.set("deviceId", id);
+      }
+      return id;
+    }
+    return { uid, escapeHtml, fmtMs, nowIso, normalizeApiBase, joinUrl, pickArray, flattenObject, decodeJwt, toCsv, download, copy, deviceId };
+  })();
+
+  /* ========================================================================
+   * Toast / UI chrome
+   * ======================================================================== */
+  const Notify = (function () {
+    function show(message, type) {
+      const id = Util.uid();
+      const el = $('<div class="toast-item"/>')
+        .attr("id", id)
+        .html('<div class="fw-semibold">' + Util.escapeHtml(type || "Notice") + '</div><div class="small">' + Util.escapeHtml(message) + "</div>");
+      $("#toast-stack").append(el);
+      setTimeout(function () { el.fadeOut(200, function () { el.remove(); }); }, 4500);
+    }
+    return {
+      info: function (m) { show(m, "Info"); },
+      success: function (m) { show(m, "Success"); },
+      error: function (m) { show(m, "Error"); },
+      warn: function (m) { show(m, "Warning"); }
+    };
+  })();
+
+  /* ========================================================================
+   * JSON Viewer
+   * ======================================================================== */
+  const JsonView = (function () {
+    function syntax(obj) {
+      const json = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+      return Util.escapeHtml(json)
+        .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+          let cls = "json-num";
+          if (/^"/.test(match)) {
+            cls = /:$/.test(match) ? "json-key" : "json-str";
+          } else if (/true|false/.test(match)) cls = "json-bool";
+          return '<span class="' + cls + '">' + match + "</span>";
+        });
+    }
+    function render(target, data) {
+      $(target).html('<pre class="json-view mb-0">' + syntax(data) + "</pre>");
+    }
+    return { render, syntax };
+  })();
+
+  /* ========================================================================
+   * API Client (jQuery AJAX only)
+   * ======================================================================== */
+  const Api = (function () {
+    let refreshing = null;
+    let lastExchange = null;
+
+    function base() {
+      return Util.normalizeApiBase(Storage.get("apiBaseUrl") || CONFIG.API_BASE_URL);
+    }
+
+    function origin() {
+      const b = base();
+      try {
+        const u = new URL(b);
+        return u.origin;
+      } catch (e) {
+        return CONFIG.API_ORIGIN;
+      }
+    }
+
+    function url(path) {
+      return Util.joinUrl(base(), path);
+    }
+
+    function log() {
+      if (!CONFIG.ENABLE_LOGGING) return;
+      // eslint-disable-next-line no-console
+      console.log.apply(console, arguments);
+    }
+
+    function authHeaders() {
+      const session = Auth.getSession();
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-Device-Id": Util.deviceId(),
+        "X-Request-Id": Util.uid()
+      };
+      if (session && session.token) {
+        headers.Authorization = "Bearer " + session.token;
+      }
+      if (session && session.sessionId) {
+        headers["X-Session-Id"] = session.sessionId;
+      }
+      return headers;
+    }
+
+    function setLoading(on) {
+      $("#global-loading").toggleClass("show", !!on);
+      $(document.body).css("cursor", on ? "progress" : "");
+    }
+
+    function buildCurl(method, fullUrl, headers, body) {
+      let c = "curl -X " + method + " '" + fullUrl + "'";
+      Object.keys(headers || {}).forEach(function (h) {
+        c += " \\\n  -H '" + h + ": " + headers[h] + "'";
+      });
+      if (body != null && method !== "GET" && method !== "HEAD") {
+        c += " \\\n  -d '" + JSON.stringify(body).replace(/'/g, "'\\''") + "'";
+      }
+      return c;
+    }
+
+    function normalizeError(xhr, textStatus) {
+      let message = textStatus || "Request failed";
+      let details = null;
+      try {
+        details = xhr.responseJSON || JSON.parse(xhr.responseText);
+      } catch (e) { details = xhr.responseText; }
+      if (details && typeof details === "object") {
+        message = details.message || details.error || details.title || message;
+        if (Array.isArray(details.message)) message = details.message.join("; ");
+      }
+      const status = xhr.status;
+      const map = {
+        0: "Network failure — check API URL / CORS",
+        401: "Unauthorized (401) — session expired or invalid token",
+        403: "Forbidden (403) — missing permission",
+        404: "Not found (404)",
+        409: "Conflict (409)",
+        422: "Validation error (422)",
+        429: "Rate limited (429)",
+        500: "Server error (500)"
+      };
+      if (textStatus === "timeout") message = "Request timed out";
+      return {
+        status: status,
+        message: map[status] ? map[status] + (message && status ? ": " + message : "") : message,
+        details: details,
+        xhr: xhr
+      };
+    }
+
+    function request(options) {
+      const method = (options.method || "GET").toUpperCase();
+      const fullUrl = options.absolute ? options.url : url(options.url);
+      const headers = Object.assign({}, authHeaders(), options.headers || {});
+      const started = performance.now();
+      const attempt = options._attempt || 0;
+      const skipAuthRefresh = options.skipAuthRefresh === true;
+      const showLoader = options.silent !== true;
+
+      if (showLoader) setLoading(true);
+
+      log("[API]", method, fullUrl, options.data || null);
+
+      return $.ajax({
+        url: fullUrl,
+        method: method,
+        data: method === "GET" || method === "HEAD"
+          ? options.query || undefined
+          : (options.raw ? options.data : JSON.stringify(options.data == null ? {} : options.data)),
+        headers: headers,
+        timeout: options.timeout || CONFIG.REQUEST_TIMEOUT,
+        dataType: options.dataType || "json",
+        contentType: options.raw ? options.contentType : "application/json",
+        traditional: true
+      }).then(function (data, textStatus, xhr) {
+        const duration = Math.round(performance.now() - started);
+        lastExchange = {
+          method: method,
+          url: fullUrl,
+          headers: headers,
+          body: options.data,
+          response: data,
+          status: xhr.status,
+          statusText: xhr.statusText,
+          durationMs: duration,
+          responseHeaders: xhr.getAllResponseHeaders(),
+          curl: buildCurl(method, fullUrl, headers, options.data),
+          at: Util.nowIso()
+        };
+        log("[API OK]", xhr.status, duration + "ms", data);
+        if (showLoader) setLoading(false);
+        return {
+          data: data,
+          xhr: xhr,
+          status: xhr.status,
+          durationMs: duration,
+          exchange: lastExchange
+        };
+      }, function (xhr, textStatus) {
+        const duration = Math.round(performance.now() - started);
+        const err = normalizeError(xhr, textStatus);
+        lastExchange = {
+          method: method,
+          url: fullUrl,
+          headers: headers,
+          body: options.data,
+          response: err.details,
+          status: xhr.status,
+          statusText: textStatus,
+          durationMs: duration,
+          responseHeaders: xhr.getAllResponseHeaders && xhr.getAllResponseHeaders(),
+          curl: buildCurl(method, fullUrl, headers, options.data),
+          at: Util.nowIso(),
+          error: err.message
+        };
+        log("[API ERR]", xhr.status, err.message);
+
+        // Retry safe GETs
+        if (method === "GET" && attempt < (CONFIG.MAX_GET_RETRIES || 0) && (xhr.status === 0 || xhr.status >= 500 || textStatus === "timeout")) {
+          return request(Object.assign({}, options, { _attempt: attempt + 1 }));
+        }
+
+        // Refresh once on 401
+        if (xhr.status === 401 && !skipAuthRefresh && !options._retriedAfterRefresh) {
+          return Auth.refresh().then(function (ok) {
+            if (!ok) {
+              if (showLoader) setLoading(false);
+              Auth.forceLogin("Session expired");
+              return $.Deferred().reject(err).promise();
+            }
+            return request(Object.assign({}, options, { _retriedAfterRefresh: true }));
+          });
+        }
+
+        if (showLoader) setLoading(false);
+        if (options.notify !== false) Notify.error(err.message);
+        return $.Deferred().reject(err).promise();
+      });
+    }
+
+    function getLastExchange() { return lastExchange; }
+
+    return {
+      base: base,
+      origin: origin,
+      url: url,
+      request: request,
+      get: function (path, query, opts) {
+        return request(Object.assign({ method: "GET", url: path, query: query }, opts || {}));
+      },
+      post: function (path, data, opts) {
+        return request(Object.assign({ method: "POST", url: path, data: data }, opts || {}));
+      },
+      put: function (path, data, opts) {
+        return request(Object.assign({ method: "PUT", url: path, data: data }, opts || {}));
+      },
+      patch: function (path, data, opts) {
+        return request(Object.assign({ method: "PATCH", url: path, data: data }, opts || {}));
+      },
+      del: function (path, data, opts) {
+        return request(Object.assign({ method: "DELETE", url: path, data: data }, opts || {}));
+      },
+      getLastExchange: getLastExchange,
+      setLoading: setLoading
+    };
+  })();
+
+  /* ========================================================================
+   * Auth
+   * ======================================================================== */
+  const Auth = (function () {
+    function getSession() {
+      return Storage.get("session", null);
+    }
+    function saveSession(session, remember) {
+      if (remember === false) {
+        // still use localStorage for single-page continuity; flag remember
+      }
+      Storage.set("session", session);
+      Storage.set("remember", remember !== false);
+    }
+    function clear() {
+      Storage.del("session");
+    }
+    function isExpired(session) {
+      if (!session || !session.expiresAt) return false;
+      return Date.parse(session.expiresAt) <= Date.now() + 5000;
+    }
+    function roles() {
+      const s = getSession();
+      if (!s) return [];
+      if (s.roles && s.roles.length) return s.roles;
+      const jwt = Util.decodeJwt(s.token);
+      return (jwt && (jwt.roles || jwt.role)) ? [].concat(jwt.roles || jwt.role) : [];
+    }
+    function permissions() {
+      const s = getSession();
+      if (!s) return [];
+      if (s.permissions && s.permissions.length) return s.permissions;
+      const jwt = Util.decodeJwt(s.token);
+      return (jwt && jwt.permissions) ? [].concat(jwt.permissions) : [];
+    }
+    function can(perm) {
+      if (!perm) return true;
+      const r = roles();
+      if (r.indexOf("ADMIN") >= 0 || r.indexOf("SYSTEM") >= 0) return true;
+      const perms = permissions();
+      if (!perms.length) return true; // fail-open in UI if JWT lacks perms; API still enforces
+      if (perms.indexOf(perm) >= 0) return true;
+      // allow read if manage present
+      if (/\.read$/.test(perm)) {
+        const manage = perm.replace(/\.read$/, ".manage");
+        if (perms.indexOf(manage) >= 0) return true;
+      }
+      return false;
+    }
+    function login(email, password) {
+      return Api.post("/auth/login", { email: email, password: password }, { skipAuthRefresh: true, notify: false })
+        .then(function (res) {
+          const data = res.data;
+          if (data && data.mfaRequired) {
+            return $.Deferred().reject({ message: "MFA required. Challenge: " + data.mfaChallengeId, details: data }).promise();
+          }
+          const jwt = Util.decodeJwt(data.token) || {};
+          const session = {
+            token: data.token,
+            refreshToken: data.refreshToken,
+            sessionId: data.sessionId,
+            expiresAt: data.expiresAt,
+            user: data.user,
+            roles: jwt.roles || [],
+            permissions: jwt.permissions || [],
+            deviceId: Util.deviceId()
+          };
+          saveSession(session, $("#login-remember").is(":checked"));
+          return session;
+        });
+    }
+    function refresh() {
+      const s = getSession();
+      if (!s || !s.refreshToken || !s.sessionId) {
+        return $.Deferred().resolve(false).promise();
+      }
+      return Api.post("/auth/refresh", {
+        sessionId: s.sessionId,
+        refreshToken: s.refreshToken
+      }, { skipAuthRefresh: true, silent: true, notify: false }).then(function (res) {
+        const data = res.data;
+        const jwt = Util.decodeJwt(data.token) || {};
+        const next = Object.assign({}, s, {
+          token: data.token,
+          refreshToken: data.refreshToken,
+          sessionId: data.sessionId,
+          expiresAt: data.expiresAt,
+          roles: jwt.roles || s.roles || [],
+          permissions: jwt.permissions || s.permissions || []
+        });
+        saveSession(next, Storage.get("remember", true));
+        return true;
+      }, function () { return false; });
+    }
+    function logout() {
+      const s = getSession();
+      const done = function () {
+        clear();
+        forceLogin();
+      };
+      if (!s) { done(); return; }
+      Api.post("/auth/logout", {}, { notify: false, silent: true }).always(done);
+    }
+    function forceLogin(msg) {
+      clear();
+      $("#app-shell").removeClass("active");
+      $("#login-view").show();
+      if (msg) {
+        $("#login-error").removeClass("d-none").text(msg);
+      }
+    }
+    function ensureSession() {
+      const s = getSession();
+      if (!s || !s.token) return $.Deferred().resolve(false).promise();
+      if (!isExpired(s)) return $.Deferred().resolve(true).promise();
+      return refresh();
+    }
+    return { getSession, saveSession, clear, login, refresh, logout, forceLogin, ensureSession, roles, permissions, can, isExpired };
+  })();
+
+  /* ========================================================================
+   * Modal helper
+   * ======================================================================== */
+  const Modal = (function () {
+    let onConfirm = null;
+    const modalEl = document.getElementById("app-modal");
+    const bsModal = new bootstrap.Modal(modalEl);
+    $("#app-modal-confirm").on("click", function () {
+      if (typeof onConfirm === "function") onConfirm();
+    });
+    function open(opts) {
+      opts = opts || {};
+      $("#app-modal-title").text(opts.title || "Dialog");
+      $("#app-modal-body").html(opts.body || "");
+      $("#app-modal-confirm").toggle(!opts.hideConfirm).text(opts.confirmText || "Confirm");
+      onConfirm = opts.onConfirm || null;
+      const dlg = $("#app-modal .modal-dialog");
+      dlg.removeClass("modal-sm modal-lg modal-xl");
+      if (opts.size) dlg.addClass("modal-" + opts.size);
+      bsModal.show();
+    }
+    function close() { bsModal.hide(); }
+    function confirm(message) {
+      const d = $.Deferred();
+      open({
+        title: "Confirm",
+        body: "<p>" + Util.escapeHtml(message) + "</p>",
+        confirmText: "Yes, continue",
+        onConfirm: function () { close(); d.resolve(true); }
+      });
+      return d.promise();
+    }
+    return { open, close, confirm };
+  })();
+
+  /* ========================================================================
+   * Inspector (request/response panel)
+   * ======================================================================== */
+  function renderInspector($host) {
+    const ex = Api.getLastExchange();
+    if (!ex) {
+      $host.html('<div class="text-muted small">No request yet.</div>');
+      return;
+    }
+    $host.html(
+      '<div class="inspector">' +
+      '<div class="d-flex flex-wrap gap-2 mb-2">' +
+      '<span class="badge text-bg-dark">' + Util.escapeHtml(ex.method) + "</span>" +
+      '<span class="badge text-bg-light border">' + Util.escapeHtml(String(ex.status)) + "</span>" +
+      '<span class="mono">' + Util.escapeHtml(Util.fmtMs(ex.durationMs)) + "</span>" +
+      '<button class="btn btn-sm btn-outline-dark" data-act="copy-json">Copy JSON</button>' +
+      '<button class="btn btn-sm btn-outline-dark" data-act="copy-curl">Copy cURL</button>' +
+      '<button class="btn btn-sm btn-outline-dark" data-act="export-json">Export</button>' +
+      "</div>" +
+      '<div class="mb-1 fw-semibold">URL</div><div class="mono mb-2">' + Util.escapeHtml(ex.url) + "</div>" +
+      '<ul class="nav nav-tabs" role="tablist">' +
+      '<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#insp-resp">Response</button></li>' +
+      '<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#insp-raw">Raw</button></li>' +
+      '<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#insp-hdr">Headers</button></li>' +
+      '<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#insp-req">Request</button></li>' +
+      "</ul>" +
+      '<div class="tab-content border border-top-0 p-2">' +
+      '<div class="tab-pane fade show active" id="insp-resp"></div>' +
+      '<div class="tab-pane fade" id="insp-raw"><pre class="mono mb-0" style="max-height:300px;overflow:auto"></pre></div>' +
+      '<div class="tab-pane fade" id="insp-hdr"><pre class="mono mb-0"></pre></div>' +
+      '<div class="tab-pane fade" id="insp-req"><pre class="mono mb-0"></pre></div>' +
+      "</div></div>"
+    );
+    JsonView.render($host.find("#insp-resp"), ex.response);
+    $host.find("#insp-raw pre").text(typeof ex.response === "string" ? ex.response : JSON.stringify(ex.response, null, 2));
+    $host.find("#insp-hdr pre").text(ex.responseHeaders || "");
+    $host.find("#insp-req pre").text(JSON.stringify({ headers: ex.headers, body: ex.body }, null, 2));
+    $host.find("[data-act=copy-json]").on("click", function () {
+      Util.copy(JSON.stringify(ex.response, null, 2)).then(function () { Notify.success("Copied"); });
+    });
+    $host.find("[data-act=copy-curl]").on("click", function () {
+      Util.copy(ex.curl).then(function () { Notify.success("cURL copied"); });
+    });
+    $host.find("[data-act=export-json]").on("click", function () {
+      Util.download("response.json", JSON.stringify(ex.response, null, 2));
+    });
+  }
+
+  /* ========================================================================
+   * Module registry
+   * ======================================================================== */
+  const NAV = [
+    { section: "Overview", items: [
+      { id: "dashboard", label: "Dashboard", icon: "bi-speedometer2" },
+      { id: "system-health", label: "System Health", icon: "bi-heart-pulse", perm: null },
+      { id: "swagger", label: "Swagger", icon: "bi-braces", perm: null }
+    ]},
+    { section: "Identity", items: [
+      { id: "users", label: "Users", icon: "bi-people", perm: "users.read" },
+      { id: "sessions-devices", label: "Sessions / Devices", icon: "bi-phone", perm: null }
+    ]},
+    { section: "Commerce", items: [
+      { id: "merchants", label: "Merchants", icon: "bi-shop", perm: "merchants.read" },
+      { id: "merchant-kyc", label: "KYC Queue", icon: "bi-person-vcard", perm: "merchants.read" },
+      { id: "stores", label: "Stores", icon: "bi-building", perm: "merchants.read" },
+      { id: "restaurants", label: "Restaurants", icon: "bi-egg-fried", perm: "merchants.read" },
+      { id: "markets", label: "Local Markets", icon: "bi-basket", perm: "merchants.read" },
+      { id: "liquor", label: "Liquor Stores", icon: "bi-cup-straw", perm: "merchants.read" },
+      { id: "gas", label: "Gas Vendors", icon: "bi-fire", perm: "merchants.read" },
+      { id: "food-categories", label: "Food Categories", icon: "bi-tags", perm: "catalog.read" },
+      { id: "module-categories", label: "Module Categories", icon: "bi-grid", perm: "catalog.read" },
+      { id: "store-products", label: "Store Products", icon: "bi-box", perm: "catalog.read" },
+      { id: "store-menu", label: "Store Menus", icon: "bi-journal-text", perm: "catalog.read" }
+    ]},
+    { section: "Orders & Payments", items: [
+      { id: "orders", label: "Orders", icon: "bi-bag-check", perm: "orders.read" },
+      { id: "payments", label: "Payments", icon: "bi-credit-card", perm: "payments.read" },
+      { id: "wallets", label: "Wallets", icon: "bi-wallet2", perm: "wallets.read" },
+      { id: "escrow", label: "Escrow", icon: "bi-safe", perm: "wallets.read" },
+      { id: "settlements", label: "Settlements", icon: "bi-cash-stack", perm: "settlements.read" }
+    ]},
+    { section: "Finance", items: [
+      { id: "accounting-overview", label: "Finance Overview", icon: "bi-graph-up", perm: "accounting.read" },
+      { id: "accounts", label: "Chart of Accounts", icon: "bi-list-columns", perm: "accounting.read" },
+      { id: "journals", label: "Journals", icon: "bi-journal-bookmark", perm: "accounting.read" },
+      { id: "periods", label: "Accounting Periods", icon: "bi-calendar3", perm: "accounting.read" },
+      { id: "reports", label: "Financial Reports", icon: "bi-file-earmark-bar-graph", perm: "accounting.read" }
+    ]},
+    { section: "Transport & Logistics", items: [
+      { id: "rides", label: "Rides", icon: "bi-bicycle", perm: "rides.read" },
+      { id: "courier-partners", label: "Courier Partners", icon: "bi-truck", perm: "transport.catalog.manage" },
+      { id: "intercounty", label: "Inter-County Routes", icon: "bi-signpost-2", perm: "transport.catalog.manage" },
+      { id: "pricing-rules", label: "Delivery Pricing", icon: "bi-currency-exchange", perm: "logistics.read" },
+      { id: "constraints", label: "Delivery Constraints", icon: "bi-rulers", perm: "logistics.read" },
+      { id: "pod", label: "Proof of Delivery", icon: "bi-camera", perm: "pod.read" }
+    ]},
+    { section: "Events", items: [
+      { id: "events", label: "Events", icon: "bi-calendar-event", perm: "events.read" },
+      { id: "event-categories", label: "Event Categories", icon: "bi-bookmark", perm: "events.read" }
+    ]},
+    { section: "Operations", items: [
+      { id: "feature-flags", label: "Feature Flags", icon: "bi-flag", perm: "ops.read" },
+      { id: "announcements", label: "Announcements", icon: "bi-megaphone", perm: "ops.read" },
+      { id: "support", label: "Support Tickets", icon: "bi-life-preserver", perm: "support.read" },
+      { id: "notifications", label: "Broadcast", icon: "bi-broadcast", perm: "notifications.manage" },
+      { id: "age-verification", label: "Age Verification", icon: "bi-shield-check", perm: "compliance.read" },
+      { id: "search-admin", label: "Search Index", icon: "bi-search", perm: "search.manage" }
+    ]},
+    { section: "Tools", items: [
+      { id: "api-console", label: "API Console", icon: "bi-terminal", perm: null },
+      { id: "openapi", label: "OpenAPI Viewer", icon: "bi-filetype-json", perm: null },
+      { id: "settings", label: "Console Settings", icon: "bi-gear", perm: null }
+    ]}
+  ];
+
+  /* ========================================================================
+   * Tabs / Router
+   * ======================================================================== */
+  const Tabs = (function () {
+    const open = [];
+    let active = null;
+
+    function renderBar() {
+      const $bar = $("#tab-bar").empty();
+      open.forEach(function (t) {
+        const $t = $('<button type="button" class="tab-pill"/>')
+          .toggleClass("active", t.id === active)
+          .attr("data-id", t.id)
+          .html('<span>' + Util.escapeHtml(t.label) + '</span><span class="close-tab" data-close="' + t.id + '">&times;</span>');
+        $bar.append($t);
+      });
+    }
+
+    function openTab(id, label, forceReload) {
+      let tab = open.find(function (t) { return t.id === id; });
+      if (!tab) {
+        tab = { id: id, label: label || id };
+        open.push(tab);
+      }
+      active = id;
+      Storage.set("lastModule", id);
+      renderBar();
+      Pages.load(id, forceReload);
+    }
+
+    function closeTab(id) {
+      const idx = open.findIndex(function (t) { return t.id === id; });
+      if (idx < 0) return;
+      open.splice(idx, 1);
+      if (active === id) {
+        const next = open[idx] || open[idx - 1] || open[0];
+        active = next ? next.id : null;
+        if (active) Pages.load(active);
+        else $("#page-host").html('<div class="text-muted">No module open.</div>');
+      }
+      renderBar();
+    }
+
+    function current() { return active; }
+
+    $("#tab-bar").on("click", ".tab-pill", function (e) {
+      const closeId = $(e.target).data("close");
+      if (closeId) { closeTab(closeId); return; }
+      openTab($(this).data("id"));
+    });
+
+    return { openTab, closeTab, current, renderBar };
+  })();
+
+  /* ========================================================================
+   * Generic resource page builder
+   * ======================================================================== */
+  function resourcePage(def) {
+    return function ($host) {
+      const state = {
+        page: 1,
+        limit: def.limit || 20,
+        q: "",
+        sort: "",
+        filters: {},
+        selected: {},
+        rows: []
+      };
+
+      $host.html(
+        '<div class="panel mb-3">' +
+        '<div class="panel-h"><div><strong>' + Util.escapeHtml(def.title) + '</strong>' +
+        (def.subtitle ? '<div class="small text-muted">' + Util.escapeHtml(def.subtitle) + "</div>" : "") +
+        '</div><div class="btn-group btn-group-sm">' +
+        (def.create ? '<button class="btn btn-dark" data-act="create"><i class="bi bi-plus"></i> Create</button>' : "") +
+        '<button class="btn btn-outline-dark" data-act="reload"><i class="bi bi-arrow-clockwise"></i></button>' +
+        '<button class="btn btn-outline-dark" data-act="export-json">JSON</button>' +
+        '<button class="btn btn-outline-dark" data-act="export-csv">CSV</button>' +
+        "</div></div>" +
+        '<div class="panel-b">' +
+        '<div class="row g-2 mb-3 align-items-end" data-role="filters"></div>' +
+        '<div class="table-responsive" style="max-height:48vh"><table class="table table-sm table-hover table-sticky"><thead><tr data-role="thead"></tr></thead><tbody data-role="tbody"><tr><td colspan="20"><div class="skeleton"></div></td></tr></tbody></table></div>' +
+        '<div class="d-flex justify-content-between align-items-center mt-2">' +
+        '<div class="small text-muted" data-role="meta"></div>' +
+        '<div class="btn-group btn-group-sm">' +
+        '<button class="btn btn-outline-dark" data-act="prev">Prev</button>' +
+        '<button class="btn btn-outline-dark" data-act="next">Next</button>' +
+        "</div></div>" +
+        '<div class="mt-3" data-role="bulk"></div>' +
+        "</div></div>" +
+        '<div data-role="inspector"></div>'
+      );
+
+      const $filters = $host.find("[data-role=filters]");
+      $filters.append(
+        '<div class="col-md-4"><label class="form-label">Search</label><input type="search" class="form-control form-control-sm" data-f="q" placeholder="Search…" /></div>'
+      );
+      (def.filters || []).forEach(function (f) {
+        let html = '<div class="col-md-3"><label class="form-label">' + Util.escapeHtml(f.label) + "</label>";
+        if (f.type === "select") {
+          html += '<select class="form-select form-select-sm" data-f="' + f.key + '"><option value="">All</option>';
+          (f.options || []).forEach(function (o) {
+            html += '<option value="' + Util.escapeHtml(o.value) + '">' + Util.escapeHtml(o.label) + "</option>";
+          });
+          html += "</select>";
+        } else {
+          html += '<input class="form-control form-control-sm" data-f="' + f.key + '" placeholder="' + Util.escapeHtml(f.placeholder || "") + '" />';
+        }
+        html += "</div>";
+        $filters.append(html);
+      });
+      $filters.append('<div class="col-md-2"><button class="btn btn-sm btn-dark w-100" data-act="apply">Apply</button></div>');
+
+      const cols = def.columns || [{ key: "id", label: "ID" }];
+      const $thead = $host.find("[data-role=thead]");
+      $thead.append('<th style="width:36px"><input type="checkbox" data-act="check-all" /></th>');
+      cols.forEach(function (c) {
+        $thead.append("<th>" + Util.escapeHtml(c.label) + "</th>");
+      });
+      $thead.append("<th>Actions</th>");
+
+      function queryParams() {
+        const q = { limit: state.limit, page: state.page, offset: (state.page - 1) * state.limit };
+        if (state.q) q.q = state.q;
+        Object.keys(state.filters).forEach(function (k) {
+          if (state.filters[k] !== "" && state.filters[k] != null) q[k] = state.filters[k];
+        });
+        if (def.query) Object.assign(q, typeof def.query === "function" ? def.query(state) : def.query);
+        return q;
+      }
+
+      function cellValue(row, col) {
+        if (col.render) return col.render(row);
+        const parts = String(col.key).split(".");
+        let v = row;
+        for (let i = 0; i < parts.length; i++) {
+          v = v == null ? null : v[parts[i]];
+        }
+        if (typeof v === "object") return Util.escapeHtml(JSON.stringify(v));
+        return Util.escapeHtml(v == null ? "" : v);
+      }
+
+      function load() {
+        const path = typeof def.list === "function" ? def.list(state) : def.list;
+        return Api.get(path, queryParams()).done(function (res) {
+          const rows = def.mapRows ? def.mapRows(res.data) : Util.pickArray(res.data);
+          state.rows = rows;
+          const $tb = $host.find("[data-role=tbody]").empty();
+          if (!rows.length) {
+            $tb.append('<tr><td colspan="' + (cols.length + 2) + '" class="text-muted">No records</td></tr>');
+          } else {
+            rows.forEach(function (row, idx) {
+              const id = row.id || row.key || idx;
+              let tr = '<tr><td><input type="checkbox" data-sel="' + Util.escapeHtml(String(id)) + '" /></td>';
+              cols.forEach(function (c) { tr += "<td>" + cellValue(row, c) + "</td>"; });
+              tr += '<td class="row-actions">';
+              tr += '<button class="btn btn-outline-dark" data-act="view" data-idx="' + idx + '">View</button> ';
+              if (def.update) tr += '<button class="btn btn-outline-dark" data-act="edit" data-idx="' + idx + '">Edit</button> ';
+              (def.rowActions || []).forEach(function (a) {
+                tr += '<button class="btn btn-outline-dark" data-act="row" data-rowact="' + a.id + '" data-idx="' + idx + '">' + Util.escapeHtml(a.label) + "</button> ";
+              });
+              if (def.remove) tr += '<button class="btn btn-outline-dark" data-act="delete" data-idx="' + idx + '">Delete</button>';
+              tr += "</td></tr>";
+              $tb.append(tr);
+            });
+          }
+          $host.find("[data-role=meta]").text(rows.length + " row(s) · page " + state.page + " · " + Util.fmtMs(res.durationMs));
+          renderInspector($host.find("[data-role=inspector]"));
+          renderBulk();
+        });
+      }
+
+      function renderBulk() {
+        const actions = def.bulkActions || [];
+        if (!actions.length) { $host.find("[data-role=bulk]").empty(); return; }
+        let html = '<div class="d-flex gap-2 flex-wrap align-items-center"><span class="small text-muted">Bulk:</span>';
+        actions.forEach(function (a) {
+          html += '<button class="btn btn-sm btn-outline-dark" data-bulk="' + a.id + '">' + Util.escapeHtml(a.label) + "</button>";
+        });
+        html += "</div>";
+        $host.find("[data-role=bulk]").html(html);
+      }
+
+      function selectedIds() {
+        return $host.find("[data-sel]:checked").map(function () { return $(this).data("sel"); }).get();
+      }
+
+      function openForm(mode, row) {
+        const fields = def.fields || [];
+        let body = '<form id="resource-form" class="row g-3">';
+        fields.forEach(function (f) {
+          const val = row && row[f.key] != null ? row[f.key] : (f.default != null ? f.default : "");
+          const req = f.required ? ' <span class="req">*</span>' : "";
+          body += '<div class="col-md-' + (f.col || 6) + '"><label class="form-label">' + Util.escapeHtml(f.label) + req + "</label>";
+          if (f.type === "textarea" || f.type === "json") {
+            body += '<textarea class="form-control mono" name="' + f.key + '" rows="' + (f.rows || 4) + '"' + (f.required ? " required" : "") + ">" + Util.escapeHtml(typeof val === "object" ? JSON.stringify(val, null, 2) : val) + "</textarea>";
+          } else if (f.type === "select") {
+            body += '<select class="form-select" name="' + f.key + '"' + (f.required ? " required" : "") + ">";
+            (f.options || []).forEach(function (o) {
+              body += '<option value="' + Util.escapeHtml(o.value) + '"' + (String(o.value) === String(val) ? " selected" : "") + ">" + Util.escapeHtml(o.label) + "</option>";
+            });
+            body += "</select>";
+          } else if (f.type === "checkbox") {
+            body += '<div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="' + f.key + '" ' + (val ? "checked" : "") + ' /><label class="form-check-label">Enabled</label></div>';
+          } else {
+            body += '<input class="form-control" type="' + (f.type || "text") + '" name="' + f.key + '" value="' + Util.escapeHtml(val) + '"' + (f.required ? " required" : "") + (f.placeholder ? ' placeholder="' + Util.escapeHtml(f.placeholder) + '"' : "") + " />";
+          }
+          if (f.help) body += '<div class="form-text">' + Util.escapeHtml(f.help) + "</div>";
+          body += "</div>";
+        });
+        body += "</form>";
+        Modal.open({
+          title: mode === "create" ? "Create" : "Edit",
+          body: body,
+          size: "lg",
+          confirmText: "Save",
+          onConfirm: function () {
+            const payload = {};
+            fields.forEach(function (f) {
+              if (f.type === "checkbox") {
+                payload[f.key] = $('#resource-form [name="' + f.key + '"]').is(":checked");
+              } else {
+                let v = $('#resource-form [name="' + f.key + '"]').val();
+                if (f.type === "number") v = v === "" ? null : Number(v);
+                if (f.type === "json") {
+                  try { v = v ? JSON.parse(v) : null; } catch (e) { Notify.error("Invalid JSON for " + f.key); throw e; }
+                }
+                if (f.cast === "bigintLike" && v !== "" && v != null) v = Number(v);
+                if (v !== "" && v != null) payload[f.key] = v;
+              }
+            });
+            const req = mode === "create"
+              ? Api[def.createMethod || "post"](def.create.replace(":id", row && row.id ? row.id : ""), payload)
+              : Api[def.updateMethod || "put"](def.update.replace(":id", row.id), payload);
+            req.done(function () {
+              Modal.close();
+              Notify.success("Saved");
+              load();
+            });
+          }
+        });
+      }
+
+      $host.on("click", "[data-act=apply],[data-act=reload]", function () {
+        state.q = $host.find("[data-f=q]").val() || "";
+        $host.find("[data-f]").each(function () {
+          const k = $(this).data("f");
+          if (k === "q") return;
+          state.filters[k] = $(this).val();
+        });
+        state.page = 1;
+        load();
+      });
+      $host.on("click", "[data-act=prev]", function () { if (state.page > 1) { state.page--; load(); } });
+      $host.on("click", "[data-act=next]", function () { state.page++; load(); });
+      $host.on("click", "[data-act=create]", function () { openForm("create"); });
+      $host.on("click", "[data-act=edit]", function () { openForm("edit", state.rows[$(this).data("idx")]); });
+      $host.on("click", "[data-act=view]", function () {
+        const row = state.rows[$(this).data("idx")];
+        const getPath = def.get ? def.get.replace(":id", row.id) : null;
+        const show = function (data) {
+          Modal.open({
+            title: "Detail",
+            body: '<div id="detail-json"></div>',
+            size: "xl",
+            hideConfirm: true
+          });
+          JsonView.render("#detail-json", data);
+        };
+        if (getPath) Api.get(getPath).done(function (res) { show(res.data); });
+        else show(row);
+      });
+      $host.on("click", "[data-act=delete]", function () {
+        const row = state.rows[$(this).data("idx")];
+        Modal.confirm("Delete / archive " + (row.id || "") + "?").done(function () {
+          Api.del(def.remove.replace(":id", row.id)).done(function () {
+            Notify.success("Deleted");
+            load();
+          });
+        });
+      });
+      $host.on("click", "[data-act=row]", function () {
+        const $btn = $(this);
+        const act = (def.rowActions || []).find(function (a) { return a.id === $btn.data("rowact"); });
+        const row = state.rows[$btn.data("idx")];
+        if (!act) return;
+        if (act.confirm) {
+          Modal.confirm(act.confirm).done(function () { act.run(row, load); });
+        } else act.run(row, load);
+      });
+      $host.on("click", "[data-act=export-json]", function () {
+        Util.download((def.id || "export") + ".json", JSON.stringify(state.rows, null, 2));
+      });
+      $host.on("click", "[data-act=export-csv]", function () {
+        Util.download((def.id || "export") + ".csv", Util.toCsv(state.rows), "text/csv");
+      });
+      $host.on("change", "[data-act=check-all]", function () {
+        $host.find("[data-sel]").prop("checked", $(this).is(":checked"));
+      });
+      $host.on("click", "[data-bulk]", function () {
+        const id = $(this).data("bulk");
+        const act = (def.bulkActions || []).find(function (a) { return a.id === id; });
+        const ids = selectedIds();
+        if (!act || !ids.length) { Notify.warn("Select rows first"); return; }
+        Modal.confirm("Run " + act.label + " on " + ids.length + " row(s)?").done(function () {
+          act.run(ids, state.rows, load);
+        });
+      });
+
+      load();
+      return { reload: load };
+    };
+  }
+
+  function actionFormPage(def) {
+    return function ($host) {
+      let html = '<div class="panel"><div class="panel-h"><strong>' + Util.escapeHtml(def.title) + "</strong></div><div class=\"panel-b\">";
+      html += '<form id="action-form" class="row g-3">';
+      (def.fields || []).forEach(function (f) {
+        html += '<div class="col-md-' + (f.col || 6) + '"><label class="form-label">' + Util.escapeHtml(f.label) + (f.required ? ' <span class="req">*</span>' : "") + "</label>";
+        if (f.type === "textarea" || f.type === "json") {
+          html += '<textarea class="form-control mono" name="' + f.key + '" rows="5"' + (f.required ? " required" : "") + ">" + Util.escapeHtml(f.default || "") + "</textarea>";
+        } else if (f.type === "select") {
+          html += '<select class="form-select" name="' + f.key + '">';
+          (f.options || []).forEach(function (o) {
+            html += '<option value="' + Util.escapeHtml(o.value) + '">' + Util.escapeHtml(o.label) + "</option>";
+          });
+          html += "</select>";
+        } else {
+          html += '<input class="form-control" name="' + f.key + '" type="' + (f.type || "text") + '" ' + (f.required ? "required" : "") + ' value="' + Util.escapeHtml(f.default || "") + '" />';
+        }
+        html += "</div>";
+      });
+      html += '<div class="col-12"><button class="btn btn-dark" type="submit">Submit</button></div></form>';
+      html += '<div class="mt-3" data-role="inspector"></div></div></div>';
+      $host.html(html);
+      $host.find("#action-form").on("submit", function (e) {
+        e.preventDefault();
+        const payload = {};
+        (def.fields || []).forEach(function (f) {
+          let v = $host.find('[name="' + f.key + '"]').val();
+          if (f.type === "json") { try { v = JSON.parse(v || "{}"); } catch (err) { Notify.error("Invalid JSON"); throw err; } }
+          if (f.type === "number") v = Number(v);
+          payload[f.key] = v;
+        });
+        const path = typeof def.submit === "function" ? def.submit(payload) : def.submit;
+        const method = (def.method || "post").toLowerCase();
+        Api[method](path, def.wrap ? def.wrap(payload) : payload).done(function () {
+          Notify.success("OK");
+          renderInspector($host.find("[data-role=inspector]"));
+        }).fail(function () {
+          renderInspector($host.find("[data-role=inspector]"));
+        });
+      });
+    };
+  }
+
+  /* ========================================================================
+   * Page implementations
+   * ======================================================================== */
+  const Pages = (function () {
+    const cache = {};
+    const handlers = {};
+
+    function register(id, fn) { handlers[id] = fn; }
+
+    function load(id, force) {
+      const item = findNav(id);
+      $("#breadcrumbs").html(
+        '<li class="breadcrumb-item">Admin</li>' +
+        '<li class="breadcrumb-item active">' + Util.escapeHtml(item ? item.label : id) + "</li>"
+      );
+      $(".nav-link-item").removeClass("active");
+      $('.nav-link-item[data-id="' + id + '"]').addClass("active");
+      const $host = $("#page-host").empty();
+      const fn = handlers[id];
+      if (!fn) {
+        $host.html('<div class="alert border">Module <code>' + Util.escapeHtml(id) + "</code> is not implemented.</div>");
+        return;
+      }
+      const ctl = fn($host);
+      cache[id] = ctl;
+    }
+
+    function reloadCurrent() {
+      const id = Tabs.current();
+      if (!id) return;
+      if (cache[id] && cache[id].reload) cache[id].reload();
+      else load(id, true);
+    }
+
+    function findNav(id) {
+      for (let s = 0; s < NAV.length; s++) {
+        for (let i = 0; i < NAV[s].items.length; i++) {
+          if (NAV[s].items[i].id === id) return NAV[s].items[i];
+        }
+      }
+      return null;
+    }
+
+    // Dashboard
+    register("dashboard", function ($host) {
+      $host.html('<div class="row g-3" id="dash-cards"></div><div class="row g-3 mt-1"><div class="col-lg-6"><div class="panel"><div class="panel-h"><strong>Latest exchange</strong></div><div class="panel-b" id="dash-insp"></div></div></div><div class="col-lg-6"><div class="panel"><div class="panel-h"><strong>Quick health</strong></div><div class="panel-b" id="dash-health"><div class="skeleton"></div></div></div></div></div>');
+      const cards = [
+        { label: "Users", path: "/admin/users", query: { limit: 1 }, pick: function (d) { return (d.total != null ? d.total : Util.pickArray(d).length); } },
+        { label: "Merchants", path: "/admin/merchants", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Orders", path: "/admin/orders", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Payments", path: "/admin/payments", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Wallets", path: "/admin/wallets", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Rides", path: "/admin/rides", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Events", path: "/admin/events", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Feature Flags", path: "/admin/feature-flags", pick: function (d) { return Util.pickArray(d).length; } }
+      ];
+      const $cards = $host.find("#dash-cards");
+      cards.forEach(function (c, idx) {
+        $cards.append('<div class="col-6 col-md-3"><div class="stat-card"><div class="label">' + Util.escapeHtml(c.label) + '</div><div class="value" data-card="' + idx + '">…</div></div></div>');
+        Api.get(c.path, c.query || {}, { notify: false, silent: true }).done(function (res) {
+          $host.find('[data-card="' + idx + '"]').text(c.pick(res.data));
+        }).fail(function () {
+          $host.find('[data-card="' + idx + '"]').text("—");
+        });
+      });
+      // store type counts
+      ["RESTAURANT", "MARKET", "LIQUOR", "GAS"].forEach(function (t) {
+        Api.get("/admin/stores", { storeType: t, limit: 1 }, { notify: false, silent: true }).done(function (res) {
+          $cards.append('<div class="col-6 col-md-3"><div class="stat-card"><div class="label">' + t + '</div><div class="value">' + (res.data.total != null ? res.data.total : Util.pickArray(res.data).length) + "</div></div></div>");
+        });
+      });
+      Api.request({ method: "GET", url: CONFIG.HEALTH_PATH, absolute: false, notify: false, silent: true }).done(function (res) {
+        JsonView.render("#dash-health", res.data);
+      }).fail(function (err) {
+        $("#dash-health").text(err.message || "Health unavailable");
+      });
+      renderInspector($("#dash-insp"));
+      return { reload: function () { Pages.load("dashboard", true); } };
+    });
+
+    register("system-health", function ($host) {
+      $host.html('<div class="d-flex gap-2 mb-3"><button class="btn btn-dark btn-sm" data-h="/health">/health</button><button class="btn btn-outline-dark btn-sm" data-h="/health/ready">ready</button><button class="btn btn-outline-dark btn-sm" data-h="/health/live">live</button><button class="btn btn-outline-dark btn-sm" data-h="/health/version">version</button><button class="btn btn-outline-dark btn-sm" data-h="/public/info">public/info</button></div><div data-role="inspector"></div>');
+      function hit(path) {
+        Api.request({ method: "GET", url: path, notify: false }).done(function () {
+          renderInspector($host.find("[data-role=inspector]"));
+        }).fail(function () { renderInspector($host.find("[data-role=inspector]")); });
+      }
+      $host.on("click", "[data-h]", function () { hit($(this).data("h")); });
+      hit("/health");
+    });
+
+    register("swagger", function ($host) {
+      const href = Api.origin() + CONFIG.SWAGGER_PATH;
+      $host.html('<div class="panel"><div class="panel-h"><strong>Swagger UI</strong><a class="btn btn-sm btn-dark" target="_blank" rel="noopener" href="' + Util.escapeHtml(href) + '">Open</a></div><div class="panel-b"><iframe src="' + Util.escapeHtml(href) + '" style="width:100%;height:70vh;border:1px solid #d0d0d0"></iframe></div></div>');
+    });
+
+    register("openapi", function ($host) {
+      $host.html('<div class="panel"><div class="panel-h"><strong>OpenAPI JSON</strong><button class="btn btn-sm btn-outline-dark" id="btn-load-oa">Load</button></div><div class="panel-b" id="oa-body"><div class="text-muted">Click Load to fetch OpenAPI document and hydrate form hints.</div></div></div>');
+      $host.find("#btn-load-oa").on("click", function () {
+        Api.request({ method: "GET", url: CONFIG.OPENAPI_JSON, notify: false }).done(function (res) {
+          Storage.set("openapi", res.data);
+          JsonView.render("#oa-body", { info: res.data.info, pathsCount: Object.keys(res.data.paths || {}).length });
+          Notify.success("OpenAPI cached locally");
+        }).fail(function () {
+          Notify.warn("OpenAPI JSON unavailable — using manual endpoint map");
+        });
+      });
+    });
+
+    register("settings", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="mb-3"><label class="form-label">API Base URL</label><input class="form-control mono" id="set-api" value="' + Util.escapeHtml(Api.base()) + '" /></div><div class="mb-3"><label class="form-label">Logging</label><select class="form-select" id="set-log"><option value="1">Enabled</option><option value="0">Disabled</option></select></div><button class="btn btn-dark" id="set-save">Save</button></div></div>');
+      $("#set-log").val(CONFIG.ENABLE_LOGGING ? "1" : "0");
+      $("#set-save").on("click", function () {
+        Storage.set("apiBaseUrl", Util.normalizeApiBase($("#set-api").val()));
+        CONFIG.ENABLE_LOGGING = $("#set-log").val() === "1";
+        $("#set-api").val(Api.base());
+        $("#header-api-url").text(Api.base());
+        Notify.success("Settings saved");
+      });
+    });
+
+    register("api-console", actionFormPage({
+      title: "API Console",
+      method: "post",
+      submit: function (p) { return p.path; },
+      fields: [
+        { key: "path", label: "Path (relative to API base)", required: true, default: "/admin/users", col: 8 },
+        { key: "method", label: "Method", type: "select", col: 4, options: [
+          { value: "get", label: "GET" }, { value: "post", label: "POST" }, { value: "put", label: "PUT" },
+          { value: "patch", label: "PATCH" }, { value: "del", label: "DELETE" }
+        ]},
+        { key: "body", label: "JSON body", type: "json", col: 12, default: "{}" }
+      ],
+      wrap: function () { return {}; }
+    }));
+    // Fix api-console submit properly
+    handlers["api-console"] = function ($host) {
+      $host.html(
+        '<div class="panel"><div class="panel-h"><strong>API Console</strong></div><div class="panel-b">' +
+        '<div class="row g-2"><div class="col-md-2"><select id="ac-method" class="form-select"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option></select></div>' +
+        '<div class="col-md-10"><input id="ac-path" class="form-control mono" value="/admin/users" /></div>' +
+        '<div class="col-12"><textarea id="ac-body" class="form-control mono" rows="8">{}</textarea></div>' +
+        '<div class="col-12"><button class="btn btn-dark" id="ac-send">Send</button></div></div>' +
+        '<div class="mt-3" data-role="inspector"></div></div></div>'
+      );
+      $("#ac-send").on("click", function () {
+        const method = $("#ac-method").val();
+        const path = $("#ac-path").val();
+        let body = {};
+        try { body = JSON.parse($("#ac-body").val() || "{}"); } catch (e) { Notify.error("Invalid JSON"); return; }
+        const map = { GET: "get", POST: "post", PUT: "put", PATCH: "patch", DELETE: "del" };
+        const fn = Api[map[method]];
+        const req = method === "GET" ? fn(path, body) : fn(path, body);
+        req.always(function () { renderInspector($host.find("[data-role=inspector]")); });
+      });
+    };
+
+    register("users", resourcePage({
+      id: "users", title: "Users", subtitle: "Identity administration",
+      list: "/admin/users", get: "/admin/users/:id",
+      columns: [
+        { key: "id", label: "ID" },
+        { key: "email", label: "Email" },
+        { key: "phone", label: "Phone" },
+        { key: "status", label: "Status" },
+        { key: "displayName", label: "Name", render: function (r) { return Util.escapeHtml(r.displayName || ((r.firstName || "") + " " + (r.lastName || ""))); } }
+      ],
+      filters: [
+        { key: "status", label: "Status", type: "select", options: ["ACTIVE","PENDING_VERIFICATION","RESTRICTED","SUSPENDED","DELETED"].map(function (s) { return { value: s, label: s }; }) }
+      ],
+      rowActions: [
+        { id: "freeze", label: "Freeze", confirm: "Freeze this user?", run: function (row, reload) { Api.post("/admin/users/" + row.id + "/freeze", { reason: "admin console" }).done(reload); } },
+        { id: "restrict", label: "Restrict", confirm: "Restrict this user?", run: function (row, reload) { Api.post("/admin/users/" + row.id + "/restrict", { reason: "admin console" }).done(reload); } },
+        { id: "restore", label: "Restore", run: function (row, reload) { Api.post("/admin/users/" + row.id + "/restore", { reason: "admin console" }).done(reload); } },
+        { id: "revoke", label: "Revoke sessions", confirm: "Revoke all sessions?", run: function (row, reload) { Api.post("/admin/users/" + row.id + "/revoke-sessions", {}).done(reload); } }
+      ],
+      bulkActions: [
+        { id: "export", label: "Export selected", run: function (ids, rows) {
+          Util.download("users-selected.json", JSON.stringify(rows.filter(function (r) { return ids.indexOf(r.id) >= 0; }), null, 2));
+        }}
+      ]
+    }));
+
+    register("sessions-devices", function ($host) {
+      $host.html('<div class="panel"><div class="panel-h"><strong>My devices / sessions</strong><button class="btn btn-sm btn-outline-dark" id="dev-reload">Refresh</button></div><div class="panel-b"><div id="dev-list"></div><div class="mt-3" data-role="inspector"></div></div></div>');
+      function load() {
+        Api.get("/auth/devices").done(function (res) {
+          const rows = Util.pickArray(res.data);
+          let html = '<table class="table table-sm"><thead><tr><th>ID</th><th>Info</th><th></th></tr></thead><tbody>';
+          rows.forEach(function (r) {
+            html += "<tr><td class=\"mono\">" + Util.escapeHtml(r.id || r.sessionId || "") + "</td><td>" + Util.escapeHtml(JSON.stringify(r)) + '</td><td><button class="btn btn-sm btn-outline-dark" data-revoke="' + Util.escapeHtml(r.id || r.sessionId) + '">Revoke</button></td></tr>';
+          });
+          html += "</tbody></table>";
+          $("#dev-list").html(html || "<div class='text-muted'>No devices</div>");
+          renderInspector($host.find("[data-role=inspector]"));
+        });
+      }
+      $host.on("click", "[data-revoke]", function () {
+        Api.del("/auth/devices/" + $(this).data("revoke")).done(load);
+      });
+      $("#dev-reload").on("click", load);
+      load();
+      return { reload: load };
+    });
+
+    register("merchants", resourcePage({
+      id: "merchants", title: "Merchants",
+      list: "/admin/merchants", get: "/admin/merchants/:id",
+      create: "/admin/merchants", update: "/admin/merchants/:id", remove: "/admin/merchants/:id",
+      columns: [
+        { key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "status", label: "Status" },
+        { key: "featured", label: "Featured" }, { key: "isOrganizer", label: "Organizer" }
+      ],
+      filters: [{ key: "status", label: "Status", type: "select", options: ["DRAFT","ACTIVE","SUSPENDED","CLOSED"].map(function (s) { return { value: s, label: s }; }) }],
+      fields: [
+        { key: "ownerUserId", label: "Owner User ID", required: true },
+        { key: "name", label: "Name", required: true },
+        { key: "legalName", label: "Legal name" },
+        { key: "taxId", label: "Tax ID" },
+        { key: "status", label: "Status", type: "select", options: ["DRAFT","ACTIVE","SUSPENDED","CLOSED"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "featured", label: "Featured", type: "checkbox" },
+        { key: "isOrganizer", label: "Is organizer", type: "checkbox" }
+      ]
+    }));
+
+    register("merchant-kyc", resourcePage({
+      id: "merchant-kyc", title: "KYC Pending",
+      list: "/admin/merchants/kyc/pending",
+      columns: [
+        { key: "id", label: "Merchant / KYC ID" },
+        { key: "name", label: "Name", render: function (r) { return Util.escapeHtml(r.name || r.merchantName || r.merchantId || ""); } },
+        { key: "status", label: "Status", render: function (r) { return Util.escapeHtml((r.kyc && r.kyc.status) || r.status || ""); } }
+      ],
+      rowActions: [
+        { id: "approve", label: "Approve", confirm: "Approve KYC?", run: function (row, reload) {
+          const id = row.merchantId || row.id;
+          Api.post("/admin/merchants/" + id + "/kyc/review", { decision: "APPROVED", reviewNotes: "Approved via admin console" }).done(reload);
+        }},
+        { id: "reject", label: "Reject", confirm: "Reject KYC?", run: function (row, reload) {
+          const id = row.merchantId || row.id;
+          Api.post("/admin/merchants/" + id + "/kyc/review", { decision: "REJECTED", rejectionReason: "Rejected via admin console" }).done(reload);
+        }}
+      ]
+    }));
+
+    function storesPage(storeType, title) {
+      return resourcePage({
+        id: storeType || "stores", title: title,
+        list: "/admin/stores", get: "/admin/stores/:id",
+        create: "/admin/stores", update: "/admin/stores/:id", remove: "/admin/stores/:id",
+        query: storeType ? { storeType: storeType } : {},
+        columns: [
+          { key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "storeType", label: "Type" },
+          { key: "city", label: "City" }, { key: "isOpen", label: "Open" }, { key: "isActive", label: "Active" },
+          { key: "ratingAvg", label: "Rating" }
+        ],
+        filters: storeType ? [] : [{ key: "storeType", label: "Type", type: "select", options: ["RESTAURANT","MARKET","LIQUOR","GAS","GENERAL","EVENT"].map(function (s) { return { value: s, label: s }; }) }],
+        fields: [
+          { key: "merchantId", label: "Merchant ID", required: true },
+          { key: "storeType", label: "Store type", type: "select", required: true, options: ["RESTAURANT","MARKET","LIQUOR","GAS"].map(function (s) { return { value: s, label: s }; }), default: storeType || "RESTAURANT" },
+          { key: "name", label: "Name", required: true },
+          { key: "city", label: "City", default: "Kisumu" },
+          { key: "address", label: "Address" },
+          { key: "phone", label: "Phone" },
+          { key: "imageUrl", label: "Image URL", col: 12 },
+          { key: "latitude", label: "Latitude", type: "number" },
+          { key: "longitude", label: "Longitude", type: "number" },
+          { key: "isOpen", label: "Open", type: "checkbox", default: true },
+          { key: "isActive", label: "Active", type: "checkbox", default: true }
+        ]
+      });
+    }
+    register("stores", storesPage(null, "All Stores"));
+    register("restaurants", storesPage("RESTAURANT", "Restaurants"));
+    register("markets", storesPage("MARKET", "Local Markets"));
+    register("liquor", storesPage("LIQUOR", "Liquor Stores"));
+    register("gas", storesPage("GAS", "Gas Vendors"));
+
+    register("food-categories", resourcePage({
+      title: "Food Categories", list: "/admin/food-categories",
+      create: "/admin/food-categories", update: "/admin/food-categories/:id", remove: "/admin/food-categories/:id",
+      updateMethod: "patch",
+      columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
+      fields: [
+        { key: "name", label: "Name", required: true }, { key: "slug", label: "Slug" },
+        { key: "iconKey", label: "Icon key" }, { key: "imageUrl", label: "Image URL" },
+        { key: "sortOrder", label: "Sort", type: "number", default: 0 }, { key: "isActive", label: "Active", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("module-categories", resourcePage({
+      title: "Module Categories", list: "/admin/module-categories",
+      create: "/admin/module-categories", update: "/admin/module-categories/:id", remove: "/admin/module-categories/:id",
+      updateMethod: "patch",
+      filters: [{ key: "moduleType", label: "Module", type: "select", options: ["FOOD","MARKET","LIQUOR","GAS","EVENT"].map(function (s) { return { value: s, label: s }; }) }],
+      columns: [{ key: "moduleType", label: "Module" }, { key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
+      fields: [
+        { key: "moduleType", label: "Module type", type: "select", required: true, options: ["FOOD","MARKET","LIQUOR","GAS","EVENT"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "name", label: "Name", required: true }, { key: "slug", label: "Slug" },
+        { key: "iconKey", label: "Icon" }, { key: "imageUrl", label: "Image URL" },
+        { key: "sortOrder", label: "Sort", type: "number" }, { key: "isActive", label: "Active", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("store-products", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Store ID</label><input id="sp-store" class="form-control mono" placeholder="UUID" /></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sp-load">Load products</button></div></div><div id="sp-host"></div></div></div>');
+      $("#sp-load").on("click", function () {
+        const sid = $("#sp-store").val();
+        if (!sid) return Notify.warn("Store ID required");
+        resourcePage({
+          title: "Products", list: "/admin/stores/" + sid + "/products",
+          create: "/admin/stores/" + sid + "/products",
+          update: "/admin/stores/" + sid + "/products/:id",
+          remove: "/admin/stores/" + sid + "/products/:id",
+          updateMethod: "patch",
+          columns: [{ key: "name", label: "Name" }, { key: "priceAmount", label: "Price" }, { key: "inStock", label: "Stock" }, { key: "isActive", label: "Active" }],
+          fields: [
+            { key: "name", label: "Name", required: true },
+            { key: "priceAmount", label: "Price (minor units)", type: "number", required: true },
+            { key: "sku", label: "SKU" }, { key: "brand", label: "Brand" },
+            { key: "imageUrl", label: "Image URL", col: 12 },
+            { key: "inStock", label: "In stock", type: "checkbox", default: true },
+            { key: "isActive", label: "Active", type: "checkbox", default: true }
+          ]
+        })($("#sp-host").empty());
+      });
+    });
+
+    register("store-menu", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Restaurant Store ID</label><input id="sm-store" class="form-control mono" /></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sm-load">Load menu</button></div></div><div id="sm-host"></div><div class="mt-3" data-role="inspector"></div></div></div>');
+      $("#sm-load").on("click", function () {
+        const sid = $("#sm-store").val();
+        Api.get("/admin/stores/" + sid + "/menu").done(function (res) {
+          JsonView.render("#sm-host", res.data);
+          renderInspector($host.find("[data-role=inspector]"));
+        });
+      });
+    });
+
+    register("orders", resourcePage({
+      title: "Orders", list: "/admin/orders", get: "/admin/orders/:id",
+      columns: [
+        { key: "id", label: "ID" }, { key: "moduleType", label: "Module" }, { key: "status", label: "Status" },
+        { key: "paymentStatus", label: "Payment" }, { key: "totalAmount", label: "Total" }, { key: "createdAt", label: "Created" }
+      ],
+      filters: [
+        { key: "moduleType", label: "Module", type: "select", options: ["FOOD","MARKET","LIQUOR","GAS","EVENT"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "status", label: "Status", placeholder: "e.g. PAID" },
+        { key: "storeId", label: "Store ID", placeholder: "UUID" }
+      ],
+      rowActions: [
+        { id: "status", label: "Set status", run: function (row, reload) {
+          Modal.open({
+            title: "Update status",
+            body: '<input class="form-control" id="st-val" placeholder="ACCEPTED / PREPARING / ..." /><input class="form-control mt-2" id="st-reason" placeholder="Reason (optional)" />',
+            onConfirm: function () {
+              Api.patch("/admin/orders/" + row.id + "/status", { status: $("#st-val").val(), reason: $("#st-reason").val() || undefined }).done(function () {
+                Modal.close(); reload();
+              });
+            }
+          });
+        }}
+      ]
+    }));
+
+    register("payments", resourcePage({
+      title: "Payments", list: "/admin/payments", get: "/admin/payments/:id",
+      columns: [
+        { key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "amount", label: "Amount" },
+        { key: "providerCode", label: "Provider" }, { key: "createdAt", label: "Created" }
+      ],
+      filters: [{ key: "status", label: "Status", placeholder: "PENDING / SUCCEEDED / ..." }],
+      rowActions: [
+        { id: "approve", label: "Manual approve", confirm: "Manually approve payment?", run: function (row, reload) {
+          Api.post("/admin/payments/" + row.id + "/manual-approve", { idempotencyKey: Util.uid(), reason: "admin console" }).done(reload);
+        }},
+        { id: "reverse", label: "Reverse", confirm: "Reverse payment?", run: function (row, reload) {
+          Api.post("/admin/payments/" + row.id + "/reverse", { idempotencyKey: Util.uid(), reason: "admin console" }).done(reload);
+        }},
+        { id: "refund", label: "Refund", run: function (row, reload) {
+          Modal.open({
+            title: "Refund",
+            body: '<label class="form-label">Amount (minor units)</label><input type="number" class="form-control" id="rf-amt" /><input class="form-control mt-2" id="rf-reason" placeholder="Reason" />',
+            onConfirm: function () {
+              Api.post("/admin/payments/" + row.id + "/refund", {
+                idempotencyKey: Util.uid(),
+                amount: Number($("#rf-amt").val()),
+                reason: $("#rf-reason").val() || undefined
+              }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }}
+      ]
+    }));
+
+    register("wallets", resourcePage({
+      title: "Wallets", list: "/admin/wallets", get: "/admin/wallets/:id",
+      columns: [
+        { key: "id", label: "ID" }, { key: "ownerType", label: "Owner type" }, { key: "ownerId", label: "Owner" },
+        { key: "availableBalance", label: "Available" }, { key: "currency", label: "CCY" }
+      ],
+      filters: [{ key: "ownerType", label: "Owner type", type: "select", options: ["USER","MERCHANT","RIDER","PLATFORM","ORGANIZER"].map(function (s) { return { value: s, label: s }; }) }],
+      rowActions: [
+        { id: "txns", label: "Transactions", run: function (row) {
+          Api.get("/admin/wallets/" + row.id + "/transactions", { limit: 50 }).done(function (res) {
+            Modal.open({ title: "Transactions", body: '<div id="w-tx"></div>', size: "xl", hideConfirm: true });
+            JsonView.render("#w-tx", res.data);
+          });
+        }},
+        { id: "credit", label: "Credit", run: function (row, reload) {
+          Modal.open({
+            title: "Credit wallet",
+            body: '<input type="number" id="w-amt" class="form-control" placeholder="Amount" /><input id="w-ref" class="form-control mt-2" placeholder="Reference" />',
+            onConfirm: function () {
+              Api.post("/admin/wallets/" + row.id + "/credit", { amount: Number($("#w-amt").val()), reference: $("#w-ref").val() || Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }},
+        { id: "debit", label: "Debit", run: function (row, reload) {
+          Modal.open({
+            title: "Debit wallet",
+            body: '<input type="number" id="w-amt" class="form-control" placeholder="Amount" /><input id="w-ref" class="form-control mt-2" placeholder="Reference" />',
+            onConfirm: function () {
+              Api.post("/admin/wallets/" + row.id + "/debit", { amount: Number($("#w-amt").val()), reference: $("#w-ref").val() || Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }}
+      ]
+    }));
+
+    register("escrow", resourcePage({
+      title: "Escrow holds", list: "/admin/escrow", get: "/admin/escrow/:id",
+      columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "amount", label: "Amount" }],
+      rowActions: [
+        { id: "release", label: "Release", confirm: "Release escrow?", run: function (row, reload) { Api.post("/admin/escrow/" + row.id + "/release", { idempotencyKey: Util.uid() }).done(reload); } },
+        { id: "forfeit", label: "Forfeit", confirm: "Forfeit escrow?", run: function (row, reload) { Api.post("/admin/escrow/" + row.id + "/forfeit", { idempotencyKey: Util.uid() }).done(reload); } },
+        { id: "refund", label: "Refund", confirm: "Refund escrow?", run: function (row, reload) { Api.post("/admin/escrow/" + row.id + "/refund", { idempotencyKey: Util.uid() }).done(reload); } }
+      ]
+    }));
+
+    register("settlements", function ($host) {
+      $host.html('<ul class="nav nav-tabs mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#set-batches">Batches</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#set-policies">Policies</button></li></ul><div class="tab-content"><div class="tab-pane show active" id="set-batches"></div><div class="tab-pane" id="set-policies"></div></div>');
+      resourcePage({
+        title: "Settlement batches", list: "/admin/settlements/batches", get: "/admin/settlements/batches/:id",
+        create: "/admin/settlements/batches",
+        columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "createdAt", label: "Created" }],
+        fields: [
+          { key: "policyId", label: "Policy ID", required: true },
+          { key: "idempotencyKey", label: "Idempotency key", default: "" },
+          { key: "force", label: "Force", type: "checkbox" }
+        ],
+        rowActions: [
+          { id: "approve", label: "Approve", run: function (row, reload) { Api.post("/admin/settlements/batches/" + row.id + "/approve", {}).done(reload); } },
+          { id: "process", label: "Process", run: function (row, reload) { Api.post("/admin/settlements/batches/" + row.id + "/process", { idempotencyKey: Util.uid() }).done(reload); } },
+          { id: "cancel", label: "Cancel", run: function (row, reload) { Api.post("/admin/settlements/batches/" + row.id + "/cancel", {}).done(reload); } }
+        ]
+      })($("#set-batches"));
+      resourcePage({
+        title: "Policies", list: "/admin/settlements/policies", get: "/admin/settlements/policies/:id",
+        columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "enabled", label: "Enabled" }]
+      })($("#set-policies"));
+    });
+
+    register("accounting-overview", function ($host) {
+      $host.html('<div class="panel"><div class="panel-h"><strong>Finance overview</strong><button class="btn btn-sm btn-outline-dark" id="ao-reload">Refresh</button></div><div class="panel-b" id="ao-body"></div></div>');
+      function load() {
+        Api.get("/admin/accounting/finance-overview").done(function (res) {
+          JsonView.render("#ao-body", res.data);
+        });
+      }
+      $("#ao-reload").on("click", load);
+      load();
+      return { reload: load };
+    });
+
+    register("accounts", resourcePage({
+      title: "Accounts", list: "/admin/accounting/accounts",
+      create: "/admin/accounting/accounts",
+      columns: [{ key: "code", label: "Code" }, { key: "name", label: "Name" }, { key: "accountType", label: "Type" }, { key: "currency", label: "CCY" }],
+      fields: [
+        { key: "chartCode", label: "Chart code", required: true, default: "DALADROP" },
+        { key: "code", label: "Account code", required: true },
+        { key: "name", label: "Name", required: true },
+        { key: "accountType", label: "Type", type: "select", required: true, options: ["ASSET","LIABILITY","EQUITY","REVENUE","EXPENSE"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "currency", label: "Currency", default: "KES" },
+        { key: "parentId", label: "Parent ID" }
+      ]
+    }));
+
+    register("journals", resourcePage({
+      title: "Journals", list: "/admin/accounting/journals", get: "/admin/accounting/journals/:id",
+      create: "/admin/accounting/journals",
+      columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "description", label: "Description" }, { key: "currency", label: "CCY" }],
+      fields: [
+        { key: "description", label: "Description" },
+        { key: "currency", label: "Currency", default: "KES" },
+        { key: "lines", label: "Lines (JSON array)", type: "json", col: 12, default: "[]", help: '[{ "accountCode":"1000", "debit":100, "credit":0 }]' }
+      ],
+      rowActions: [
+        { id: "post", label: "Post", confirm: "Post journal?", run: function (row, reload) { Api.post("/admin/accounting/journals/" + row.id + "/post", {}).done(reload); } },
+        { id: "reverse", label: "Reverse", run: function (row, reload) {
+          Modal.open({
+            title: "Reverse journal",
+            body: '<input class="form-control" id="jr-reason" placeholder="Reason" />',
+            onConfirm: function () {
+              Api.post("/admin/accounting/journals/" + row.id + "/reverse", { reason: $("#jr-reason").val(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }}
+      ]
+    }));
+
+    register("periods", resourcePage({
+      title: "Accounting periods", list: "/admin/accounting/periods",
+      columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "status", label: "Status" }, { key: "startsAt", label: "Start" }, { key: "endsAt", label: "End" }],
+      rowActions: [
+        { id: "close", label: "Close", confirm: "Close period?", run: function (row, reload) { Api.post("/admin/accounting/periods/" + row.id + "/close", { reason: "admin console" }).done(reload); } }
+      ],
+      create: null
+    }));
+    // add ensure button via wrapper
+    const _periods = handlers.periods;
+    register("periods", function ($host) {
+      $host.html('<div class="mb-2"><button class="btn btn-sm btn-dark" id="ensure-period">Ensure current period</button></div><div id="periods-inner"></div>');
+      $("#ensure-period").on("click", function () { Api.post("/admin/accounting/periods/ensure", {}).done(function () { Notify.success("Ensured"); Pages.load("periods", true); }); });
+      _periods($("#periods-inner"));
+    });
+
+    register("reports", function ($host) {
+      const reports = ["trial-balance","general-ledger","balance-sheet","income-statement","account-statement","accounts-payable","accounts-receivable","commission","settlement","p-and-l"];
+      let html = '<div class="panel"><div class="panel-b"><div class="row g-2 mb-3">';
+      html += '<div class="col-md-4"><label class="form-label">Report</label><select id="rp-type" class="form-select">';
+      reports.forEach(function (r) { html += '<option value="' + r + '">' + r + "</option>"; });
+      html += '</select></div><div class="col-md-3"><label class="form-label">Period ID</label><input id="rp-period" class="form-control" /></div>';
+      html += '<div class="col-md-3 d-flex align-items-end"><button class="btn btn-dark w-100" id="rp-run">Run</button></div></div><div id="rp-out"></div></div></div>';
+      $host.html(html);
+      $("#rp-run").on("click", function () {
+        Api.get("/admin/accounting/reports/" + $("#rp-type").val(), { periodId: $("#rp-period").val() || undefined }).done(function (res) {
+          JsonView.render("#rp-out", res.data);
+        });
+      });
+    });
+
+    register("rides", resourcePage({
+      title: "Rides", list: "/admin/rides", get: "/admin/rides/:id",
+      columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "serviceType", label: "Service" }, { key: "fareAmount", label: "Fare" }],
+      filters: [{ key: "status", label: "Status" }, { key: "serviceType", label: "Service type" }],
+      rowActions: [
+        { id: "assign", label: "Assign", run: function (row, reload) {
+          Modal.open({ title: "Assign rider", body: '<input class="form-control" id="rider-id" placeholder="Rider ID" />', onConfirm: function () {
+            Api.post("/admin/rides/" + row.id + "/assign", { riderId: $("#rider-id").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
+        { id: "cancel", label: "Cancel", confirm: "Cancel ride?", run: function (row, reload) { Api.post("/admin/rides/" + row.id + "/cancel", { reason: "admin" }).done(reload); } }
+      ]
+    }));
+
+    register("courier-partners", resourcePage({
+      title: "Courier partners", list: "/admin/transport/courier-partners",
+      create: "/admin/transport/courier-partners", update: "/admin/transport/courier-partners/:id", remove: "/admin/transport/courier-partners/:id",
+      columns: [{ key: "name", label: "Name" }, { key: "isActive", label: "Active" }],
+      fields: [{ key: "name", label: "Name", required: true }, { key: "brandUrl", label: "Brand URL" }, { key: "isActive", label: "Active", type: "checkbox", default: true }]
+    }));
+
+    register("intercounty", resourcePage({
+      title: "Inter-county routes", list: "/admin/transport/inter-county/routes",
+      create: "/admin/transport/inter-county/routes", update: "/admin/transport/inter-county/routes/:id", remove: "/admin/transport/inter-county/routes/:id",
+      columns: [{ key: "label", label: "Label" }, { key: "quotedFareAmount", label: "Fare" }, { key: "isActive", label: "Active" }],
+      fields: [
+        { key: "label", label: "Label", required: true },
+        { key: "quotedFare", label: "Quoted fare", type: "number", required: true, help: "API field may be quotedFare or quotedFareAmount" },
+        { key: "currency", label: "Currency", default: "KES" },
+        { key: "defaultPickup", label: "Default pickup" },
+        { key: "defaultDropoff", label: "Default dropoff" },
+        { key: "isActive", label: "Active", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("pricing-rules", resourcePage({
+      title: "Delivery pricing rules", list: "/admin/delivery-pricing-rules",
+      create: "/admin/delivery-pricing-rules", update: "/admin/delivery-pricing-rules/:id", updateMethod: "patch",
+      columns: [
+        { key: "name", label: "Name" }, { key: "serviceType", label: "Service" },
+        { key: "distanceMinKm", label: "Min km" }, { key: "distanceMaxKm", label: "Max km" },
+        { key: "customerCharge", label: "Customer" }, { key: "enabled", label: "Enabled" }
+      ],
+      fields: [
+        { key: "name", label: "Name" },
+        { key: "serviceType", label: "Service type", type: "select", required: true, options: ["NORMAL_DELIVERY","GAS_DELIVERY","PARCEL","RIDE"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "distanceMinKm", label: "Min km", type: "number", required: true },
+        { key: "distanceMaxKm", label: "Max km", type: "number", required: true },
+        { key: "customerCharge", label: "Customer charge", type: "number", required: true },
+        { key: "riderPay", label: "Rider pay", type: "number", required: true },
+        { key: "platformCommission", label: "Platform commission", type: "number", required: true },
+        { key: "effectiveFrom", label: "Effective from (ISO)", required: true, default: new Date().toISOString() },
+        { key: "enabled", label: "Enabled", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("constraints", resourcePage({
+      title: "Delivery constraints", list: "/admin/delivery-constraints",
+      create: "/admin/delivery-constraints", update: "/admin/delivery-constraints/:id", updateMethod: "patch",
+      columns: [{ key: "name", label: "Name" }, { key: "serviceType", label: "Service" }, { key: "maxDistanceKm", label: "Max km" }, { key: "enabled", label: "Enabled" }],
+      fields: [
+        { key: "name", label: "Name", required: true },
+        { key: "serviceType", label: "Service type", required: true },
+        { key: "maxDistanceKm", label: "Max distance km", type: "number", required: true },
+        { key: "maxWeightKg", label: "Max weight kg", type: "number", required: true },
+        { key: "maxLengthCm", label: "Max length", type: "number", required: true },
+        { key: "maxWidthCm", label: "Max width", type: "number", required: true },
+        { key: "maxHeightCm", label: "Max height", type: "number", required: true },
+        { key: "effectiveFrom", label: "Effective from", required: true, default: new Date().toISOString() }
+      ]
+    }));
+
+    register("pod", actionFormPage({
+      title: "Submit Proof of Delivery",
+      submit: "/admin/pod",
+      fields: [
+        { key: "orderId", label: "Order ID" }, { key: "rideId", label: "Ride ID" },
+        { key: "photoUrl", label: "Photo URL", col: 12 }, { key: "signatureUrl", label: "Signature URL", col: 12 },
+        { key: "recipientName", label: "Recipient" }, { key: "notes", label: "Notes" },
+        { key: "otpCode", label: "OTP" }, { key: "latitude", label: "Lat", type: "number" }, { key: "longitude", label: "Lng", type: "number" }
+      ]
+    }));
+
+    register("events", resourcePage({
+      title: "Events", list: "/admin/events", get: "/admin/events/:id",
+      create: "/admin/events", update: "/admin/events/:id", remove: "/admin/events/:id", updateMethod: "patch",
+      columns: [{ key: "name", label: "Name" }, { key: "status", label: "Status" }, { key: "city", label: "City" }, { key: "startAt", label: "Starts" }],
+      filters: [{ key: "status", label: "Status", type: "select", options: ["DRAFT","PUBLISHED","CANCELLED","COMPLETED"].map(function (s) { return { value: s, label: s }; }) }],
+      fields: [
+        { key: "merchantId", label: "Merchant ID", required: true },
+        { key: "name", label: "Name", required: true },
+        { key: "venue", label: "Venue" }, { key: "city", label: "City", default: "Kisumu" },
+        { key: "startAt", label: "Start (ISO)", required: true, default: new Date(Date.now()+86400000).toISOString() },
+        { key: "bannerUrl", label: "Banner URL", col: 12 },
+        { key: "description", label: "Description", type: "textarea", col: 12 }
+      ],
+      rowActions: [
+        { id: "publish", label: "Publish", run: function (row, reload) { Api.post("/admin/events/" + row.id + "/publish", {}).done(reload); } }
+      ]
+    }));
+
+    register("event-categories", resourcePage({
+      title: "Event categories", list: "/admin/event-categories",
+      create: "/admin/event-categories", update: "/admin/event-categories/:id", remove: "/admin/event-categories/:id",
+      columns: [{ key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
+      fields: [
+        { key: "name", label: "Name", required: true }, { key: "slug", label: "Slug" },
+        { key: "iconKey", label: "Icon" }, { key: "imageUrl", label: "Image" },
+        { key: "sortOrder", label: "Sort", type: "number" }, { key: "isActive", label: "Active", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("feature-flags", resourcePage({
+      title: "Feature flags", list: "/admin/feature-flags", get: "/admin/feature-flags/:id",
+      remove: "/admin/feature-flags/:id",
+      columns: [{ key: "key", label: "Key" }, { key: "status", label: "Status" }, { key: "percentage", label: "%" }],
+      mapRows: function (data) {
+        const rows = Util.pickArray(data);
+        return rows.map(function (r) { if (r.key && !r.id) r.id = r.key; return r; });
+      },
+      create: "/admin/feature-flags",
+      createMethod: "put",
+      update: "/admin/feature-flags",
+      updateMethod: "put",
+      fields: [
+        { key: "key", label: "Key", required: true },
+        { key: "status", label: "Status", type: "select", options: ["ENABLED","DISABLED","PERCENTAGE"].map(function (s) { return { value: s, label: s }; }) },
+        { key: "percentage", label: "Percentage", type: "number" },
+        { key: "description", label: "Description", type: "textarea", col: 12 },
+        { key: "payload", label: "Payload JSON", type: "json", col: 12, default: "{}" }
+      ]
+    }));
+
+    register("announcements", resourcePage({
+      title: "Announcements", list: "/admin/announcements",
+      create: "/admin/announcements", update: "/admin/announcements/:id", remove: "/admin/announcements/:id", updateMethod: "patch",
+      columns: [{ key: "title", label: "Title" }, { key: "startsAt", label: "Starts" }, { key: "endsAt", label: "Ends" }, { key: "isActive", label: "Active" }],
+      fields: [
+        { key: "title", label: "Title", required: true },
+        { key: "message", label: "Message", type: "textarea", col: 12 },
+        { key: "startsAt", label: "Starts ISO", required: true, default: new Date().toISOString() },
+        { key: "endsAt", label: "Ends ISO", required: true, default: new Date(Date.now()+7*86400000).toISOString() },
+        { key: "isActive", label: "Active", type: "checkbox", default: true }
+      ]
+    }));
+
+    register("support", resourcePage({
+      title: "Support tickets", list: "/admin/support/tickets", get: "/admin/support/tickets/:id",
+      columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "priority", label: "Priority" }, { key: "subject", label: "Subject" }],
+      filters: [{ key: "status", label: "Status" }],
+      rowActions: [
+        { id: "resolve", label: "Resolve", run: function (row, reload) { Api.post("/admin/support/tickets/" + row.id + "/resolve", {}).done(reload); } },
+        { id: "escalate", label: "Escalate", run: function (row, reload) { Api.post("/admin/support/tickets/" + row.id + "/escalate", {}).done(reload); } },
+        { id: "reply", label: "Reply", run: function (row, reload) {
+          Modal.open({ title: "Reply", body: '<textarea id="sup-body" class="form-control" rows="4"></textarea>', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/replies", { body: $("#sup-body").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }}
+      ]
+    }));
+
+    register("notifications", actionFormPage({
+      title: "Broadcast notification",
+      submit: "/admin/notifications/broadcast",
+      fields: [
+        { key: "title", label: "Title", required: true },
+        { key: "body", label: "Body", type: "textarea", required: true, col: 12 },
+        { key: "userIds", label: "User IDs (JSON array, optional)", type: "json", col: 12, default: "[]" },
+        { key: "type", label: "Type", default: "SYSTEM" }
+      ]
+    }));
+
+    register("age-verification", resourcePage({
+      title: "Age verifications", list: "/admin/age-verifications",
+      columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "userId", label: "User" }],
+      filters: [{ key: "status", label: "Status" }],
+      rowActions: [
+        { id: "approve", label: "Approve", run: function (row, reload) { Api.post("/admin/age-verifications/" + row.id + "/review", { decision: "APPROVED" }).done(reload); } },
+        { id: "reject", label: "Reject", run: function (row, reload) { Api.post("/admin/age-verifications/" + row.id + "/review", { decision: "REJECTED", notes: "Rejected" }).done(reload); } }
+      ]
+    }));
+
+    register("search-admin", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><button class="btn btn-dark me-2" id="sr-status">Status</button><button class="btn btn-outline-dark" id="sr-reindex">Reindex</button><div class="mt-3" id="sr-out"></div></div></div>');
+      $("#sr-status").on("click", function () { Api.get("/admin/search/status").done(function (res) { JsonView.render("#sr-out", res.data); }); });
+      $("#sr-reindex").on("click", function () { Api.post("/admin/search/reindex", {}).done(function (res) { JsonView.render("#sr-out", res.data); }); });
+    });
+
+    return { register, load, reloadCurrent, findNav };
+  })();
+
+  /* ========================================================================
+   * Shell / Nav
+   * ======================================================================== */
+  const Shell = (function () {
+    function buildNav() {
+      const $tree = $("#nav-tree").empty();
+      NAV.forEach(function (section) {
+        const visibleItems = section.items.filter(function (it) { return Auth.can(it.perm); });
+        if (!visibleItems.length) return;
+        const $sec = $('<div class="nav-group open"/>');
+        $sec.append('<div class="nav-group-toggle"><span class="nav-label">' + Util.escapeHtml(section.section) + '</span><span class="chev bi bi-chevron-down"></span></div>');
+        const $children = $('<div class="nav-children"/>');
+        visibleItems.forEach(function (it) {
+          $children.append(
+            '<a class="nav-link-item" href="#" data-id="' + it.id + '" title="' + Util.escapeHtml(it.label) + '">' +
+            '<i class="bi ' + it.icon + '"></i><span class="nav-label">' + Util.escapeHtml(it.label) + "</span></a>"
+          );
+        });
+        $sec.append($children);
+        $tree.append('<div class="nav-section-title">' + Util.escapeHtml(section.section) + "</div>");
+        $tree.append($sec);
+      });
+    }
+
+    function enterApp() {
+      const session = Auth.getSession();
+      $("#login-view").hide();
+      $("#app-shell").addClass("active");
+      $("#header-api-url").text(Api.base());
+      $("#header-user").text((session.user && (session.user.email || session.user.firstName)) || "User");
+      $("#header-role").text(Auth.roles().join(", ") || "authenticated");
+      try {
+        const host = new URL(Api.base()).hostname;
+        $("#env-badge").text(host === "localhost" || host === "127.0.0.1" ? "LOCAL" : host.toUpperCase());
+      } catch (e) { $("#env-badge").text("API"); }
+      buildNav();
+      const last = Storage.get("lastModule", "dashboard");
+      const item = Pages.findNav(last) || Pages.findNav("dashboard");
+      Tabs.openTab(item.id, item.label, true);
+    }
+
+    function bind() {
+      $("#login-api-url").val(Util.normalizeApiBase(Storage.get("apiBaseUrl") || CONFIG.API_BASE_URL));
+      if (location.protocol === "file:" || location.origin === "null") {
+        $("#file-origin-warning").removeClass("d-none");
+        try {
+          const origin = new URL(Util.normalizeApiBase(CONFIG.API_BASE_URL)).origin;
+          $("#same-origin-admin-link").attr("href", origin + "/admin.html").text(origin + "/admin.html");
+        } catch (e) { /* ignore */ }
+      }
+      $("#login-form").on("submit", function (e) {
+        e.preventDefault();
+        Storage.set("apiBaseUrl", Util.normalizeApiBase($("#login-api-url").val()));
+        $("#login-api-url").val(Api.base());
+        $("#login-error").addClass("d-none");
+        $("#login-btn").prop("disabled", true);
+        Auth.login($("#login-email").val(), $("#login-password").val())
+          .done(function () { enterApp(); })
+          .fail(function (err) {
+            $("#login-error").removeClass("d-none").text(err.message || "Login failed");
+          })
+          .always(function () { $("#login-btn").prop("disabled", false); });
+      });
+      $("#btn-logout").on("click", function () { Auth.logout(); });
+      $("#btn-toggle-sidebar").on("click", function () {
+        if (window.matchMedia("(max-width: 992px)").matches) {
+          $("#app-shell").toggleClass("sidebar-open");
+        } else {
+          $("#app-shell").toggleClass("sidebar-collapsed");
+        }
+      });
+      $("#nav-tree").on("click", ".nav-link-item", function (e) {
+        e.preventDefault();
+        const id = $(this).data("id");
+        const item = Pages.findNav(id);
+        Tabs.openTab(id, item ? item.label : id);
+        $("#app-shell").removeClass("sidebar-open");
+      });
+      $("#nav-tree").on("click", ".nav-group-toggle", function () {
+        $(this).closest(".nav-group").toggleClass("open");
+      });
+      $("#nav-search").on("input", function () {
+        const q = $(this).val().toLowerCase();
+        $(".nav-link-item").each(function () {
+          const show = !q || $(this).text().toLowerCase().indexOf(q) >= 0;
+          $(this).toggle(show);
+        });
+      });
+      $("#btn-refresh-module").on("click", function () { Pages.reloadCurrent(); });
+      $("#btn-fullscreen").on("click", function () {
+        const $panel = $("#content-root");
+        if ($panel.hasClass("fullscreen-panel")) $panel.removeClass("fullscreen-panel");
+        else $panel.addClass("fullscreen-panel");
+      });
+      $("#btn-command").on("click", function () { openCommand(); });
+      $("#btn-notifications").on("click", function () {
+        Notify.info("Use Broadcast module for outbound notifications. In-app feed is customer-scoped.");
+      });
+
+      // shortcuts
+      $(document).on("keydown", function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault(); openCommand();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r" && $("#app-shell").hasClass("active")) {
+          e.preventDefault(); Pages.reloadCurrent();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "l") {
+          e.preventDefault(); Auth.logout();
+        }
+        if (e.key === "Escape") {
+          const modal = bootstrap.Modal.getInstance(document.getElementById("app-modal"));
+          if (modal) modal.hide();
+        }
+      });
+
+      if (CONFIG.AUTO_REFRESH_INTERVAL > 0) {
+        setInterval(function () {
+          if (!$("#app-shell").hasClass("active")) return;
+          Auth.ensureSession();
+        }, CONFIG.AUTO_REFRESH_INTERVAL);
+      }
+    }
+
+    function openCommand() {
+      const modal = new bootstrap.Modal("#command-palette");
+      const $res = $("#cmd-results").empty();
+      function render(q) {
+        $res.empty();
+        NAV.forEach(function (sec) {
+          sec.items.forEach(function (it) {
+            if (!Auth.can(it.perm)) return;
+            if (q && (it.label + " " + it.id).toLowerCase().indexOf(q) < 0) return;
+            $res.append('<button type="button" class="list-group-item list-group-item-action" data-id="' + it.id + '"><i class="bi ' + it.icon + ' me-2"></i>' + Util.escapeHtml(it.label) + '<span class="text-muted small ms-2">' + Util.escapeHtml(sec.section) + "</span></button>");
+          });
+        });
+      }
+      $("#cmd-input").val("").off("input").on("input", function () { render($(this).val().toLowerCase()); });
+      $res.off("click").on("click", "[data-id]", function () {
+        const id = $(this).data("id");
+        const item = Pages.findNav(id);
+        Tabs.openTab(id, item.label);
+        modal.hide();
+      });
+      render("");
+      modal.show();
+      setTimeout(function () { $("#cmd-input").trigger("focus"); }, 200);
+    }
+
+    function boot() {
+      bind();
+      Auth.ensureSession().done(function (ok) {
+        if (ok) enterApp();
+        else {
+          $("#login-view").show();
+          $("#app-shell").removeClass("active");
+        }
+      });
+    }
+
+    return { boot, enterApp, buildNav };
+  })();
+
+  $(function () { Shell.boot(); });
+
+})(window, jQuery);
+</script>
+</body>
+</html>

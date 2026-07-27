@@ -150,6 +150,22 @@ export class VendorOrderDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  /**
+   * Client-computed display totals — accepted for UI compatibility but never
+   * used as money authority (server quote / line pricing wins).
+   */
+  @ApiPropertyOptional({ description: 'Client display hint — ignored for payable totals' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  subtotal?: number;
+
+  @ApiPropertyOptional({ description: 'Client display hint — ignored for payable totals' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  deliveryFee?: number;
 }
 
 export class MultiCheckoutDto {
@@ -215,6 +231,28 @@ export class MultiCheckoutDto {
   @IsString()
   @MaxLength(32)
   phone?: string;
+
+  /**
+   * Client-computed totals — accepted for UI compatibility but ignored;
+   * server pricing / quote is the money authority.
+   */
+  @ApiPropertyOptional({ description: 'Client display hint — ignored for payable totals' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  serviceFee?: number;
+
+  @ApiPropertyOptional({ description: 'Client display hint — ignored for payable totals' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  deliveryFee?: number;
+
+  @ApiPropertyOptional({ description: 'Client display hint — ignored for payable totals' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  subtotal?: number;
 }
 
 export class PayOrderDto {
