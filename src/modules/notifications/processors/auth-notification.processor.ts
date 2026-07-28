@@ -49,7 +49,7 @@ export class AuthNotificationProcessor extends WorkerHost {
 
     if (
       process.env.NODE_ENV !== 'production' ||
-      process.env.AUTH_OTP_CONSOLE_LOG === 'true'
+      this.config.otpConsoleLog
     ) {
       // eslint-disable-next-line no-console
       console.log(
@@ -59,9 +59,8 @@ export class AuthNotificationProcessor extends WorkerHost {
 
     // Skip real provider delivery when none is configured (typical local/dev).
     const skipSend =
-      process.env.AUTH_OTP_SKIP_SEND === 'true' ||
-      (process.env.NODE_ENV !== 'production' &&
-        process.env.AUTH_OTP_FORCE_SEND !== 'true');
+      this.config.otpSkipSend ||
+      (process.env.NODE_ENV !== 'production' && !this.config.otpForceSend);
     if (skipSend) {
       return;
     }

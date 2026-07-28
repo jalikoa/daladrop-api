@@ -124,13 +124,13 @@ import { RateLimitGuard } from './platform/security/http/rate-limit.guard';
     },
     {
       provide: RateLimitGuard,
-      useFactory: (limiter: RateLimitService) =>
+      useFactory: (limiter: RateLimitService, config: ConfigService) =>
         new RateLimitGuard(
           limiter,
-          Number(process.env.HTTP_RATE_LIMIT ?? 120),
-          Number(process.env.HTTP_RATE_LIMIT_WINDOW_MS ?? 60_000),
+          config.get<number>('rateLimit.limit') ?? 120,
+          config.get<number>('rateLimit.windowMs') ?? 60_000,
         ),
-      inject: [RateLimitService],
+      inject: [RateLimitService, ConfigService],
     },
     { provide: APP_GUARD, useExisting: RateLimitGuard },
   ],

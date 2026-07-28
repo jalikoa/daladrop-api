@@ -78,17 +78,25 @@ import { EventBookingNotificationsListener } from './listeners/event-booking-not
     },
     {
       provide: SmsService,
-      useFactory: (): SmsService => {
-        const atKey = process.env.AT_API_KEY?.trim();
-        const atUser = process.env.AT_USERNAME?.trim();
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): SmsService => {
+        const atKey = (config.get<string>('sms.at.apiKey') ?? '').trim();
+        const atUser = (config.get<string>('sms.at.username') ?? '').trim();
+        const smsProviderName =
+          config.get<string>('auth.smsProvider') ?? 'http-sms';
         if (atKey && atUser) {
-          const env = (process.env.AT_ENVIRONMENT ?? '').toLowerCase();
+          const env = (
+            config.get<string>('sms.at.environment') ?? ''
+          ).toLowerCase();
+          const configuredBase = (
+            config.get<string>('sms.at.baseUrl') ?? ''
+          ).trim();
           const baseUrl =
-            process.env.AT_BASE_URL?.trim() ||
+            configuredBase ||
             (env === 'sandbox' || atUser === 'sandbox'
               ? 'https://api.sandbox.africastalking.com'
               : 'https://api.africastalking.com');
-          const senderId = process.env.AT_SENDER_ID?.trim();
+          const senderId = (config.get<string>('sms.at.senderId') ?? '').trim();
           return new SmsService([
             new AfricasTalkingSmsProvider({
               username: atUser,
@@ -98,19 +106,19 @@ import { EventBookingNotificationsListener } from './listeners/event-booking-not
                 senderId && senderId.toLowerCase() !== 'sandbox'
                   ? senderId
                   : undefined,
-              name: process.env.AUTH_SMS_PROVIDER ?? 'africastalking',
+              name: smsProviderName || 'africastalking',
               client: new HttpClientService(),
             }),
           ]);
         }
 
-        const endpoint = process.env.SMS_PROVIDER_URL;
+        const endpoint = (config.get<string>('sms.http.url') ?? '').trim();
         if (!endpoint) return new SmsService([]);
         return new SmsService([
           new HttpSmsProvider({
             endpoint,
-            token: process.env.SMS_PROVIDER_TOKEN,
-            name: process.env.AUTH_SMS_PROVIDER ?? 'http-sms',
+            token: config.get<string>('sms.http.token') || undefined,
+            name: smsProviderName || 'http-sms',
             client: new HttpClientService(),
           }),
         ]);

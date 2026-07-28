@@ -107,6 +107,19 @@ export class DarajaPaymentProvider implements PaymentProvider {
     return this.submitReversal(command);
   }
 
+  /**
+   * Validate an inbound STK callback.
+   *
+   * Official Daraja STK callbacks (CallBackURL) are plain HTTPS POSTs of the
+   * stkCallback JSON body — Safaricom does not document callback HMAC headers
+   * or an application callback token. See developer.safaricom.co.ke (Daraja /
+   * M-Pesa Express).
+   *
+   * DARAJA_CALLBACK_TOKEN and DARAJA_CALLBACK_SIGNING_SECRET are optional
+   * *application* protections (e.g. edge gateway injects `x-callback-token`).
+   * When unset, validation accepts a well-formed stkCallback and relies on
+   * CheckoutRequestID reconciliation + STK query for production hardening.
+   */
   public async validateCallback(input: WebhookInput): Promise<boolean> {
     const callback = (input.body as DarajaCallbackBody)?.Body?.stkCallback;
     if (!callback?.CheckoutRequestID || callback.ResultCode === undefined) {
@@ -124,8 +137,8 @@ export class DarajaPaymentProvider implements PaymentProvider {
       if (!ok) return false;
     }
 
-    const expected = this.config.get<string>('DARAJA_CALLBACK_TOKEN');
-    if (!expected) return false;
+    const expected = this.config.get<string>('DARAJA_CALLBACK_TOKEN')?.trim();
+    if (!expected) return true;
     const supplied = this.header(input, 'x-callback-token');
     return Boolean(supplied && safeEqual(supplied, expected));
   }
@@ -177,7 +190,15 @@ export class DarajaPaymentProvider implements PaymentProvider {
 
   public validateConfiguration(): readonly string[] {
     if (!this.enabled()) return ['provider disabled'];
-    return ['DARAJA_CONSUMER_KEY', 'DARAJA_CONSUMER_SECRET', 'DARAJA_SHORT_CODE', 'DARAJA_PASSKEY', 'DARAJA_CALLBACK_URL', 'DARAJA_CALLBACK_TOKEN']
+    // Official STK credentials only. Callback token/signing secret are optional
+    // app-layer controls, not Daraja-required fields.
+    return [
+      'DARAJA_CONSUMER_KEY',
+      'DARAJA_CONSUMER_SECRET',
+      'DARAJA_SHORT_CODE',
+      'DARAJA_PASSKEY',
+      'DARAJA_CALLBACK_URL',
+    ]
       .filter((key) => !this.config.get<string>(key))
       .map((key) => `${key} missing`);
   }

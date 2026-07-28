@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { RideStatus } from '@prisma/client';
 import { Counter, Histogram } from 'prom-client';
@@ -116,6 +117,7 @@ export class RideWorkflowOrchestrator {
     private readonly push: PushDeliveryService,
     private readonly email: EmailService,
     private readonly sms: SmsService,
+    private readonly config: ConfigService,
   ) {
     this.outbox = new PrismaOutboxWriter(this.prisma);
   }
@@ -320,7 +322,9 @@ export class RideWorkflowOrchestrator {
         try {
           await this.email.send('smtp', {
             to: [email],
-            from: process.env.EMAIL_FROM ?? 'noreply@daladrop.local',
+            from:
+              this.config.get<string>('email.from') ??
+              'noreply@daladrop.local',
             subject: input.title,
             text: input.body,
           });
@@ -332,7 +336,7 @@ export class RideWorkflowOrchestrator {
       if (phone && process.env.RIDE_SMS_NOTIFICATIONS === 'true') {
         try {
           await this.sms.send(
-            process.env.AUTH_SMS_PROVIDER ?? 'http-sms',
+            this.config.get<string>('auth.smsProvider') ?? 'http-sms',
             { to: phone, body: `${input.title}: ${input.body}` },
           );
         } catch (error) {

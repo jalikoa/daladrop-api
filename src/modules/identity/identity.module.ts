@@ -1,4 +1,5 @@
 import { forwardRef, Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { BcryptPasswordHasher } from '../../platform/security/password/bcrypt-password.hasher';
 import { PasswordPolicy } from '../../platform/security/password/password-policy';
@@ -45,12 +46,15 @@ import { MediaController } from './interfaces/media.controller';
   imports: [
     JwtModule.register({}),
     AuthorizationModule,
-    RedisInfrastructureModule.register({
-      url: process.env.REDIS_URL,
-      host: process.env.REDIS_HOST ?? '127.0.0.1',
-      port: Number(process.env.REDIS_PORT ?? 6379),
-      password: process.env.REDIS_PASSWORD || undefined,
-      maxReconnectAttempts: 3,
+    RedisInfrastructureModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        url: process.env.REDIS_URL,
+        host: config.get<string>('redis.host') ?? '127.0.0.1',
+        port: config.get<number>('redis.port') ?? 6379,
+        password: config.get<string>('redis.password') || undefined,
+        maxReconnectAttempts: 3,
+      }),
     }),
     StorageInfrastructureModule.register({
       // Resolve provider lazily from process.env after ConfigModule loads `.env`.
@@ -93,24 +97,26 @@ import { MediaController } from './interfaces/media.controller';
     },
     {
       provide: BcryptPasswordHasher,
-      useFactory: () =>
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
         new BcryptPasswordHasher(
-          Number(process.env.AUTH_PASSWORD_BCRYPT_ROUNDS ?? 12),
+          config.get<number>('auth.password.bcryptRounds') ?? 12,
         ),
     },
     {
       provide: PasswordPolicy,
-      useFactory: () =>
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
         new PasswordPolicy({
-          minLength: Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 6),
+          minLength: config.get<number>('auth.password.minLength') ?? 6,
           requireUppercase:
-            (process.env.AUTH_PASSWORD_REQUIRE_UPPERCASE ?? 'true') !== 'false',
+            config.get<boolean>('auth.password.requireUppercase') ?? true,
           requireLowercase:
-            (process.env.AUTH_PASSWORD_REQUIRE_LOWERCASE ?? 'true') !== 'false',
+            config.get<boolean>('auth.password.requireLowercase') ?? true,
           requireNumber:
-            (process.env.AUTH_PASSWORD_REQUIRE_NUMBER ?? 'true') !== 'false',
+            config.get<boolean>('auth.password.requireNumber') ?? true,
           requireSymbol:
-            (process.env.AUTH_PASSWORD_REQUIRE_SYMBOL ?? 'true') !== 'false',
+            config.get<boolean>('auth.password.requireSymbol') ?? true,
         }),
     },
     {
@@ -121,11 +127,12 @@ import { MediaController } from './interfaces/media.controller';
     },
     {
       provide: BruteForceProtector,
-      useFactory: () =>
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
         new BruteForceProtector({
-          maxFailures: Number(process.env.AUTH_LOCKOUT_FAILURES ?? 5),
-          windowMs: Number(process.env.AUTH_LOCKOUT_WINDOW_MS ?? 900_000),
-          lockoutMs: Number(process.env.AUTH_LOCKOUT_MS ?? 900_000),
+          maxFailures: config.get<number>('auth.lockout.maxFailures') ?? 5,
+          windowMs: config.get<number>('auth.lockout.windowMs') ?? 900_000,
+          lockoutMs: config.get<number>('auth.lockout.lockoutMs') ?? 900_000,
         }),
     },
     {

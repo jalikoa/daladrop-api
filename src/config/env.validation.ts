@@ -229,6 +229,15 @@ export function validate(
 ): EnvironmentVariables {
   const normalized = normalizeEnvAliases(config);
 
+  // Persist aliases onto process.env so ConfigService.get('DARAJA_*') /
+  // feature modules that read process.env see the canonical names even when
+  // only legacy MPESA_* / SENDER_MAIL keys were supplied.
+  for (const [key, value] of Object.entries(normalized)) {
+    if (typeof value === 'string' && value.length > 0 && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+
   const validatedConfig = plainToInstance(EnvironmentVariables, normalized, {
     enableImplicitConversion: true,
   });
@@ -292,6 +301,50 @@ function normalizeEnvAliases(
   next.DB_PASSWORD = firstString(config, 'DB_PASSWORD', 'DATABASE_PASSWORD');
   next.DB_NAME = firstString(config, 'DB_NAME', 'DATABASE_NAME');
   next.ORM_TYPE = firstString(config, 'ORM_TYPE', 'ORM_PROVIDER') ?? 'prisma';
+
+  // Legacy MPESA_* names (payment-rail wording) → canonical DARAJA_* (API provider).
+  // Prefer explicit DARAJA_* when both are set.
+  next.DARAJA_CONSUMER_KEY = firstString(
+    config,
+    'DARAJA_CONSUMER_KEY',
+    'MPESA_CONSUMER_KEY',
+  );
+  next.DARAJA_CONSUMER_SECRET = firstString(
+    config,
+    'DARAJA_CONSUMER_SECRET',
+    'MPESA_CONSUMER_SECRET',
+  );
+  next.DARAJA_SHORT_CODE = firstString(
+    config,
+    'DARAJA_SHORT_CODE',
+    'MPESA_SHORTCODE',
+    'MPESA_SHORT_CODE',
+  );
+  next.DARAJA_PASSKEY = firstString(config, 'DARAJA_PASSKEY', 'MPESA_PASSKEY');
+  next.DARAJA_CALLBACK_URL = firstString(
+    config,
+    'DARAJA_CALLBACK_URL',
+    'MPESA_CALLBACK_URL',
+  );
+  next.DARAJA_REVERSAL_RESULT_URL = firstString(
+    config,
+    'DARAJA_REVERSAL_RESULT_URL',
+    'MPESA_RESULT_URL',
+  );
+  const mpesaEnv = firstString(config, 'MPESA_ENVIRONMENT', 'DARAJA_ENVIRONMENT');
+  if (!firstString(config, 'DARAJA_BASE_URL') && mpesaEnv) {
+    next.DARAJA_BASE_URL =
+      mpesaEnv.toLowerCase() === 'production' || mpesaEnv.toLowerCase() === 'live'
+        ? 'https://api.safaricom.co.ke'
+        : 'https://sandbox.safaricom.co.ke';
+  } else {
+    next.DARAJA_BASE_URL = firstString(config, 'DARAJA_BASE_URL');
+  }
+
+  // Mail aliases → SMTP_*
+  next.SMTP_USER = firstString(config, 'SMTP_USER', 'SENDER_MAIL');
+  next.SMTP_PASS = firstString(config, 'SMTP_PASS', 'MAIL_PASSWORD');
+  next.SMTP_FROM = firstString(config, 'SMTP_FROM', 'SENDER_MAIL', 'EMAIL_FROM');
 
   return next;
 }

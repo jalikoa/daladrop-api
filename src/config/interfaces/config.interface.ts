@@ -83,6 +83,62 @@ export interface IConfig {
     secretKey?: string;
   };
 
+  /** Identity / OTP / session policy (canonical AUTH_* mapping). */
+  auth: {
+    accessTtlSeconds: number;
+    refreshTtlSeconds: number;
+    sessionAbsoluteTtlSeconds: number;
+    otpTtlSeconds: number;
+    otpResendCooldownSeconds: number;
+    otpMaxAttempts: number;
+    otpSendsPerWindow: number;
+    otpSendWindowSeconds: number;
+    loginAttemptsPerWindow: number;
+    loginWindowSeconds: number;
+    humanChallengeRequired: boolean;
+    emailProvider: string;
+    smsProvider: string;
+    totpIssuer: string;
+    otpConsoleLog: boolean;
+    otpForceSend: boolean;
+    otpSkipSend: boolean;
+    password: {
+      bcryptRounds: number;
+      minLength: number;
+      requireUppercase: boolean;
+      requireLowercase: boolean;
+      requireNumber: boolean;
+      requireSymbol: boolean;
+    };
+    lockout: {
+      maxFailures: number;
+      windowMs: number;
+      lockoutMs: number;
+    };
+  };
+
+  /** SMS providers (Africa's Talking + generic HTTP fallback). */
+  sms: {
+    at: {
+      apiKey: string;
+      username: string;
+      environment: string;
+      baseUrl: string;
+      senderId: string;
+      shortcode: string;
+    };
+    http: {
+      url: string;
+      token: string;
+    };
+  };
+
+  /** Global HTTP RateLimitGuard defaults. */
+  rateLimit: {
+    limit: number;
+    windowMs: number;
+  };
+
   observability: {
     logLevel: string;
     elasticsearch: {

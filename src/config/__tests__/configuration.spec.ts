@@ -33,7 +33,12 @@ describe('Configuration Factory', () => {
     expect(config.database.port).toBe(5432);
     expect(config.database.name).toBe('app_db');
     expect(config.orm.type).toBe('prisma');
+    expect(config.redis.host).toBe('127.0.0.1');
+    expect(config.observability.logstash.port).toBe(5044);
     expect(config.observability.logLevel).toBe('debug');
+    expect(config.auth.accessTtlSeconds).toBe(900);
+    expect(config.rateLimit.limit).toBe(120);
+    expect(config.sms.at.baseUrl).toContain('africastalking.com');
   });
 
   it('should correctly parse and map provided environment variables', () => {

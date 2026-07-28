@@ -90,6 +90,12 @@ describe('auth foundation', () => {
 
   it('reads auth configuration with defaults and valid overrides', () => {
     const previous = { ...process.env };
+    // Isolate defaults from developer `.env` AUTH_* overrides.
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith('AUTH_') || key === 'SMTP_FROM' || key === 'JWT_SECRET') {
+        delete process.env[key];
+      }
+    }
     const service = new AuthConfig(
       new ConfigService({
         jwt: { secret: 'secret' },

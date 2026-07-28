@@ -22,18 +22,8 @@ export class RedisInfrastructureModule {
   public static register(options: RedisModuleOptions = {}): DynamicModule {
     const provider: Provider = {
       provide: RedisClientService,
-      useFactory: (): RedisClientService => {
-        const driver =
-          options.driver ??
-          (options.factory ?? new RedisConnectionFactory()).create(options)
-            .client;
-        return new RedisClientService(
-          driver,
-          options,
-          options.sleeper,
-          options.timer,
-        );
-      },
+      useFactory: (): RedisClientService =>
+        RedisInfrastructureModule.createClient(options),
     };
     return {
       module: RedisInfrastructureModule,
@@ -44,5 +34,44 @@ export class RedisInfrastructureModule {
       ],
       exports: [REDIS_CLIENT, RedisClientService, RedisHealthIndicator],
     };
+  }
+
+  public static registerAsync(options: {
+    imports?: DynamicModule['imports'];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    inject?: any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    useFactory: (...args: any[]) => RedisModuleOptions | Promise<RedisModuleOptions>;
+  }): DynamicModule {
+    const provider: Provider = {
+      provide: RedisClientService,
+      inject: options.inject ?? [],
+      useFactory: async (...args: unknown[]): Promise<RedisClientService> => {
+        const resolved = await options.useFactory(...args);
+        return RedisInfrastructureModule.createClient(resolved);
+      },
+    };
+    return {
+      module: RedisInfrastructureModule,
+      imports: options.imports ?? [],
+      providers: [
+        provider,
+        { provide: REDIS_CLIENT, useExisting: RedisClientService },
+        RedisHealthIndicator,
+      ],
+      exports: [REDIS_CLIENT, RedisClientService, RedisHealthIndicator],
+    };
+  }
+
+  private static createClient(options: RedisModuleOptions): RedisClientService {
+    const driver =
+      options.driver ??
+      (options.factory ?? new RedisConnectionFactory()).create(options).client;
+    return new RedisClientService(
+      driver,
+      options,
+      options.sleeper,
+      options.timer,
+    );
   }
 }

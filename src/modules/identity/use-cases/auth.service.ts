@@ -782,7 +782,7 @@ export class AuthService {
     // complete flows without a live SMS/email provider. Never enable in prod.
     if (
       process.env.NODE_ENV !== 'production' ||
-      process.env.AUTH_OTP_CONSOLE_LOG === 'true'
+      this.config.otpConsoleLog
     ) {
       // eslint-disable-next-line no-console
       console.log(
