@@ -88,11 +88,21 @@ export class EnvironmentVariables {
   ORM_TYPE: OrmType;
 
   @IsString()
-  REDIS_HOST: string;
+  @IsOptional()
+  REDIS_URL?: string;
+
+  @IsString()
+  @IsOptional()
+  REDIS_HOST?: string;
 
   @Type(() => Number)
   @IsNumber()
-  REDIS_PORT: number;
+  @IsOptional()
+  REDIS_PORT?: number;
+
+  @IsString()
+  @IsOptional()
+  REDIS_USERNAME?: string;
 
   @IsString()
   @IsOptional()

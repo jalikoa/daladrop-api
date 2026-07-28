@@ -32,9 +32,15 @@ export interface IConfig {
   };
 
   redis: {
+    /** Prefer when set (Render / Redis Cloud). Supports redis:// and rediss://. */
+    url?: string;
     host: string;
     port: number;
+    username?: string;
     password?: string;
+    db?: number;
+    /** True when REDIS_URL uses rediss:// (TLS). */
+    tls?: boolean;
   };
 
   jwt: {

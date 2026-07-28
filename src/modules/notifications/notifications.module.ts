@@ -8,6 +8,7 @@ import { createSmtpTransport } from '../../infrastructure/external-services/smtp
 import { HttpSmsProvider } from '../../infrastructure/external-services/sms/http-sms.provider';
 import { AfricasTalkingSmsProvider } from '../../infrastructure/external-services/sms/africastalking-sms.provider';
 import { HttpClientService } from '../../infrastructure/external-services/http/http-client.service';
+import { redisConnectionFromConfig } from '../../config/redis-connection';
 import { AUTH_NOTIFICATION_QUEUE } from '../identity/constants/auth.constants';
 import { AuthConfig } from '../identity/domain/auth.config';
 import { IdentityModule } from '../identity/identity.module';
@@ -31,12 +32,9 @@ import { EventBookingNotificationsListener } from './listeners/event-booking-not
     BullMqModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('redis.host') ?? '127.0.0.1',
-          port: config.get<number>('redis.port') ?? 6379,
-          password: config.get<string>('redis.password') || undefined,
+        connection: redisConnectionFromConfig(config, {
           maxRetriesPerRequest: null,
-        },
+        }),
       }),
     }),
     BullMqModule.registerQueue({ name: AUTH_NOTIFICATION_QUEUE }),

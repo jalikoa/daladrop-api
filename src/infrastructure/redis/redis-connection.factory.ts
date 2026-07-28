@@ -19,9 +19,10 @@ export function maskRedisUrl(url: string): string {
   return url.replace(/(redis(?:s)?:\/\/[^:\s/]+:)([^@\s]+)(@)/giu, '$1***$3');
 }
 
-interface ParsedRedisUrl {
+export interface ParsedRedisUrl {
   readonly host: string;
   readonly port: number;
+  readonly username?: string;
   readonly password?: string;
   readonly db: number;
   readonly tls: boolean;
@@ -34,6 +35,8 @@ export function parseRedisUrl(url: string): ParsedRedisUrl {
   return {
     host: parsed.hostname || '127.0.0.1',
     port: parsed.port === '' ? 6379 : Number(parsed.port),
+    username:
+      parsed.username === '' ? undefined : decodeURIComponent(parsed.username),
     password:
       parsed.password === '' ? undefined : decodeURIComponent(parsed.password),
     db: Number.isFinite(db) ? db : 0,
@@ -45,6 +48,7 @@ function resolveConnectionParts(options: RedisConnectionOptions): Readonly<{
   host: string;
   port: number;
   db: number;
+  username?: string;
   password?: string;
   tls: boolean;
 }> {
@@ -54,6 +58,7 @@ function resolveConnectionParts(options: RedisConnectionOptions): Readonly<{
       host: fromUrl.host,
       port: fromUrl.port,
       db: options.db ?? fromUrl.db,
+      username: fromUrl.username ?? options.username,
       password: fromUrl.password ?? options.password,
       tls: options.tls ?? fromUrl.tls,
     };
@@ -62,6 +67,7 @@ function resolveConnectionParts(options: RedisConnectionOptions): Readonly<{
     host: options.host ?? '127.0.0.1',
     port: options.port ?? 6379,
     db: options.db ?? 0,
+    username: options.username,
     password: options.password,
     tls: options.tls ?? false,
   };
@@ -81,6 +87,7 @@ export class RedisConnectionFactory {
       host: parts.host,
       port: parts.port,
       db: parts.db,
+      ...(parts.username === undefined ? {} : { username: parts.username }),
       ...(parts.password === undefined ? {} : { password: parts.password }),
       ...(parts.tls ? { tls: {} } : {}),
       lazyConnect: true,

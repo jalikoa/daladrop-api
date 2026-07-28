@@ -49,10 +49,13 @@ import { MediaController } from './interfaces/media.controller';
     RedisInfrastructureModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        url: process.env.REDIS_URL,
+        url: config.get<string>('redis.url') ?? process.env.REDIS_URL,
         host: config.get<string>('redis.host') ?? '127.0.0.1',
         port: config.get<number>('redis.port') ?? 6379,
+        username: config.get<string>('redis.username') || undefined,
         password: config.get<string>('redis.password') || undefined,
+        tls: config.get<boolean>('redis.tls') ?? false,
+        db: config.get<number>('redis.db') ?? 0,
         maxReconnectAttempts: 3,
       }),
     }),

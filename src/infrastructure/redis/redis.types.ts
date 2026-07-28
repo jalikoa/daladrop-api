@@ -11,6 +11,7 @@ export interface RedisConnectionOptions {
   readonly host?: string;
   readonly port?: number;
   readonly db?: number;
+  readonly username?: string;
   readonly password?: string;
   readonly tls?: boolean;
   readonly commandTimeoutMs?: number;

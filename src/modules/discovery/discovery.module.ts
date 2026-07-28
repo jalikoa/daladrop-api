@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BullModule as BullMqModule } from '@nestjs/bullmq';
+import { redisConnectionFromConfig } from '../../config/redis-connection';
 import { AuthorizationModule } from '../authorization/authorization.module';
 import { CatalogModule } from '../catalog/catalog.module';
 import { IdentityModule } from '../identity/identity.module';
@@ -27,12 +28,9 @@ import { UniversalSearchService } from './use-cases/universal-search.service';
     BullMqModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: {
-          host: config.get<string>('redis.host') ?? '127.0.0.1',
-          port: config.get<number>('redis.port') ?? 6379,
-          password: config.get<string>('redis.password') || undefined,
+        connection: redisConnectionFromConfig(config, {
           maxRetriesPerRequest: null,
-        },
+        }),
       }),
     }),
     BullMqModule.registerQueue({ name: SEARCH_INDEX_QUEUE }),

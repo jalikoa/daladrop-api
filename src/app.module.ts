@@ -5,6 +5,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bull';
 
 import { ConfigModule } from './config/config.module';
+import { redisConnectionFromConfig } from './config/redis-connection';
 import { DatabaseModule } from './database/database.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -103,9 +104,7 @@ import { RateLimitGuard } from './platform/security/http/rate-limit.guard';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         redis: {
-          host: config.get<string>('redis.host') || 'localhost',
-          port: config.get<number>('redis.port') || 6379,
-          password: config.get<string>('redis.password') || undefined,
+          ...redisConnectionFromConfig(config),
           retryStrategy: (times: number) => Math.min(times * 50, 2000),
         },
       }),

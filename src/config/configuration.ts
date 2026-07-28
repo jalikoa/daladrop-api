@@ -1,4 +1,5 @@
 import { IConfig } from './interfaces/config.interface';
+import { parseRedisUrl } from '../infrastructure/redis/redis-connection.factory';
 
 function positiveIntEnv(key: string, fallback: number): number {
   const parsed = Number(process.env[key]);
@@ -75,12 +76,30 @@ export default (): IConfig => {
           | 'prisma'
           | 'typeorm') || 'prisma',
     },
-    redis: {
-      // Canonical default matches RedisInfrastructureModule / identity (IPv4 loopback).
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: parseInt(process.env.REDIS_PORT || '6379', 10),
-      password: process.env.REDIS_PASSWORD || undefined,
-    },
+    redis: (() => {
+      const url = (process.env.REDIS_URL || '').trim() || undefined;
+      if (url) {
+        const parsed = parseRedisUrl(url);
+        return {
+          url,
+          host: parsed.host,
+          port: parsed.port,
+          username: parsed.username,
+          password: parsed.password,
+          db: parsed.db,
+          tls: parsed.tls,
+        };
+      }
+      return {
+        // Canonical default matches RedisInfrastructureModule / identity (IPv4 loopback).
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+        password: process.env.REDIS_PASSWORD || undefined,
+        username: process.env.REDIS_USERNAME || undefined,
+        tls: false,
+        db: 0,
+      };
+    })(),
     jwt: {
       secret: jwtSecret,
       expiration: process.env.JWT_EXPIRATION || '1d',

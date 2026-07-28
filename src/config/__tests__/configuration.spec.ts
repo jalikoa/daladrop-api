@@ -23,6 +23,8 @@ describe('Configuration Factory', () => {
       JWT_SECRET: 'test-jwt-secret-key-1234567890123456789012',
       ENCRYPTION_SECRET_KEY: 'test-encryption-key-32chars!!',
     };
+    delete process.env.REDIS_URL;
+    delete process.env.REDIS_HOST;
 
     const config = configuration();
 
@@ -39,6 +41,23 @@ describe('Configuration Factory', () => {
     expect(config.auth.accessTtlSeconds).toBe(900);
     expect(config.rateLimit.limit).toBe(120);
     expect(config.sms.at.baseUrl).toContain('africastalking.com');
+  });
+
+  it('prefers REDIS_URL including rediss TLS for nested redis config', () => {
+    process.env = {
+      JWT_SECRET: 'test-jwt-secret-key-1234567890123456789012',
+      ENCRYPTION_SECRET_KEY: 'test-encryption-key-32chars!!',
+      REDIS_URL: 'rediss://red-svc:s3cret@kv.example:6379/0',
+      REDIS_HOST: 'ignored',
+    };
+
+    const config = configuration();
+    expect(config.redis.url).toBe('rediss://red-svc:s3cret@kv.example:6379/0');
+    expect(config.redis.host).toBe('kv.example');
+    expect(config.redis.port).toBe(6379);
+    expect(config.redis.username).toBe('red-svc');
+    expect(config.redis.password).toBe('s3cret');
+    expect(config.redis.tls).toBe(true);
   });
 
   it('should correctly parse and map provided environment variables', () => {
