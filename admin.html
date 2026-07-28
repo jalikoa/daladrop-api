@@ -349,21 +349,36 @@ const CONFIG = {
     function normalizeApiBase(url) {
       let u = String(url || "").trim().replace(/\/+$/, "");
       if (!u) u = CONFIG.API_BASE_URL;
-      // Login was hitting /auth/login when base lacked /v1.
+      // Always keep URI versioning (/v1) — admin API routes live under it.
       if (!/\/v\d+$/i.test(u)) {
         u = u + "/v1";
       }
       return u;
     }
+    function apiOriginFromBase(base) {
+      try {
+        return new URL(normalizeApiBase(base)).origin;
+      } catch (e) {
+        return String(CONFIG.API_ORIGIN || "http://localhost:3000").replace(/\/+$/, "");
+      }
+    }
     function joinUrl(base, path) {
       if (!path) return base;
       if (/^https?:\/\//i.test(path)) return path;
       const b = normalizeApiBase(base);
-      const p = String(path).replace(/^\/+/, "");
-      // If path is absolute from origin (e.g. /health) use API_ORIGIN
-      if (String(path).startsWith("/") && !String(path).startsWith("/v1")) {
-        return String(CONFIG.API_ORIGIN || b.replace(/\/v\d+$/i, "")).replace(/\/+$/, "") + "/" + p.replace(/^\/+/, "");
+      const origin = apiOriginFromBase(b);
+      const raw = String(path);
+      // ONLY version-neutral root probes / static shell — NOT /admin/* API routes.
+      if (
+        /^\/health(\/|\?|$)/i.test(raw) ||
+        /^\/public(\/|\?|$)/i.test(raw) ||
+        /^\/api\/docs/i.test(raw) ||
+        /^\/admin\.html(\?|$)/i.test(raw) ||
+        /^\/admin(\?|$)/i.test(raw)
+      ) {
+        return origin + raw;
       }
+      const p = raw.replace(/^\/+/, "");
       return b + "/" + p;
     }
     function pickArray(data) {
@@ -435,7 +450,7 @@ const CONFIG = {
       }
       return id;
     }
-    return { uid, escapeHtml, fmtMs, nowIso, normalizeApiBase, joinUrl, pickArray, flattenObject, decodeJwt, toCsv, download, copy, deviceId };
+    return { uid, escapeHtml, fmtMs, nowIso, normalizeApiBase, apiOriginFromBase, joinUrl, pickArray, flattenObject, decodeJwt, toCsv, download, copy, deviceId };
   })();
 
   /* ========================================================================
@@ -491,13 +506,7 @@ const CONFIG = {
     }
 
     function origin() {
-      const b = base();
-      try {
-        const u = new URL(b);
-        return u.origin;
-      } catch (e) {
-        return CONFIG.API_ORIGIN;
-      }
+      return Util.apiOriginFromBase(base());
     }
 
     function url(path) {
@@ -917,17 +926,22 @@ const CONFIG = {
       { id: "food-categories", label: "Food Categories", icon: "bi-tags", perm: "catalog.read" },
       { id: "module-categories", label: "Module Categories", icon: "bi-grid", perm: "catalog.read" },
       { id: "store-products", label: "Store Products", icon: "bi-box", perm: "catalog.read" },
-      { id: "store-menu", label: "Store Menus", icon: "bi-journal-text", perm: "catalog.read" }
+      { id: "store-menu", label: "Store Menus", icon: "bi-journal-text", perm: "catalog.read" },
+      { id: "menu-categories", label: "Menu Categories", icon: "bi-list-ul", perm: "catalog.read" },
+      { id: "menu-items", label: "Menu Items", icon: "bi-card-list", perm: "catalog.read" },
+      { id: "store-hours", label: "Store Hours", icon: "bi-clock", perm: "merchants.manage" }
     ]},
     { section: "Orders & Payments", items: [
       { id: "orders", label: "Orders", icon: "bi-bag-check", perm: "orders.read" },
       { id: "payments", label: "Payments", icon: "bi-credit-card", perm: "payments.read" },
       { id: "wallets", label: "Wallets", icon: "bi-wallet2", perm: "wallets.read" },
+      { id: "wallet-transfer", label: "Wallet Transfer", icon: "bi-arrow-left-right", perm: "wallets.manage" },
       { id: "escrow", label: "Escrow", icon: "bi-safe", perm: "wallets.read" },
       { id: "settlements", label: "Settlements", icon: "bi-cash-stack", perm: "settlements.read" }
     ]},
     { section: "Finance", items: [
       { id: "accounting-overview", label: "Finance Overview", icon: "bi-graph-up", perm: "accounting.read" },
+      { id: "charts", label: "Charts of Accounts", icon: "bi-diagram-3", perm: "accounting.read" },
       { id: "accounts", label: "Chart of Accounts", icon: "bi-list-columns", perm: "accounting.read" },
       { id: "journals", label: "Journals", icon: "bi-journal-bookmark", perm: "accounting.read" },
       { id: "periods", label: "Accounting Periods", icon: "bi-calendar3", perm: "accounting.read" },
@@ -943,7 +957,8 @@ const CONFIG = {
     ]},
     { section: "Events", items: [
       { id: "events", label: "Events", icon: "bi-calendar-event", perm: "events.read" },
-      { id: "event-categories", label: "Event Categories", icon: "bi-bookmark", perm: "events.read" }
+      { id: "event-categories", label: "Event Categories", icon: "bi-bookmark", perm: "events.read" },
+      { id: "event-tickets", label: "Event Ticket Types", icon: "bi-ticket-perforated", perm: "events.read" }
     ]},
     { section: "Operations", items: [
       { id: "feature-flags", label: "Feature Flags", icon: "bi-flag", perm: "ops.read" },
@@ -1015,6 +1030,74 @@ const CONFIG = {
   })();
 
   /* ========================================================================
+   * Entity pickers (avoid hand-typing UUIDs)
+   * ======================================================================== */
+  const Picker = (function () {
+    const cache = {};
+    function labelFor(kind, row) {
+      if (kind === "users") {
+        return (row.email || row.displayName || row.firstName || row.id) + " · " + String(row.id).slice(0, 8);
+      }
+      if (kind === "merchants") return (row.name || row.id) + " · " + String(row.id).slice(0, 8);
+      if (kind === "stores") return (row.name || row.id) + " [" + (row.storeType || "?") + "] · " + String(row.id).slice(0, 8);
+      if (kind === "wallets") return (row.ownerType || "") + " " + (row.currency || "") + " · " + String(row.id).slice(0, 8);
+      if (kind === "events") return (row.name || row.id) + " · " + String(row.id).slice(0, 8);
+      if (kind === "riders") return (row.userId || row.id) + " · " + String(row.id).slice(0, 8);
+      return (row.name || row.key || row.email || row.id);
+    }
+    function pathFor(kind) {
+      return {
+        users: "/admin/users",
+        merchants: "/admin/merchants",
+        stores: "/admin/stores",
+        wallets: "/admin/wallets",
+        events: "/admin/events",
+        riders: "/admin/rides"
+      }[kind];
+    }
+    function queryFor(kind) {
+      if (kind === "users") return { limit: 50, offset: 0 };
+      if (kind === "payments") return { limit: 50, offset: 0 };
+      if (kind === "orders") return { limit: 50 };
+      if (kind === "events") return {};
+      return { page: 1, limit: 50 };
+    }
+    function fill($select, kind, extraQuery) {
+      if (!$select || !$select.length) return $.Deferred().resolve().promise();
+      const key = kind + ":" + JSON.stringify(extraQuery || {});
+      const apply = function (rows) {
+        const current = $select.val();
+        const keepFirst = $select.find("option:first").prop("outerHTML") || '<option value="">— select —</option>';
+        $select.empty().append(keepFirst);
+        rows.forEach(function (row) {
+          const id = row.id || row.key;
+          if (!id) return;
+          $select.append(
+            '<option value="' + Util.escapeHtml(String(id)) + '">' +
+            Util.escapeHtml(labelFor(kind, row)) + "</option>"
+          );
+        });
+        if (current) $select.val(current);
+      };
+      if (cache[key]) {
+        apply(cache[key]);
+        return $.Deferred().resolve(cache[key]).promise();
+      }
+      const path = pathFor(kind);
+      if (!path) return $.Deferred().resolve([]).promise();
+      return Api.get(path, Object.assign({}, queryFor(kind), extraQuery || {}), { silent: true, notify: false })
+        .done(function (res) {
+          const rows = Util.pickArray(res.data);
+          cache[key] = rows;
+          apply(rows);
+        })
+        .fail(function () { /* leave empty */ });
+    }
+    function clearCache() { Object.keys(cache).forEach(function (k) { delete cache[k]; }); }
+    return { fill, clearCache, labelFor };
+  })();
+
+  /* ========================================================================
    * Generic resource page builder
    * ======================================================================== */
   function resourcePage(def) {
@@ -1054,22 +1137,28 @@ const CONFIG = {
       );
 
       const $filters = $host.find("[data-role=filters]");
-      $filters.append(
-        '<div class="col-md-4"><label class="form-label">Search</label><input type="search" class="form-control form-control-sm" data-f="q" placeholder="Search…" /></div>'
-      );
+      if (def.search !== false) {
+        $filters.append(
+          '<div class="col-md-4"><label class="form-label">Search</label><input type="search" class="form-control form-control-sm" data-f="q" placeholder="Search…" /></div>'
+        );
+      }
       (def.filters || []).forEach(function (f) {
-        let html = '<div class="col-md-3"><label class="form-label">' + Util.escapeHtml(f.label) + "</label>";
-        if (f.type === "select") {
-          html += '<select class="form-select form-select-sm" data-f="' + f.key + '"><option value="">All</option>';
+        let html = '<div class="col-md-3"><label class="form-label">' + Util.escapeHtml(f.label) + (f.required ? ' <span class="req">*</span>' : "") + "</label>";
+        if (f.type === "select" || f.type === "picker") {
+          html += '<select class="form-select form-select-sm" data-f="' + f.key + '"' + (f.required ? " required" : "") + '><option value="">' + (f.placeholder || (f.required ? "Select…" : "All")) + "</option>";
           (f.options || []).forEach(function (o) {
-            html += '<option value="' + Util.escapeHtml(o.value) + '">' + Util.escapeHtml(o.label) + "</option>";
+            html += '<option value="' + Util.escapeHtml(o.value) + '"' + (f.default != null && String(f.default) === String(o.value) ? " selected" : "") + ">" + Util.escapeHtml(o.label) + "</option>";
           });
           html += "</select>";
         } else {
-          html += '<input class="form-control form-control-sm" data-f="' + f.key + '" placeholder="' + Util.escapeHtml(f.placeholder || "") + '" />';
+          html += '<input class="form-control form-control-sm" data-f="' + f.key + '" placeholder="' + Util.escapeHtml(f.placeholder || "") + '" value="' + Util.escapeHtml(f.default != null ? f.default : "") + '" />';
         }
         html += "</div>";
         $filters.append(html);
+        if (f.type === "picker" && f.picker) {
+          Picker.fill($host.find('[data-f="' + f.key + '"]'), f.picker, f.pickerQuery);
+        }
+        if (f.default != null) state.filters[f.key] = f.default;
       });
       $filters.append('<div class="col-md-2"><button class="btn btn-sm btn-dark w-100" data-act="apply">Apply</button></div>');
 
@@ -1081,9 +1170,24 @@ const CONFIG = {
       });
       $thead.append("<th>Actions</th>");
 
+      const paging = def.pagination || "pageLimit"; // pageLimit | limitOffset | limitOnly | none
+      if (paging === "none") {
+        $host.find("[data-act=prev],[data-act=next]").prop("disabled", true).hide();
+      }
+
       function queryParams() {
-        const q = { limit: state.limit, page: state.page, offset: (state.page - 1) * state.limit };
-        if (state.q) q.q = state.q;
+        const q = {};
+        if (paging === "pageLimit") {
+          q.limit = state.limit;
+          q.page = state.page;
+        } else if (paging === "limitOffset") {
+          q.limit = state.limit;
+          q.offset = (state.page - 1) * state.limit;
+        } else if (paging === "limitOnly") {
+          q.limit = state.limit;
+        }
+        // paging === "none" → no pagination keys
+        if (def.search !== false && state.q) q.q = state.q;
         Object.keys(state.filters).forEach(function (k) {
           if (state.filters[k] !== "" && state.filters[k] != null) q[k] = state.filters[k];
         });
@@ -1103,6 +1207,16 @@ const CONFIG = {
       }
 
       function load() {
+        const missing = (def.filters || []).filter(function (f) {
+          return f.required && !state.filters[f.key];
+        });
+        if (missing.length) {
+          $host.find("[data-role=tbody]").html(
+            '<tr><td colspan="' + (cols.length + 2) + '" class="text-muted">Select required filters: ' +
+            missing.map(function (m) { return m.label; }).join(", ") + "</td></tr>"
+          );
+          return $.Deferred().resolve().promise();
+        }
         const path = typeof def.list === "function" ? def.list(state) : def.list;
         return Api.get(path, queryParams()).done(function (res) {
           const rows = def.mapRows ? def.mapRows(res.data) : Util.pickArray(res.data);
@@ -1156,11 +1270,15 @@ const CONFIG = {
           body += '<div class="col-md-' + (f.col || 6) + '"><label class="form-label">' + Util.escapeHtml(f.label) + req + "</label>";
           if (f.type === "textarea" || f.type === "json") {
             body += '<textarea class="form-control mono" name="' + f.key + '" rows="' + (f.rows || 4) + '"' + (f.required ? " required" : "") + ">" + Util.escapeHtml(typeof val === "object" ? JSON.stringify(val, null, 2) : val) + "</textarea>";
-          } else if (f.type === "select") {
-            body += '<select class="form-select" name="' + f.key + '"' + (f.required ? " required" : "") + ">";
+          } else if (f.type === "select" || f.type === "picker") {
+            body += '<select class="form-select" name="' + f.key + '" data-picker="' + Util.escapeHtml(f.picker || "") + '"' + (f.required ? " required" : "") + ">";
+            body += '<option value="">' + (f.placeholder || "Select…") + "</option>";
             (f.options || []).forEach(function (o) {
               body += '<option value="' + Util.escapeHtml(o.value) + '"' + (String(o.value) === String(val) ? " selected" : "") + ">" + Util.escapeHtml(o.label) + "</option>";
             });
+            if (val && !(f.options || []).some(function (o) { return String(o.value) === String(val); })) {
+              body += '<option value="' + Util.escapeHtml(val) + '" selected>' + Util.escapeHtml(val) + "</option>";
+            }
             body += "</select>";
           } else if (f.type === "checkbox") {
             body += '<div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="' + f.key + '" ' + (val ? "checked" : "") + ' /><label class="form-check-label">Enabled</label></div>';
@@ -1175,6 +1293,7 @@ const CONFIG = {
           title: mode === "create" ? "Create" : "Edit",
           body: body,
           size: "lg",
+          hideConfirm: false,
           confirmText: "Save",
           onConfirm: function () {
             const payload = {};
@@ -1197,8 +1316,14 @@ const CONFIG = {
             req.done(function () {
               Modal.close();
               Notify.success("Saved");
+              Picker.clearCache();
               load();
             });
+          }
+        });
+        fields.forEach(function (f) {
+          if (f.picker) {
+            Picker.fill($('#resource-form [name="' + f.key + '"]'), f.picker, f.pickerQuery);
           }
         });
       }
@@ -1364,14 +1489,14 @@ const CONFIG = {
     register("dashboard", function ($host) {
       $host.html('<div class="row g-3" id="dash-cards"></div><div class="row g-3 mt-1"><div class="col-lg-6"><div class="panel"><div class="panel-h"><strong>Latest exchange</strong></div><div class="panel-b" id="dash-insp"></div></div></div><div class="col-lg-6"><div class="panel"><div class="panel-h"><strong>Quick health</strong></div><div class="panel-b" id="dash-health"><div class="skeleton"></div></div></div></div></div>');
       const cards = [
-        { label: "Users", path: "/admin/users", query: { limit: 1 }, pick: function (d) { return (d.total != null ? d.total : Util.pickArray(d).length); } },
-        { label: "Merchants", path: "/admin/merchants", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Users", path: "/admin/users", query: { limit: 1, offset: 0 }, pick: function (d) { return (d.total != null ? d.total : Util.pickArray(d).length); } },
+        { label: "Merchants", path: "/admin/merchants", query: { limit: 1, page: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
         { label: "Orders", path: "/admin/orders", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
-        { label: "Payments", path: "/admin/payments", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
-        { label: "Wallets", path: "/admin/wallets", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
-        { label: "Rides", path: "/admin/rides", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
-        { label: "Events", path: "/admin/events", query: { limit: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
-        { label: "Feature Flags", path: "/admin/feature-flags", pick: function (d) { return Util.pickArray(d).length; } }
+        { label: "Payments", path: "/admin/payments", query: { limit: 1, offset: 0 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Wallets", path: "/admin/wallets", query: { limit: 1, page: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Rides", path: "/admin/rides", query: { limit: 1, page: 1 }, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Events", path: "/admin/events", query: {}, pick: function (d) { return d.total != null ? d.total : Util.pickArray(d).length; } },
+        { label: "Feature Flags", path: "/admin/feature-flags", query: {}, pick: function (d) { return Util.pickArray(d).length; } }
       ];
       const $cards = $host.find("#dash-cards");
       cards.forEach(function (c, idx) {
@@ -1384,7 +1509,7 @@ const CONFIG = {
       });
       // store type counts
       ["RESTAURANT", "MARKET", "LIQUOR", "GAS"].forEach(function (t) {
-        Api.get("/admin/stores", { storeType: t, limit: 1 }, { notify: false, silent: true }).done(function (res) {
+        Api.get("/admin/stores", { storeType: t, limit: 1, page: 1 }, { notify: false, silent: true }).done(function (res) {
           $cards.append('<div class="col-6 col-md-3"><div class="stat-card"><div class="label">' + t + '</div><div class="value">' + (res.data.total != null ? res.data.total : Util.pickArray(res.data).length) + "</div></div></div>");
         });
       });
@@ -1430,11 +1555,14 @@ const CONFIG = {
       $host.html('<div class="panel"><div class="panel-b"><div class="mb-3"><label class="form-label">API Base URL</label><input class="form-control mono" id="set-api" value="' + Util.escapeHtml(Api.base()) + '" /></div><div class="mb-3"><label class="form-label">Logging</label><select class="form-select" id="set-log"><option value="1">Enabled</option><option value="0">Disabled</option></select></div><button class="btn btn-dark" id="set-save">Save</button></div></div>');
       $("#set-log").val(CONFIG.ENABLE_LOGGING ? "1" : "0");
       $("#set-save").on("click", function () {
-        Storage.set("apiBaseUrl", Util.normalizeApiBase($("#set-api").val()));
+        const next = Util.normalizeApiBase($("#set-api").val());
+        Storage.set("apiBaseUrl", next);
+        CONFIG.API_BASE_URL = next;
+        CONFIG.API_ORIGIN = Util.apiOriginFromBase(next);
         CONFIG.ENABLE_LOGGING = $("#set-log").val() === "1";
         $("#set-api").val(Api.base());
         $("#header-api-url").text(Api.base());
-        Notify.success("Settings saved");
+        Notify.success("API base saved: " + Api.base());
       });
     });
 
@@ -1476,6 +1604,7 @@ const CONFIG = {
 
     register("users", resourcePage({
       id: "users", title: "Users", subtitle: "Identity administration",
+      pagination: "limitOffset",
       list: "/admin/users", get: "/admin/users/:id",
       columns: [
         { key: "id", label: "ID" },
@@ -1524,6 +1653,7 @@ const CONFIG = {
 
     register("merchants", resourcePage({
       id: "merchants", title: "Merchants",
+      pagination: "pageLimit",
       list: "/admin/merchants", get: "/admin/merchants/:id",
       create: "/admin/merchants", update: "/admin/merchants/:id", remove: "/admin/merchants/:id",
       columns: [
@@ -1532,7 +1662,7 @@ const CONFIG = {
       ],
       filters: [{ key: "status", label: "Status", type: "select", options: ["DRAFT","ACTIVE","SUSPENDED","CLOSED"].map(function (s) { return { value: s, label: s }; }) }],
       fields: [
-        { key: "ownerUserId", label: "Owner User ID", required: true },
+        { key: "ownerUserId", label: "Owner user", type: "picker", picker: "users", required: true },
         { key: "name", label: "Name", required: true },
         { key: "legalName", label: "Legal name" },
         { key: "taxId", label: "Tax ID" },
@@ -1544,6 +1674,8 @@ const CONFIG = {
 
     register("merchant-kyc", resourcePage({
       id: "merchant-kyc", title: "KYC Pending",
+      pagination: "pageLimit",
+      search: false,
       list: "/admin/merchants/kyc/pending",
       columns: [
         { key: "id", label: "Merchant / KYC ID" },
@@ -1558,6 +1690,30 @@ const CONFIG = {
         { id: "reject", label: "Reject", confirm: "Reject KYC?", run: function (row, reload) {
           const id = row.merchantId || row.id;
           Api.post("/admin/merchants/" + id + "/kyc/review", { decision: "REJECTED", rejectionReason: "Rejected via admin console" }).done(reload);
+        }},
+        { id: "view-kyc", label: "View KYC", run: function (row) {
+          const id = row.merchantId || row.id;
+          Api.get("/admin/merchants/" + id + "/kyc").done(function (res) {
+            Modal.open({ title: "KYC", body: '<div id="kyc-json"></div>', size: "xl", hideConfirm: true });
+            JsonView.render("#kyc-json", res.data);
+          });
+        }},
+        { id: "submit-kyc", label: "Submit KYC", run: function (row, reload) {
+          const id = row.merchantId || row.id;
+          Modal.open({
+            title: "Submit / update KYC",
+            body: '<input class="form-control mb-2" id="kyc-reg" placeholder="Business registration #" /><input class="form-control mb-2" id="kyc-pin" placeholder="Tax PIN" /><input class="form-control mb-2" id="kyc-addr" placeholder="Business address" />',
+            onConfirm: function () {
+              const body = {
+                businessRegistrationNumber: $("#kyc-reg").val(),
+                taxPin: $("#kyc-pin").val(),
+                businessAddress: $("#kyc-addr").val()
+              };
+              Api.put("/admin/merchants/" + id + "/kyc", body).then(function () {
+                return Api.post("/admin/merchants/" + id + "/kyc/submit", body);
+              }).done(function () { Modal.close(); reload(); Notify.success("KYC submitted"); });
+            }
+          });
         }}
       ]
     }));
@@ -1565,6 +1721,7 @@ const CONFIG = {
     function storesPage(storeType, title) {
       return resourcePage({
         id: storeType || "stores", title: title,
+        pagination: "pageLimit",
         list: "/admin/stores", get: "/admin/stores/:id",
         create: "/admin/stores", update: "/admin/stores/:id", remove: "/admin/stores/:id",
         query: storeType ? { storeType: storeType } : {},
@@ -1575,7 +1732,7 @@ const CONFIG = {
         ],
         filters: storeType ? [] : [{ key: "storeType", label: "Type", type: "select", options: ["RESTAURANT","MARKET","LIQUOR","GAS","GENERAL","EVENT"].map(function (s) { return { value: s, label: s }; }) }],
         fields: [
-          { key: "merchantId", label: "Merchant ID", required: true },
+          { key: "merchantId", label: "Merchant", type: "picker", picker: "merchants", required: true },
           { key: "storeType", label: "Store type", type: "select", required: true, options: ["RESTAURANT","MARKET","LIQUOR","GAS"].map(function (s) { return { value: s, label: s }; }), default: storeType || "RESTAURANT" },
           { key: "name", label: "Name", required: true },
           { key: "city", label: "City", default: "Kisumu" },
@@ -1596,7 +1753,8 @@ const CONFIG = {
     register("gas", storesPage("GAS", "Gas Vendors"));
 
     register("food-categories", resourcePage({
-      title: "Food Categories", list: "/admin/food-categories",
+      title: "Food Categories", pagination: "none", search: false,
+      list: "/admin/food-categories",
       create: "/admin/food-categories", update: "/admin/food-categories/:id", remove: "/admin/food-categories/:id",
       updateMethod: "patch",
       columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
@@ -1608,10 +1766,11 @@ const CONFIG = {
     }));
 
     register("module-categories", resourcePage({
-      title: "Module Categories", list: "/admin/module-categories",
+      title: "Module Categories", pagination: "none", search: false,
+      list: "/admin/module-categories",
       create: "/admin/module-categories", update: "/admin/module-categories/:id", remove: "/admin/module-categories/:id",
       updateMethod: "patch",
-      filters: [{ key: "moduleType", label: "Module", type: "select", options: ["FOOD","MARKET","LIQUOR","GAS","EVENT"].map(function (s) { return { value: s, label: s }; }) }],
+      filters: [{ key: "moduleType", label: "Module", type: "select", required: true, default: "FOOD", options: ["FOOD","MARKET","LIQUOR","GAS","MERCHANT","EVENT","PARCEL"].map(function (s) { return { value: s, label: s }; }) }],
       columns: [{ key: "moduleType", label: "Module" }, { key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
       fields: [
         { key: "moduleType", label: "Module type", type: "select", required: true, options: ["FOOD","MARKET","LIQUOR","GAS","EVENT"].map(function (s) { return { value: s, label: s }; }) },
@@ -1622,12 +1781,14 @@ const CONFIG = {
     }));
 
     register("store-products", function ($host) {
-      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Store ID</label><input id="sp-store" class="form-control mono" placeholder="UUID" /></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sp-load">Load products</button></div></div><div id="sp-host"></div></div></div>');
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Store</label><select id="sp-store" class="form-select"><option value="">Select store…</option></select></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sp-load">Load products</button></div></div><div id="sp-host"></div></div></div>');
+      Picker.fill($("#sp-store"), "stores");
       $("#sp-load").on("click", function () {
         const sid = $("#sp-store").val();
-        if (!sid) return Notify.warn("Store ID required");
+        if (!sid) return Notify.warn("Select a store");
         resourcePage({
-          title: "Products", list: "/admin/stores/" + sid + "/products",
+          title: "Products", pagination: "none", search: false,
+          list: "/admin/stores/" + sid + "/products",
           create: "/admin/stores/" + sid + "/products",
           update: "/admin/stores/" + sid + "/products/:id",
           remove: "/admin/stores/" + sid + "/products/:id",
@@ -1646,9 +1807,11 @@ const CONFIG = {
     });
 
     register("store-menu", function ($host) {
-      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Restaurant Store ID</label><input id="sm-store" class="form-control mono" /></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sm-load">Load menu</button></div></div><div id="sm-host"></div><div class="mt-3" data-role="inspector"></div></div></div>');
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><label class="form-label">Restaurant store</label><select id="sm-store" class="form-select"><option value="">Select store…</option></select></div><div class="col-md-4 d-flex align-items-end"><button class="btn btn-dark w-100" id="sm-load">Load full menu</button></div></div><div id="sm-host"></div><div class="mt-3" data-role="inspector"></div></div></div>');
+      Picker.fill($("#sm-store"), "stores", { storeType: "RESTAURANT" });
       $("#sm-load").on("click", function () {
         const sid = $("#sm-store").val();
+        if (!sid) return Notify.warn("Select a store");
         Api.get("/admin/stores/" + sid + "/menu").done(function (res) {
           JsonView.render("#sm-host", res.data);
           renderInspector($host.find("[data-role=inspector]"));
@@ -1656,8 +1819,83 @@ const CONFIG = {
       });
     });
 
+    register("menu-categories", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><select id="mc-store" class="form-select"><option value="">Select store…</option></select></div><div class="col-md-4"><button class="btn btn-dark w-100" id="mc-load">Load</button></div></div><div id="mc-inner"></div></div></div>');
+      Picker.fill($("#mc-store"), "stores", { storeType: "RESTAURANT" });
+      $("#mc-load").on("click", function () {
+        const sid = $("#mc-store").val();
+        if (!sid) return Notify.warn("Select a store");
+        resourcePage({
+          title: "Menu categories", pagination: "none", search: false,
+          list: "/admin/stores/" + sid + "/menu-categories",
+          create: "/admin/stores/" + sid + "/menu-categories",
+          update: "/admin/stores/" + sid + "/menu-categories/:id",
+          remove: "/admin/stores/" + sid + "/menu-categories/:id",
+          updateMethod: "patch",
+          columns: [{ key: "name", label: "Name" }, { key: "sortOrder", label: "Sort" }, { key: "isActive", label: "Active" }],
+          fields: [
+            { key: "name", label: "Name", required: true },
+            { key: "description", label: "Description", type: "textarea", col: 12 },
+            { key: "sortOrder", label: "Sort", type: "number", default: 0 },
+            { key: "isActive", label: "Active", type: "checkbox", default: true }
+          ]
+        })($("#mc-inner").empty());
+      });
+    });
+
+    register("menu-items", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><select id="mi-store" class="form-select"><option value="">Select store…</option></select></div><div class="col-md-4"><button class="btn btn-dark w-100" id="mi-load">Load</button></div></div><div id="mi-inner"></div></div></div>');
+      Picker.fill($("#mi-store"), "stores", { storeType: "RESTAURANT" });
+      $("#mi-load").on("click", function () {
+        const sid = $("#mi-store").val();
+        if (!sid) return Notify.warn("Select a store");
+        resourcePage({
+          title: "Menu items", pagination: "none", search: false,
+          list: "/admin/stores/" + sid + "/menu-items",
+          create: "/admin/stores/" + sid + "/menu-items",
+          update: "/admin/stores/" + sid + "/menu-items/:id",
+          remove: "/admin/stores/" + sid + "/menu-items/:id",
+          updateMethod: "patch",
+          columns: [{ key: "name", label: "Name" }, { key: "priceAmount", label: "Price" }, { key: "menuCategoryId", label: "Category" }, { key: "isAvailable", label: "Available" }],
+          fields: [
+            { key: "menuCategoryId", label: "Menu category ID", required: true, help: "Load menu categories first to copy an ID" },
+            { key: "name", label: "Name", required: true },
+            { key: "priceAmount", label: "Price (minor units)", type: "number", required: true },
+            { key: "description", label: "Description", type: "textarea", col: 12 },
+            { key: "imageUrl", label: "Image URL", col: 12 },
+            { key: "isAvailable", label: "Available", type: "checkbox", default: true },
+            { key: "preparationTime", label: "Prep minutes", type: "number" },
+            { key: "sortOrder", label: "Sort", type: "number", default: 0 }
+          ]
+        })($("#mi-inner").empty());
+      });
+    });
+
+    register("store-hours", function ($host) {
+      $host.html(
+        '<div class="panel"><div class="panel-h"><strong>Update store opening hours</strong></div><div class="panel-b">' +
+        '<div class="mb-2"><label class="form-label">Store</label><select id="sh-id" class="form-select"><option value="">Select store…</option></select></div>' +
+        '<div class="mb-2"><label class="form-label">Hours JSON</label><textarea id="sh-hours" class="form-control mono" rows="10">' +
+        JSON.stringify([{ day: "MON", openTime: "08:00", closeTime: "22:00", isClosed: false }], null, 2) +
+        '</textarea><div class="form-text">Array of { day, openTime, closeTime, isClosed } — day = MON..SUN</div></div>' +
+        '<button class="btn btn-dark" id="sh-save">PUT /admin/stores/:id/hours</button>' +
+        '<div class="mt-3" data-role="inspector"></div></div></div>'
+      );
+      Picker.fill($("#sh-id"), "stores");
+      $("#sh-save").on("click", function () {
+        const sid = $("#sh-id").val();
+        if (!sid) return Notify.warn("Select a store");
+        let hours;
+        try { hours = JSON.parse($("#sh-hours").val()); } catch (e) { return Notify.error("Invalid JSON"); }
+        Api.put("/admin/stores/" + sid + "/hours", { hours: hours }).always(function () {
+          renderInspector($host.find("[data-role=inspector]"));
+        }).done(function () { Notify.success("Hours saved"); });
+      });
+    });
+
     register("orders", resourcePage({
-      title: "Orders", list: "/admin/orders", get: "/admin/orders/:id",
+      title: "Orders", pagination: "limitOnly", search: false,
+      list: "/admin/orders", get: "/admin/orders/:id",
       columns: [
         { key: "id", label: "ID" }, { key: "moduleType", label: "Module" }, { key: "status", label: "Status" },
         { key: "paymentStatus", label: "Payment" }, { key: "totalAmount", label: "Total" }, { key: "createdAt", label: "Created" }
@@ -1683,7 +1921,8 @@ const CONFIG = {
     }));
 
     register("payments", resourcePage({
-      title: "Payments", list: "/admin/payments", get: "/admin/payments/:id",
+      title: "Payments", pagination: "limitOffset", search: false,
+      list: "/admin/payments", get: "/admin/payments/:id",
       columns: [
         { key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "amount", label: "Amount" },
         { key: "providerCode", label: "Provider" }, { key: "createdAt", label: "Created" }
@@ -1708,12 +1947,19 @@ const CONFIG = {
               }).done(function () { Modal.close(); reload(); });
             }
           });
+        }},
+        { id: "refunds", label: "List refunds", run: function (row) {
+          Api.get("/admin/payments/" + row.id + "/refunds").done(function (res) {
+            Modal.open({ title: "Refunds", body: '<div id="pay-rf"></div>', size: "xl", hideConfirm: true });
+            JsonView.render("#pay-rf", res.data);
+          });
         }}
       ]
     }));
 
     register("wallets", resourcePage({
-      title: "Wallets", list: "/admin/wallets", get: "/admin/wallets/:id",
+      title: "Wallets", pagination: "pageLimit", search: false,
+      list: "/admin/wallets", get: "/admin/wallets/:id",
       columns: [
         { key: "id", label: "ID" }, { key: "ownerType", label: "Owner type" }, { key: "ownerId", label: "Owner" },
         { key: "availableBalance", label: "Available" }, { key: "currency", label: "CCY" }
@@ -1743,12 +1989,67 @@ const CONFIG = {
               Api.post("/admin/wallets/" + row.id + "/debit", { amount: Number($("#w-amt").val()), reference: $("#w-ref").val() || Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
             }
           });
+        }},
+        { id: "hold", label: "Hold", run: function (row, reload) {
+          Modal.open({
+            title: "Hold funds",
+            body: '<input type="number" id="w-amt" class="form-control" placeholder="Amount" /><input id="w-ref" class="form-control mt-2" placeholder="Reference" />',
+            onConfirm: function () {
+              Api.post("/admin/wallets/" + row.id + "/hold", { amount: Number($("#w-amt").val()), reference: $("#w-ref").val() || Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }},
+        { id: "release", label: "Release", run: function (row, reload) {
+          Modal.open({
+            title: "Release hold",
+            body: '<input type="number" id="w-amt" class="form-control" placeholder="Amount" /><input id="w-ref" class="form-control mt-2" placeholder="Reference" />',
+            onConfirm: function () {
+              Api.post("/admin/wallets/" + row.id + "/release", { amount: Number($("#w-amt").val()), reference: $("#w-ref").val() || Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }},
+        { id: "adjust", label: "Adjust", run: function (row, reload) {
+          Modal.open({
+            title: "Adjust wallet",
+            body: '<input type="number" id="w-amt" class="form-control" placeholder="Amount (+/-)" /><input id="w-reason" class="form-control mt-2" placeholder="Reason (required)" />',
+            onConfirm: function () {
+              Api.post("/admin/wallets/" + row.id + "/adjust", { amount: Number($("#w-amt").val()), reason: $("#w-reason").val(), reference: Util.uid(), idempotencyKey: Util.uid() }).done(function () { Modal.close(); reload(); });
+            }
+          });
         }}
       ]
     }));
 
+    register("wallet-transfer", function ($host) {
+      $host.html(
+        '<div class="panel"><div class="panel-h"><strong>Wallet transfer</strong></div><div class="panel-b">' +
+        '<div class="row g-3">' +
+        '<div class="col-md-6"><label class="form-label">From wallet</label><select id="wt-from" class="form-select"><option value="">Select…</option></select></div>' +
+        '<div class="col-md-6"><label class="form-label">To wallet</label><select id="wt-to" class="form-select"><option value="">Select…</option></select></div>' +
+        '<div class="col-md-4"><label class="form-label">Amount</label><input type="number" id="wt-amt" class="form-control" /></div>' +
+        '<div class="col-md-4"><label class="form-label">Reference</label><input id="wt-ref" class="form-control" /></div>' +
+        '<div class="col-md-4"><label class="form-label">Description</label><input id="wt-desc" class="form-control" /></div>' +
+        '<div class="col-12"><button class="btn btn-dark" id="wt-go">Transfer</button></div></div>' +
+        '<div class="mt-3" data-role="inspector"></div></div></div>'
+      );
+      Picker.fill($("#wt-from"), "wallets");
+      Picker.fill($("#wt-to"), "wallets");
+      $("#wt-go").on("click", function () {
+        Api.post("/admin/wallets/transfer", {
+          fromWalletId: $("#wt-from").val(),
+          toWalletId: $("#wt-to").val(),
+          amount: Number($("#wt-amt").val()),
+          reference: $("#wt-ref").val() || undefined,
+          description: $("#wt-desc").val() || undefined,
+          idempotencyKey: Util.uid()
+        }).always(function () { renderInspector($host.find("[data-role=inspector]")); })
+          .done(function () { Notify.success("Transferred"); Picker.clearCache(); });
+      });
+    });
+
     register("escrow", resourcePage({
-      title: "Escrow holds", list: "/admin/escrow", get: "/admin/escrow/:id",
+      title: "Escrow holds", pagination: "pageLimit", search: false,
+      list: "/admin/escrow", get: "/admin/escrow/:id",
       columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "amount", label: "Amount" }],
       rowActions: [
         { id: "release", label: "Release", confirm: "Release escrow?", run: function (row, reload) { Api.post("/admin/escrow/" + row.id + "/release", { idempotencyKey: Util.uid() }).done(reload); } },
@@ -1760,11 +2061,12 @@ const CONFIG = {
     register("settlements", function ($host) {
       $host.html('<ul class="nav nav-tabs mb-3"><li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#set-batches">Batches</button></li><li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#set-policies">Policies</button></li></ul><div class="tab-content"><div class="tab-pane show active" id="set-batches"></div><div class="tab-pane" id="set-policies"></div></div>');
       resourcePage({
-        title: "Settlement batches", list: "/admin/settlements/batches", get: "/admin/settlements/batches/:id",
+        title: "Settlement batches", pagination: "pageLimit", search: false,
+        list: "/admin/settlements/batches", get: "/admin/settlements/batches/:id",
         create: "/admin/settlements/batches",
         columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "createdAt", label: "Created" }],
         fields: [
-          { key: "policyId", label: "Policy ID", required: true },
+          { key: "policyId", label: "Policy ID", required: true, help: "Load Policies tab for IDs" },
           { key: "idempotencyKey", label: "Idempotency key", default: "" },
           { key: "force", label: "Force", type: "checkbox" }
         ],
@@ -1775,7 +2077,8 @@ const CONFIG = {
         ]
       })($("#set-batches"));
       resourcePage({
-        title: "Policies", list: "/admin/settlements/policies", get: "/admin/settlements/policies/:id",
+        title: "Policies", pagination: "none", search: false,
+        list: "/admin/settlements/policies", get: "/admin/settlements/policies/:id",
         columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "enabled", label: "Enabled" }]
       })($("#set-policies"));
     });
@@ -1792,8 +2095,21 @@ const CONFIG = {
       return { reload: load };
     });
 
+    register("charts", function ($host) {
+      $host.html('<div class="panel"><div class="panel-h"><strong>Accounting charts</strong><button class="btn btn-sm btn-outline-dark" id="ch-reload">Refresh</button></div><div class="panel-b" id="ch-body"></div></div>');
+      function load() {
+        Api.get("/admin/accounting/charts").done(function (res) {
+          JsonView.render("#ch-body", res.data);
+        });
+      }
+      $("#ch-reload").on("click", load);
+      load();
+      return { reload: load };
+    });
+
     register("accounts", resourcePage({
-      title: "Accounts", list: "/admin/accounting/accounts",
+      title: "Accounts", pagination: "none", search: false,
+      list: "/admin/accounting/accounts",
       create: "/admin/accounting/accounts",
       columns: [{ key: "code", label: "Code" }, { key: "name", label: "Name" }, { key: "accountType", label: "Type" }, { key: "currency", label: "CCY" }],
       fields: [
@@ -1807,7 +2123,8 @@ const CONFIG = {
     }));
 
     register("journals", resourcePage({
-      title: "Journals", list: "/admin/accounting/journals", get: "/admin/accounting/journals/:id",
+      title: "Journals", pagination: "pageLimit", search: false,
+      list: "/admin/accounting/journals", get: "/admin/accounting/journals/:id",
       create: "/admin/accounting/journals",
       columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "description", label: "Description" }, { key: "currency", label: "CCY" }],
       fields: [
@@ -1830,7 +2147,8 @@ const CONFIG = {
     }));
 
     register("periods", resourcePage({
-      title: "Accounting periods", list: "/admin/accounting/periods",
+      title: "Accounting periods", pagination: "none", search: false,
+      list: "/admin/accounting/periods",
       columns: [{ key: "id", label: "ID" }, { key: "name", label: "Name" }, { key: "status", label: "Status" }, { key: "startsAt", label: "Start" }, { key: "endsAt", label: "End" }],
       rowActions: [
         { id: "close", label: "Close", confirm: "Close period?", run: function (row, reload) { Api.post("/admin/accounting/periods/" + row.id + "/close", { reason: "admin console" }).done(reload); } }
@@ -1861,7 +2179,8 @@ const CONFIG = {
     });
 
     register("rides", resourcePage({
-      title: "Rides", list: "/admin/rides", get: "/admin/rides/:id",
+      title: "Rides", pagination: "pageLimit", search: false,
+      list: "/admin/rides", get: "/admin/rides/:id",
       columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "serviceType", label: "Service" }, { key: "fareAmount", label: "Fare" }],
       filters: [{ key: "status", label: "Status" }, { key: "serviceType", label: "Service type" }],
       rowActions: [
@@ -1870,20 +2189,33 @@ const CONFIG = {
             Api.post("/admin/rides/" + row.id + "/assign", { riderId: $("#rider-id").val() }).done(function () { Modal.close(); reload(); });
           }});
         }},
+        { id: "status", label: "Set status", run: function (row, reload) {
+          Modal.open({
+            title: "Update ride status",
+            body: '<input class="form-control mb-2" id="ride-st" placeholder="Status" /><input class="form-control" id="ride-reason" placeholder="Reason (optional)" />',
+            onConfirm: function () {
+              Api.post("/admin/rides/" + row.id + "/status", { status: $("#ride-st").val(), reason: $("#ride-reason").val() || undefined }).done(function () { Modal.close(); reload(); });
+            }
+          });
+        }},
         { id: "cancel", label: "Cancel", confirm: "Cancel ride?", run: function (row, reload) { Api.post("/admin/rides/" + row.id + "/cancel", { reason: "admin" }).done(reload); } }
       ]
     }));
 
     register("courier-partners", resourcePage({
-      title: "Courier partners", list: "/admin/transport/courier-partners",
+      title: "Courier partners", pagination: "none", search: false,
+      list: "/admin/transport/courier-partners",
       create: "/admin/transport/courier-partners", update: "/admin/transport/courier-partners/:id", remove: "/admin/transport/courier-partners/:id",
+      updateMethod: "patch",
       columns: [{ key: "name", label: "Name" }, { key: "isActive", label: "Active" }],
       fields: [{ key: "name", label: "Name", required: true }, { key: "brandUrl", label: "Brand URL" }, { key: "isActive", label: "Active", type: "checkbox", default: true }]
     }));
 
     register("intercounty", resourcePage({
-      title: "Inter-county routes", list: "/admin/transport/inter-county/routes",
+      title: "Inter-county routes", pagination: "none", search: false,
+      list: "/admin/transport/inter-county/routes",
       create: "/admin/transport/inter-county/routes", update: "/admin/transport/inter-county/routes/:id", remove: "/admin/transport/inter-county/routes/:id",
+      updateMethod: "patch",
       columns: [{ key: "label", label: "Label" }, { key: "quotedFareAmount", label: "Fare" }, { key: "isActive", label: "Active" }],
       fields: [
         { key: "label", label: "Label", required: true },
@@ -1896,7 +2228,8 @@ const CONFIG = {
     }));
 
     register("pricing-rules", resourcePage({
-      title: "Delivery pricing rules", list: "/admin/delivery-pricing-rules",
+      title: "Delivery pricing rules", pagination: "none", search: false,
+      list: "/admin/delivery-pricing-rules",
       create: "/admin/delivery-pricing-rules", update: "/admin/delivery-pricing-rules/:id", updateMethod: "patch",
       columns: [
         { key: "name", label: "Name" }, { key: "serviceType", label: "Service" },
@@ -1917,7 +2250,8 @@ const CONFIG = {
     }));
 
     register("constraints", resourcePage({
-      title: "Delivery constraints", list: "/admin/delivery-constraints",
+      title: "Delivery constraints", pagination: "none", search: false,
+      list: "/admin/delivery-constraints",
       create: "/admin/delivery-constraints", update: "/admin/delivery-constraints/:id", updateMethod: "patch",
       columns: [{ key: "name", label: "Name" }, { key: "serviceType", label: "Service" }, { key: "maxDistanceKm", label: "Max km" }, { key: "enabled", label: "Enabled" }],
       fields: [
@@ -1932,24 +2266,44 @@ const CONFIG = {
       ]
     }));
 
-    register("pod", actionFormPage({
-      title: "Submit Proof of Delivery",
-      submit: "/admin/pod",
-      fields: [
-        { key: "orderId", label: "Order ID" }, { key: "rideId", label: "Ride ID" },
-        { key: "photoUrl", label: "Photo URL", col: 12 }, { key: "signatureUrl", label: "Signature URL", col: 12 },
-        { key: "recipientName", label: "Recipient" }, { key: "notes", label: "Notes" },
-        { key: "otpCode", label: "OTP" }, { key: "latitude", label: "Lat", type: "number" }, { key: "longitude", label: "Lng", type: "number" }
-      ]
-    }));
+    register("pod", function ($host) {
+      $host.html(
+        '<ul class="nav nav-tabs mb-3">' +
+        '<li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pod-submit">Submit</button></li>' +
+        '<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#pod-lookup">Lookup</button></li>' +
+        '</ul><div class="tab-content"><div class="tab-pane show active" id="pod-submit"></div><div class="tab-pane" id="pod-lookup">' +
+        '<div class="row g-2 mb-2"><div class="col-md-5"><input id="pod-order" class="form-control mono" placeholder="Order ID" /></div>' +
+        '<div class="col-md-3"><button class="btn btn-outline-dark w-100" id="pod-by-order">By order</button></div>' +
+        '<div class="col-md-5"><input id="pod-ride" class="form-control mono" placeholder="Ride ID" /></div>' +
+        '<div class="col-md-3"><button class="btn btn-outline-dark w-100" id="pod-by-ride">By ride</button></div></div>' +
+        '<div id="pod-out"></div></div></div>'
+      );
+      actionFormPage({
+        title: "Submit Proof of Delivery",
+        submit: "/admin/pod",
+        fields: [
+          { key: "orderId", label: "Order ID" }, { key: "rideId", label: "Ride ID" },
+          { key: "photoUrl", label: "Photo URL", col: 12 }, { key: "signatureUrl", label: "Signature URL", col: 12 },
+          { key: "recipientName", label: "Recipient" }, { key: "notes", label: "Notes" },
+          { key: "otpCode", label: "OTP" }, { key: "latitude", label: "Lat", type: "number" }, { key: "longitude", label: "Lng", type: "number" }
+        ]
+      })($("#pod-submit"));
+      $("#pod-by-order").on("click", function () {
+        Api.get("/admin/pod/orders/" + $("#pod-order").val()).done(function (res) { JsonView.render("#pod-out", res.data); });
+      });
+      $("#pod-by-ride").on("click", function () {
+        Api.get("/admin/pod/rides/" + $("#pod-ride").val()).done(function (res) { JsonView.render("#pod-out", res.data); });
+      });
+    });
 
     register("events", resourcePage({
-      title: "Events", list: "/admin/events", get: "/admin/events/:id",
+      title: "Events", pagination: "none", search: false,
+      list: "/admin/events", get: "/admin/events/:id",
       create: "/admin/events", update: "/admin/events/:id", remove: "/admin/events/:id", updateMethod: "patch",
       columns: [{ key: "name", label: "Name" }, { key: "status", label: "Status" }, { key: "city", label: "City" }, { key: "startAt", label: "Starts" }],
       filters: [{ key: "status", label: "Status", type: "select", options: ["DRAFT","PUBLISHED","CANCELLED","COMPLETED"].map(function (s) { return { value: s, label: s }; }) }],
       fields: [
-        { key: "merchantId", label: "Merchant ID", required: true },
+        { key: "merchantId", label: "Merchant", type: "picker", picker: "merchants", required: true },
         { key: "name", label: "Name", required: true },
         { key: "venue", label: "Venue" }, { key: "city", label: "City", default: "Kisumu" },
         { key: "startAt", label: "Start (ISO)", required: true, default: new Date(Date.now()+86400000).toISOString() },
@@ -1957,13 +2311,43 @@ const CONFIG = {
         { key: "description", label: "Description", type: "textarea", col: 12 }
       ],
       rowActions: [
-        { id: "publish", label: "Publish", run: function (row, reload) { Api.post("/admin/events/" + row.id + "/publish", {}).done(reload); } }
+        { id: "publish", label: "Publish", run: function (row, reload) { Api.post("/admin/events/" + row.id + "/publish", {}).done(reload); } },
+        { id: "tickets", label: "Ticket types", run: function (row) {
+          Tabs.openTab("event-tickets", "Event Ticket Types");
+          setTimeout(function () { $("#et-event").val(row.id); $("#et-load").trigger("click"); }, 200);
+        }}
       ]
     }));
 
+    register("event-tickets", function ($host) {
+      $host.html('<div class="panel"><div class="panel-b"><div class="row g-2 mb-3"><div class="col-md-8"><select id="et-event" class="form-select"><option value="">Select event…</option></select></div><div class="col-md-4"><button class="btn btn-dark w-100" id="et-load">Load ticket types</button></div></div><div id="et-inner"></div></div></div>');
+      Picker.fill($("#et-event"), "events");
+      $("#et-load").on("click", function () {
+        const eid = $("#et-event").val();
+        if (!eid) return Notify.warn("Select an event");
+        resourcePage({
+          title: "Ticket types", pagination: "none", search: false,
+          list: "/admin/events/" + eid + "/ticket-types",
+          create: "/admin/events/" + eid + "/ticket-types",
+          update: "/admin/events/" + eid + "/ticket-types/:id",
+          remove: "/admin/events/" + eid + "/ticket-types/:id",
+          updateMethod: "patch",
+          columns: [{ key: "name", label: "Name" }, { key: "priceAmount", label: "Price" }, { key: "totalQty", label: "Qty" }, { key: "soldQty", label: "Sold" }, { key: "isActive", label: "Active" }],
+          fields: [
+            { key: "name", label: "Name", required: true },
+            { key: "priceAmount", label: "Price", type: "number", required: true },
+            { key: "totalQty", label: "Total qty", type: "number", required: true, default: 100 },
+            { key: "isActive", label: "Active", type: "checkbox", default: true }
+          ]
+        })($("#et-inner").empty());
+      });
+    });
+
     register("event-categories", resourcePage({
-      title: "Event categories", list: "/admin/event-categories",
+      title: "Event categories", pagination: "none", search: false,
+      list: "/admin/event-categories",
       create: "/admin/event-categories", update: "/admin/event-categories/:id", remove: "/admin/event-categories/:id",
+      updateMethod: "patch",
       columns: [{ key: "name", label: "Name" }, { key: "slug", label: "Slug" }, { key: "isActive", label: "Active" }],
       fields: [
         { key: "name", label: "Name", required: true }, { key: "slug", label: "Slug" },
@@ -1973,7 +2357,8 @@ const CONFIG = {
     }));
 
     register("feature-flags", resourcePage({
-      title: "Feature flags", list: "/admin/feature-flags", get: "/admin/feature-flags/:id",
+      title: "Feature flags", pagination: "none", search: false,
+      list: "/admin/feature-flags", get: "/admin/feature-flags/:id",
       remove: "/admin/feature-flags/:id",
       columns: [{ key: "key", label: "Key" }, { key: "status", label: "Status" }, { key: "percentage", label: "%" }],
       mapRows: function (data) {
@@ -1994,7 +2379,8 @@ const CONFIG = {
     }));
 
     register("announcements", resourcePage({
-      title: "Announcements", list: "/admin/announcements",
+      title: "Announcements", pagination: "none", search: false,
+      list: "/admin/announcements",
       create: "/admin/announcements", update: "/admin/announcements/:id", remove: "/admin/announcements/:id", updateMethod: "patch",
       columns: [{ key: "title", label: "Title" }, { key: "startsAt", label: "Starts" }, { key: "endsAt", label: "Ends" }, { key: "isActive", label: "Active" }],
       fields: [
@@ -2007,16 +2393,55 @@ const CONFIG = {
     }));
 
     register("support", resourcePage({
-      title: "Support tickets", list: "/admin/support/tickets", get: "/admin/support/tickets/:id",
+      title: "Support tickets", pagination: "pageLimit", search: false,
+      list: "/admin/support/tickets", get: "/admin/support/tickets/:id",
       columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "priority", label: "Priority" }, { key: "subject", label: "Subject" }],
       filters: [{ key: "status", label: "Status" }],
       rowActions: [
         { id: "resolve", label: "Resolve", run: function (row, reload) { Api.post("/admin/support/tickets/" + row.id + "/resolve", {}).done(reload); } },
         { id: "escalate", label: "Escalate", run: function (row, reload) { Api.post("/admin/support/tickets/" + row.id + "/escalate", {}).done(reload); } },
+        { id: "assign", label: "Assign", run: function (row, reload) {
+          Modal.open({ title: "Assign", body: '<input class="form-control" id="sup-to" placeholder="User ID" />', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/assign", { assignedTo: $("#sup-to").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
+        { id: "reassign", label: "Reassign", run: function (row, reload) {
+          Modal.open({ title: "Reassign", body: '<input class="form-control" id="sup-to" placeholder="User ID" />', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/reassign", { assignedTo: $("#sup-to").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
+        { id: "priority", label: "Priority", run: function (row, reload) {
+          Modal.open({ title: "Set priority", body: '<select id="sup-pri" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>URGENT</option></select>', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/priority", { priority: $("#sup-pri").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
+        { id: "merge", label: "Merge", run: function (row, reload) {
+          Modal.open({ title: "Merge into ticket", body: '<input class="form-control" id="sup-target" placeholder="Target ticket ID" />', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/merge", { targetTicketId: $("#sup-target").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
+        { id: "note", label: "Internal note", run: function (row, reload) {
+          Modal.open({ title: "Internal note", body: '<textarea id="sup-body" class="form-control" rows="4"></textarea>', onConfirm: function () {
+            Api.post("/admin/support/tickets/" + row.id + "/internal-notes", { body: $("#sup-body").val() }).done(function () { Modal.close(); reload(); });
+          }});
+        }},
         { id: "reply", label: "Reply", run: function (row, reload) {
           Modal.open({ title: "Reply", body: '<textarea id="sup-body" class="form-control" rows="4"></textarea>', onConfirm: function () {
             Api.post("/admin/support/tickets/" + row.id + "/replies", { body: $("#sup-body").val() }).done(function () { Modal.close(); reload(); });
           }});
+        }},
+        { id: "attach", label: "Attachment", run: function (row, reload) {
+          Modal.open({
+            title: "Add attachment",
+            body: '<input class="form-control mb-2" id="att-url" placeholder="File URL" /><input class="form-control mb-2" id="att-name" placeholder="File name" /><input class="form-control" id="att-mime" placeholder="mimeType (optional)" />',
+            onConfirm: function () {
+              Api.post("/admin/support/tickets/" + row.id + "/attachments", {
+                fileUrl: $("#att-url").val(),
+                fileName: $("#att-name").val(),
+                mimeType: $("#att-mime").val() || undefined
+              }).done(function () { Modal.close(); reload(); });
+            }
+          });
         }}
       ]
     }));
@@ -2033,7 +2458,8 @@ const CONFIG = {
     }));
 
     register("age-verification", resourcePage({
-      title: "Age verifications", list: "/admin/age-verifications",
+      title: "Age verifications", pagination: "none", search: false,
+      list: "/admin/age-verifications",
       columns: [{ key: "id", label: "ID" }, { key: "status", label: "Status" }, { key: "userId", label: "User" }],
       filters: [{ key: "status", label: "Status" }],
       rowActions: [
@@ -2103,7 +2529,10 @@ const CONFIG = {
       }
       $("#login-form").on("submit", function (e) {
         e.preventDefault();
-        Storage.set("apiBaseUrl", Util.normalizeApiBase($("#login-api-url").val()));
+        const next = Util.normalizeApiBase($("#login-api-url").val());
+        Storage.set("apiBaseUrl", next);
+        CONFIG.API_BASE_URL = next;
+        CONFIG.API_ORIGIN = Util.apiOriginFromBase(next);
         $("#login-api-url").val(Api.base());
         $("#login-error").addClass("d-none");
         $("#login-btn").prop("disabled", true);
@@ -2201,6 +2630,11 @@ const CONFIG = {
     }
 
     function boot() {
+      // Migrate any stale base URL that dropped /v1 (caused /admin/* 404s).
+      const migrated = Util.normalizeApiBase(Storage.get("apiBaseUrl") || CONFIG.API_BASE_URL);
+      Storage.set("apiBaseUrl", migrated);
+      CONFIG.API_BASE_URL = migrated;
+      CONFIG.API_ORIGIN = Util.apiOriginFromBase(migrated);
       bind();
       Auth.ensureSession().done(function (ok) {
         if (ok) enterApp();

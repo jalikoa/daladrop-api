@@ -131,6 +131,20 @@ export class HttpExceptionFilter
         message,
         error: errorCode ?? (typeof message === 'string' ? message : messageText),
         ...(domainCode ? { code: domainCode } : {}),
+        // Forward domain extras (e.g. OVER_MAX_DISTANCE → distanceKm / maxDistanceKm)
+        // so clients can reuse them without scraping the message string.
+        ...(body && typeof body.distanceKm === 'number'
+          ? { distanceKm: body.distanceKm }
+          : {}),
+        ...(body && typeof body.maxDistanceKm === 'number'
+          ? { maxDistanceKm: body.maxDistanceKm }
+          : {}),
+        ...(body && typeof body.suggestParcel === 'boolean'
+          ? { suggestParcel: body.suggestParcel }
+          : {}),
+        ...(body && body.overflowServiceType != null
+          ? { overflowServiceType: body.overflowServiceType }
+          : {}),
         timestamp: new Date().toISOString(),
         path: request.url,
         requestId,

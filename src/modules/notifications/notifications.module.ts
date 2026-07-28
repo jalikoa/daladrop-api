@@ -6,6 +6,7 @@ import { SmsService } from '../../platform/messaging/sms/sms.service';
 import { SmtpEmailProvider } from '../../infrastructure/external-services/smtp/smtp-email.provider';
 import { createSmtpTransport } from '../../infrastructure/external-services/smtp/smtp-transport.factory';
 import { HttpSmsProvider } from '../../infrastructure/external-services/sms/http-sms.provider';
+import { AfricasTalkingSmsProvider } from '../../infrastructure/external-services/sms/africastalking-sms.provider';
 import { HttpClientService } from '../../infrastructure/external-services/http/http-client.service';
 import { AUTH_NOTIFICATION_QUEUE } from '../identity/constants/auth.constants';
 import { AuthConfig } from '../identity/domain/auth.config';
@@ -78,6 +79,31 @@ import { EventBookingNotificationsListener } from './listeners/event-booking-not
     {
       provide: SmsService,
       useFactory: (): SmsService => {
+        const atKey = process.env.AT_API_KEY?.trim();
+        const atUser = process.env.AT_USERNAME?.trim();
+        if (atKey && atUser) {
+          const env = (process.env.AT_ENVIRONMENT ?? '').toLowerCase();
+          const baseUrl =
+            process.env.AT_BASE_URL?.trim() ||
+            (env === 'sandbox' || atUser === 'sandbox'
+              ? 'https://api.sandbox.africastalking.com'
+              : 'https://api.africastalking.com');
+          const senderId = process.env.AT_SENDER_ID?.trim();
+          return new SmsService([
+            new AfricasTalkingSmsProvider({
+              username: atUser,
+              apiKey: atKey,
+              baseUrl,
+              senderId:
+                senderId && senderId.toLowerCase() !== 'sandbox'
+                  ? senderId
+                  : undefined,
+              name: process.env.AUTH_SMS_PROVIDER ?? 'africastalking',
+              client: new HttpClientService(),
+            }),
+          ]);
+        }
+
         const endpoint = process.env.SMS_PROVIDER_URL;
         if (!endpoint) return new SmsService([]);
         return new SmsService([

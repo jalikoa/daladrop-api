@@ -121,9 +121,9 @@ export class AdminEventsService {
   // Events
   // -------------------------------------------------------------------------
 
-  public listEvents(status?: string) {
+  public async listEvents(status?: string) {
     const normalized = this.parseStatus(status);
-    return this.prisma.event.findMany({
+    const rows = await this.prisma.event.findMany({
       where: {
         deletedAt: null,
         ...(normalized ? { status: normalized } : {}),
@@ -131,6 +131,7 @@ export class AdminEventsService {
       orderBy: { createdAt: 'desc' },
       include: { category: true, ticketTypes: true },
     });
+    return rows.map((row) => this.serializeEvent(row));
   }
 
   public async getEvent(id: string) {
@@ -139,7 +140,7 @@ export class AdminEventsService {
       include: { category: true, ticketTypes: true },
     });
     if (!event) throw new NotFoundException('Event not found');
-    return event;
+    return this.serializeEvent(event);
   }
 
   public async createEvent(actorId: string, input: CreateEventDto) {
@@ -178,7 +179,7 @@ export class AdminEventsService {
       AuditAction.INSERT,
       'events.event.created',
     );
-    return event;
+    return this.getEvent(event.id);
   }
 
   public async updateEvent(
@@ -238,23 +239,23 @@ export class AdminEventsService {
       AuditAction.UPDATE,
       'events.event.updated',
     );
-    return updated;
+    return this.getEvent(id);
   }
 
   public async publishEvent(actorId: string, id: string) {
     await this.getEvent(id);
-    const updated = await this.prisma.event.update({
+    await this.prisma.event.update({
       where: { id },
       data: { status: EventStatus.PUBLISHED },
     });
     await this.emitMutation(
       actorId,
       'events',
-      updated.id,
+      id,
       AuditAction.STATUS_CHANGE,
       'events.event.published',
     );
-    return updated;
+    return this.getEvent(id);
   }
 
   public async deleteEvent(actorId: string, id: string) {
@@ -283,10 +284,11 @@ export class AdminEventsService {
 
   public async listTicketTypes(eventId: string) {
     await this.getEvent(eventId);
-    return this.prisma.eventTicketType.findMany({
+    const rows = await this.prisma.eventTicketType.findMany({
       where: { eventId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
     });
+    return rows.map((row) => this.serializeTicketType(row));
   }
 
   public async createTicketType(
@@ -420,6 +422,47 @@ export class AdminEventsService {
     if (!status) return undefined;
     const upper = status.toUpperCase();
     return (EventStatus as Record<string, EventStatus>)[upper];
+  }
+
+  private serializeEvent<
+    T extends {
+      ticketTypes?: Array<{
+        id: string;
+        eventId: string;
+        productId: string | null;
+        name: string;
+        priceAmount: bigint;
+        currency: string;
+        totalQty: number;
+        soldQty: number;
+        isActive: boolean;
+      }>;
+      latitude?: { toNumber?: () => number } | number | null;
+      longitude?: { toNumber?: () => number } | number | null;
+      ratingAvg?: { toNumber?: () => number } | number;
+    },
+  >(event: T) {
+    const latitude =
+      event.latitude != null && typeof event.latitude === 'object'
+        ? Number(event.latitude.toNumber?.() ?? event.latitude)
+        : event.latitude ?? null;
+    const longitude =
+      event.longitude != null && typeof event.longitude === 'object'
+        ? Number(event.longitude.toNumber?.() ?? event.longitude)
+        : event.longitude ?? null;
+    const ratingAvg =
+      event.ratingAvg != null && typeof event.ratingAvg === 'object'
+        ? Number(event.ratingAvg.toNumber?.() ?? event.ratingAvg)
+        : event.ratingAvg;
+    return {
+      ...event,
+      latitude,
+      longitude,
+      ratingAvg,
+      ticketTypes: (event.ticketTypes ?? []).map((t) =>
+        this.serializeTicketType(t),
+      ),
+    };
   }
 
   private serializeTicketType(ticketType: {

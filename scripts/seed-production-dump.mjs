@@ -109,11 +109,27 @@ function slugify(s) {
     .slice(0, 100);
 }
 
-function kisumuPoint(i) {
-  // Spread around Kisumu CBD
-  const lat = -0.0917 + ((i % 17) - 8) * 0.004;
-  const lng = 34.768 + ((Math.floor(i / 17) % 17) - 8) * 0.004;
-  return { lat: Number(lat.toFixed(7)), lng: Number(lng.toFixed(7)) };
+function cityPoint(i) {
+  // Default hub: 77RV+3QR, Changach (full OLC 6GGQ77RV+3QR).
+  // Places points in a 1–15 km ring around the hub for local device GPS testing.
+  // Override with SEED_CENTER_LAT / SEED_CENTER_LNG if needed.
+  const baseLat = Number(process.env.SEED_CENTER_LAT || 0.2902375);
+  const baseLng = Number(process.env.SEED_CENTER_LNG || 35.294390625);
+  const distKm = Math.min(
+    15,
+    Math.max(1, 1 + (i % 15) + ((i * 7) % 10) / 10),
+  );
+  const bearing = (i * 137.508) % 360;
+  const br = (bearing * Math.PI) / 180;
+  const latRad = (baseLat * Math.PI) / 180;
+  const dLat = (distKm / 111.32) * Math.cos(br);
+  const dLng = (distKm / (111.32 * Math.cos(latRad))) * Math.sin(br);
+  return {
+    lat: Number((baseLat + dLat).toFixed(7)),
+    lng: Number((baseLng + dLng).toFixed(7)),
+    distKm: Number(distKm.toFixed(2)),
+    bearing: Math.round(bearing),
+  };
 }
 
 async function createMany(model, rows, label) {
@@ -479,7 +495,7 @@ async function seedFoundation(roles) {
         name: 'Normal bike delivery',
         serviceType: 'NORMAL_DELIVERY',
         vehicleType: 'BIKE',
-        maxDistanceKm: 9,
+        maxDistanceKm: 15,
         maxWeightKg: 9,
         maxLengthCm: 40,
         maxWidthCm: 40,
@@ -493,7 +509,7 @@ async function seedFoundation(roles) {
         name: 'Gas bike delivery',
         serviceType: 'GAS_DELIVERY',
         vehicleType: 'BIKE',
-        maxDistanceKm: 9,
+        maxDistanceKm: 15,
         maxWeightKg: 15,
         maxLengthCm: 40,
         maxWidthCm: 40,
@@ -691,7 +707,7 @@ async function seedVertical({
     const storeId = uid(`store:${storeType}:${i}`);
     const baseName = pick(names, i);
     const name = `${baseName} #${i}`;
-    const point = kisumuPoint(i + storeType.length * 50);
+    const point = cityPoint(i + storeType.length * 50);
     const featured = i % 5 === 0;
     const rating = Number((3.8 + (i % 12) * 0.1).toFixed(2));
 
@@ -712,9 +728,9 @@ async function seedVertical({
       storeType,
       name,
       slug: slugify(`${baseName}-${i}`),
-      description: `${name} — quality ${storeType.toLowerCase()} service in Kisumu with flexible hours and delivery.`,
-      city: 'Kisumu',
-      address: `${pick(['Oginga Odinga St', 'Ring Road', 'Kibuye', 'Milimani', 'Nyalenda'], i)} ${i}`,
+      description: `${name} — quality ${storeType.toLowerCase()} service in Changach (Elgeyo-Marakwet). Hub: 77RV+3QR.`,
+      city: 'Changach',
+      address: `77RV+3QR, Changach · ~${point.distKm}km · bearing ${point.bearing}°`,
       phone: `0712${String(100000 + i).slice(0, 6)}`,
       whatsapp: `254712${String(100000 + i).slice(0, 6)}`,
       email: `${slugify(baseName)}${i}@merchant.daladrop.test`,
@@ -818,7 +834,7 @@ async function seedVertical({
             categoryId: catId,
             cylinderTypeId: cylId,
             name: `${gp[0]} ${Math.floor(p / GAS_PRODUCTS.length) + 1}`,
-            description: `${gp[0]} — safe LPG delivery across Kisumu.`,
+            description: `${gp[0]} — safe LPG delivery across Changach.`,
             brand: pick(['K-Gas', 'Total', 'Hashi', 'ProGas'], p),
             sku: `GAS-${i}-${p}`,
             priceAmount: BigInt(
@@ -905,7 +921,7 @@ async function seedRiders(userIds) {
   const rows = [];
   for (let i = 1; i <= RIDERS; i++) {
     const userId = userIds[i - 1] || userIds[0];
-    const point = kisumuPoint(i * 3);
+    const point = cityPoint(i * 3);
     rows.push({
       id: uid(`rider:${i}`),
       userId,
@@ -951,7 +967,7 @@ async function seedEvents(userIds, roles) {
     const title = `${pick(EVENT_TITLES, i)} ${i}`;
     const start = new Date(now + i * 86400000 * 2);
     const end = new Date(start.getTime() + 4 * 3600000);
-    const point = kisumuPoint(i + 200);
+    const point = cityPoint(i + 200);
 
     organizers.push({
       id: organizerId,
@@ -978,10 +994,10 @@ async function seedEvents(userIds, roles) {
       organizerId,
       categoryId: cats[(i - 1) % cats.length].id,
       name: title,
-      description: `${title} — live experience in Kisumu with curated tickets and venue access.`,
-      venue: pick(['Kisumu Social Hall', 'Milimani Gardens', 'Jomo Kenyatta Grounds', 'Acacia Hotel'], i),
-      address: `Kisumu Venue ${i}`,
-      city: 'Kisumu',
+      description: `${title} — live experience in Changach with curated tickets and venue access.`,
+      venue: `Changach Grounds ${i}`,
+      address: `77RV+3QR, Changach · venue ~${point.distKm}km`,
+      city: 'Changach',
       bannerUrl: unsplash(pick(EVENT_PHOTOS, i), 1600),
       coverImageUrl: unsplash(pick(EVENT_PHOTOS, i + 1), 1200),
       gallery: [
@@ -1100,7 +1116,7 @@ async function seedDiscovery(storeIdsByType, eventIds) {
     {
       key: 'near_you',
       title: 'Near You',
-      subtitle: 'Open now around Kisumu',
+      subtitle: 'Open now around Changach',
       iconKey: 'navigate-outline',
       iconColor: '#E76F51',
       itemType: 'STORE',
@@ -1125,7 +1141,7 @@ async function seedDiscovery(storeIdsByType, eventIds) {
         iconKey: sec.iconKey,
         iconColor: sec.iconColor,
         carousel: true,
-        recommendationReason: 'Curated for Kisumu test dump',
+        recommendationReason: 'Curated for Changach test dump (77RV+3QR)',
         sortOrder: s + 1,
         isActive: true,
       },

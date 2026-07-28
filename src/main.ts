@@ -30,6 +30,17 @@ type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
  * `src/modules` stack — see AppModule JSDoc.
  */
 async function bootstrap(): Promise<void> {
+  // Money/catalog BigInts must be JSON-safe for admin/API responses.
+  if (!(BigInt.prototype as { toJSON?: () => string }).toJSON) {
+    Object.defineProperty(BigInt.prototype, 'toJSON', {
+      value(this: bigint): string {
+        return this.toString();
+      },
+      configurable: true,
+      writable: true,
+    });
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     // Keep Nest's default logger until AppLogger is wired so DI / env
     // validation failures are visible on stderr (logger:false hid them).
@@ -110,6 +121,27 @@ async function bootstrap(): Promise<void> {
         return;
       }
       if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      // Localhost vs 127.0.0.1 are different origins to browsers.
+      if (
+        !isProduction &&
+        allowedOrigins.some((allowed) => {
+          try {
+            const a = new URL(allowed);
+            const o = new URL(origin);
+            const localHosts = new Set(['localhost', '127.0.0.1']);
+            return (
+              localHosts.has(a.hostname) &&
+              localHosts.has(o.hostname) &&
+              a.port === o.port
+            );
+          } catch {
+            return false;
+          }
+        })
+      ) {
         callback(null, true);
         return;
       }
