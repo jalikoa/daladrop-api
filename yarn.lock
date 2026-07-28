@@ -1817,9 +1817,18 @@
     "@types/range-parser" "*"
     "@types/send" "*"
 
-"@types/express@*", "@types/express@^5.0.0":
+"@types/express@*":
   version "5.0.6"
   resolved "https://registry.npmmirror.com/@types/express/-/express-5.0.6.tgz"
+  integrity sha512-sKYVuV7Sv9fbPIt/442koC7+IIwK5olP1KWeD88e/idgoJqDm3JV/YUiPwkoKK92ylff2MGxSz1CSjsXelx0YA==
+  dependencies:
+    "@types/body-parser" "*"
+    "@types/express-serve-static-core" "^5.0.0"
+    "@types/serve-static" "^2"
+
+"@types/express@^5.0.6":
+  version "5.0.6"
+  resolved "https://registry.npmmirror.com/@types/express/-/express-5.0.6.tgz#2d724b2c990dcb8c8444063f3580a903f6d500cc"
   integrity sha512-sKYVuV7Sv9fbPIt/442koC7+IIwK5olP1KWeD88e/idgoJqDm3JV/YUiPwkoKK92ylff2MGxSz1CSjsXelx0YA==
   dependencies:
     "@types/body-parser" "*"
@@ -1949,9 +1958,9 @@
   dependencies:
     "@types/express" "*"
 
-"@types/pdfkit@^0.17.5":
+"@types/pdfkit@^0.17.6":
   version "0.17.6"
-  resolved "https://registry.npmmirror.com/@types/pdfkit/-/pdfkit-0.17.6.tgz"
+  resolved "https://registry.npmmirror.com/@types/pdfkit/-/pdfkit-0.17.6.tgz#b0a4b728b1d0bfb7ec6e574efebba7dc6bf4cca1"
   integrity sha512-tIwzxk2uWKp0Cq9JIluQXJid77lYhF52EsIOwhsMF4iWLA6YneoBR1xVKYYdAysHuepUB0OX4tdwMiUDdGKmig==
   dependencies:
     "@types/node" "*"
