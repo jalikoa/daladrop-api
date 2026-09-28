@@ -102,7 +102,7 @@ jobs:
           JEST_JUNIT_OUTPUT_DIR: ./reports/junit
           JEST_JUNIT_OUTPUT_NAME: unit-results.xml
       - name: "Upload JUnit results"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: junit-unit-results
@@ -177,7 +177,7 @@ jobs:
           JEST_JUNIT_OUTPUT_DIR: ./reports/junit
           JEST_JUNIT_OUTPUT_NAME: e2e-results.xml
       - name: "Upload JUnit results"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: junit-e2e-results
