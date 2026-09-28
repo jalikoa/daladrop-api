@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -92,7 +92,7 @@ jobs:
             echo "enabled=false" >> "$GITHUB_OUTPUT"
             echo "SNYK_TOKEN not configured; skipping deep scan."
           fi
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: steps.snyk-check.outputs.enabled == 'true'
       - name: "Run Snyk to check for vulnerabilities"
         if: steps.snyk-check.outputs.enabled == 'true'
